@@ -1,6 +1,6 @@
 {
   "name": "luma-music-player",
-  "main": "node_modules/expo/AppEntry.js",
+  "main": "expo-router/entry",
   "version": "4.0.0",
   "scripts": {
     "start": "expo start",
