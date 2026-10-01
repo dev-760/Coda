@@ -1,10 +1,38 @@
-import { MusicProvider, Track, StreamInfo, ProviderHealth } from './types';
-import { hifiApiClient } from '../services/hifiApiClient';
-import { AudioQuality } from '../config/hifiApi';
-import { useSettingsStore } from '../store/settingsStore';
-import { mapHifiApiTracks } from './mappers';
 import { Buffer } from 'buffer';
 import * as FileSystem from 'expo-file-system/legacy';
+import { AudioQuality } from '../config/hifiApi';
+import { logger } from '../logging/Logger';
+import { hifiApiClient } from '../services/hifiApiClient';
+import { useSettingsStore } from '../store/settingsStore';
+import { mapHifiApiTracks } from './mappers';
+import { MusicProvider, ProviderHealth, StreamInfo, Track } from './types';
+
+/**
+ * The `data` payload of a `/track/` response. Declared here so the envelope
+ * unwrap above is typed rather than an unchecked cast to `any`.
+ */
+interface HifiTrackPayload {
+  trackId?: number;
+  manifest?: string;
+  manifestHash?: string;
+  manifestMimeType?: string;
+  audioQuality?: string;
+  bitDepth?: number;
+  sampleRate?: number;
+}
+
+/**
+ * A failure whose message is already safe and specific enough to show the
+ * user. Anything else is replaced with a generic message, so the catch in
+ * `getStreamInfo` can tell "already explained" from "unexpected" by type
+ * rather than by guessing at message text.
+ */
+class StreamResolutionError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'StreamResolutionError';
+  }
+}
 
 class HifiApiProvider implements MusicProvider {
   id = 'hifi-api';
@@ -24,10 +52,15 @@ class HifiApiProvider implements MusicProvider {
 
     try {
       const response = await hifiApiClient.searchTracks(sanitizedQuery, 25, 0, abortSignal);
-      const items = (response?.items ?? []).map((i: any) => i.item ?? i);
+
+      // `/search/?s=` returns `{ version, data: { items } }`. Reading `items`
+      // off the envelope yields undefined and search silently returns nothing.
+      const data = (response?.data ?? response) as { items?: unknown };
+      const rawItems = Array.isArray(data.items) ? data.items : [];
+      const items = rawItems.map((i: any) => i.item ?? i);
       return mapHifiApiTracks(items);
     } catch (error) {
-      console.error('Hifi API search error:', error);
+      logger.error('HifiApiProvider', 'Search failed', error);
       throw new Error('Search failed. Check your connection and try again.');
     }
   }
@@ -41,18 +74,36 @@ class HifiApiProvider implements MusicProvider {
     try {
       const response = await hifiApiClient.getTrack(numericId, this.getPreferredQuality(), false);
 
-      const audioUrl = await this.extractAudioUrl(response.manifest, response.manifestMimeType);
+      // Every Hifi-API payload is wrapped in `{ version, data }`. Reading the
+      // stream fields off the envelope yields undefined, which is why the
+      // manifest parser used to be handed nothing at all.
+      const payload = (response?.data ?? response) as HifiTrackPayload;
+      const { manifest, manifestMimeType, audioQuality } = payload;
 
-      let format: any = this.getFormatFromQuality(response.audioQuality);
-      if (response.manifestMimeType === 'application/dash+xml') format = 'dash';
-      if (response.manifestMimeType === 'application/vnd.apple.mpegurl') format = 'hls';
+      if (!manifest) {
+        throw new StreamResolutionError(
+          `This track is not available in the selected quality (${audioQuality ?? 'unknown'}). Try a lower quality in Settings.`,
+        );
+      }
+
+      const audioUrl = await this.extractAudioUrl(manifest, manifestMimeType);
+
+      let format: StreamInfo['format'] = this.getFormatFromQuality(audioQuality);
+      if (manifestMimeType === 'application/dash+xml') format = 'dash';
+      if (manifestMimeType === 'application/vnd.apple.mpegurl') format = 'hls';
 
       return {
         url: audioUrl,
-        format: format,
+        format,
       };
     } catch (error) {
-      console.error('Luma Core stream error:', error);
+      // A StreamResolutionError already carries a message worth showing;
+      // anything else (network, timeout, unknown shape) stays generic.
+      if (error instanceof StreamResolutionError) {
+        logger.warn('HifiApiProvider', error.message);
+        throw error;
+      }
+      logger.error('HifiApiProvider', 'Could not resolve stream', error);
       throw new Error('Failed to get stream info. Please try again later.');
     }
   }
@@ -62,7 +113,7 @@ class HifiApiProvider implements MusicProvider {
       await hifiApiClient.getRoot();
       return { status: 'healthy' };
     } catch (error) {
-      return { 
+      return {
         status: 'offline',
         message: error instanceof Error ? error.message : 'Unknown error'
       };
@@ -133,10 +184,16 @@ class HifiApiProvider implements MusicProvider {
     return hifiApiClient.getVideo(videoId, quality, mode, presentation);
   }
 
-  private async extractAudioUrl(manifest: string, mimeType: string): Promise<string> {
+  private async extractAudioUrl(manifest: string, mimeType?: string): Promise<string> {
+    // Buffer.from rejects undefined with a TypeError that buries the real
+    // problem, so guard the input before decoding anything.
+    if (typeof manifest !== 'string' || manifest.length === 0) {
+      throw new StreamResolutionError('The audio manifest was empty.');
+    }
+
     try {
       const decodedManifest = Buffer.from(manifest, 'base64').toString('utf-8');
-      
+
       // If the manifest is DASH or HLS, write it to a temp file and return the file:// URI
       // This prevents ExoPlayer's UnsupportedOperationException when parsing opaque data URIs
       if (mimeType === 'application/dash+xml' || mimeType === 'application/vnd.apple.mpegurl') {
@@ -148,19 +205,20 @@ class HifiApiProvider implements MusicProvider {
 
       // Fallback: try to decode and find a direct URL
       const urlMatch = decodedManifest.match(/https?:\/\/[^\s"']+/);
-      
+
       if (!urlMatch) {
-        throw new Error('Could not extract audio URL from manifest');
+        throw new StreamResolutionError('Could not find a playable audio stream for this track.');
       }
 
       return urlMatch[0];
     } catch (error) {
-      console.error('Error extracting audio URL:', error);
-      throw new Error('Failed to parse audio manifest');
+      if (error instanceof StreamResolutionError) throw error;
+      throw new StreamResolutionError('Failed to parse audio manifest');
     }
   }
 
-  private getFormatFromQuality(quality: string): 'flac' | 'mp3' | 'aac' | 'unknown' {
+  private getFormatFromQuality(quality?: string): StreamInfo['format'] {
+    if (!quality) return 'unknown';
     if (quality.includes('HI_RES') || quality.includes('LOSSLESS')) {
       return 'flac';
     }

@@ -1,9 +1,26 @@
 import { HIFI_API_CONFIG, AudioQuality, VideoQuality } from '../config/hifiApi';
 
-const PLAYBACK_POLL_INTERVAL_MS = 2000;
-const PLAYBACK_POLL_MAX_INTERVAL_MS = 10_000;
-const PLAYBACK_POLL_MAX_ATTEMPTS = 15;
+/**
+ * Carries the API's FastAPI `detail` text through to the UI, so a failure says
+ * why (unknown track, unsupported quality, downloads disabled) instead of just
+ * a status number.
+ */
+export class ApiError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status = 0) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
+const PLAYBACK_POLL_INITIAL_DELAY_MS = 1000;
+const PLAYBACK_POLL_MAX_DELAY_MS = 10_000;
 const PLAYBACK_POLL_TIMEOUT_MS = 90_000;
+
+/** How long the queue may hold a request before the caller gives up. */
+const QUEUED_PLAYBACK_BUDGET_MS = 110_000;
 
 class HifiApiClient {
   private baseURL: string;
@@ -22,13 +39,24 @@ class HifiApiClient {
     const url = `${this.baseURL}${endpoint}`;
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+    let deadline = Date.now() + this.timeout;
+
+    const abortAtDeadline = () => controller.abort();
+    const timeoutId = setTimeout(abortAtDeadline, this.timeout);
 
     // An external signal must cancel the request too, otherwise a caller that
     // unmounts mid-request leaves it running to the timeout.
     const externalAbort = () => controller.abort();
     abortSignal?.addEventListener('abort', externalAbort);
     const signal = controller.signal;
+
+    const armDeadline = () => {
+      clearTimeout(timeoutId);
+      const remaining = deadline - Date.now();
+      // A non-positive remaining time aborts immediately, which is the correct
+      // outcome once the queue budget is spent.
+      setTimeout(abortAtDeadline, Math.max(0, remaining));
+    };
 
     try {
       let response = await fetch(url, {
@@ -41,11 +69,17 @@ class HifiApiClient {
         },
       });
 
-      // The API queues playback requests and answers 202 until ready.
+      // The API queues playback requests and answers 202 until ready. Waiting
+      // for a queue slot can outlast the normal request timeout, so the
+      // deadline is pushed out for the duration of the polling.
       if (response.status === 202) {
-        const queuedData = await response.json();
-        const requestId = queuedData.request_id;
-        if (!requestId) throw new Error('Received 202 but no request_id found.');
+        const requestId = await this.readRequestIdWithBody(response);
+        if (!requestId) {
+          throw new ApiError('The API queued this request but did not say how to track it.');
+        }
+
+        deadline = Date.now() + QUEUED_PLAYBACK_BUDGET_MS;
+        armDeadline();
 
         response = await this.pollPlaybackRequest(requestId, signal);
       }
@@ -53,7 +87,7 @@ class HifiApiClient {
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw await this.toApiError(response);
       }
 
       const data = await response.json();
@@ -66,6 +100,42 @@ class HifiApiClient {
   }
 
   /**
+   * Reads the job id off a 202. The API documents `requestId` in the body and
+   * `X-Playback-Request-Id` in the headers, with a `request_id` body field on
+   * older builds, so all three are accepted.
+   */
+  private readRequestId(response: Response): string | undefined {
+    const header = response.headers.get('X-Playback-Request-Id');
+    if (header) return header;
+    return undefined;
+  }
+
+  private async readRequestIdWithBody(response: Response): Promise<string | undefined> {
+    const fromHeader = this.readRequestId(response);
+    if (fromHeader) return fromHeader;
+
+    const location = response.headers.get('Location');
+    if (location) {
+      const match = location.match(/requests\/([^/?#]+)/);
+      if (match) return match[1];
+    }
+
+    // The body is single-use, so it is cloned before being peeked at.
+    try {
+      const body = (await response.clone().json()) as Record<string, unknown> | null;
+      const id = body?.requestId ?? body?.request_id;
+      if (typeof id === 'string' && id) return id;
+      if (typeof body?.statusUrl === 'string') {
+        const match = body.statusUrl.match(/requests\/([^/?#]+)/);
+        if (match) return match[1];
+      }
+    } catch {
+      // A 202 with an unparseable body is reported by the caller.
+    }
+    return undefined;
+  }
+
+  /**
    * Polls a queued playback request. Bounded on both attempt count and total
    * time, with a growing delay, so a request the API never finishes cannot
    * hang the caller forever.
@@ -75,12 +145,13 @@ class HifiApiClient {
     signal: AbortSignal,
   ): Promise<Response> {
     const deadline = Date.now() + PLAYBACK_POLL_TIMEOUT_MS;
-    let attempt = 0;
-    let delay = PLAYBACK_POLL_INTERVAL_MS;
+    let delay = PLAYBACK_POLL_INITIAL_DELAY_MS;
 
-    while (Date.now() < deadline && attempt < PLAYBACK_POLL_MAX_ATTEMPTS) {
-      attempt += 1;
-      await new Promise((resolve) => setTimeout(resolve, delay));
+    while (Date.now() < deadline) {
+      const wait = Math.min(delay, Math.max(0, deadline - Date.now()));
+      if (wait > 0) {
+        await new Promise((resolve) => setTimeout(resolve, wait));
+      }
 
       const pollRes = await fetch(`${this.baseURL}/playback/requests/${requestId}`, {
         signal,
@@ -88,14 +159,35 @@ class HifiApiClient {
       });
 
       if (pollRes.status === 200) return pollRes;
-      if (pollRes.status !== 202) {
-        throw new Error(`Playback request failed with status: ${pollRes.status}`);
+      if (pollRes.status === 202) {
+        const retryAfter = Number(pollRes.headers.get('Retry-After'));
+        delay = Number.isFinite(retryAfter) && retryAfter > 0
+          ? Math.min(retryAfter * 1000, PLAYBACK_POLL_MAX_DELAY_MS)
+          : Math.min(delay * 2, PLAYBACK_POLL_MAX_DELAY_MS);
+        continue;
       }
 
-      delay = Math.min(delay * 2, PLAYBACK_POLL_MAX_INTERVAL_MS);
+      throw await this.toApiError(pollRes);
     }
 
-    throw new Error('Playback request timed out. Try again in a moment.');
+    throw new ApiError('Playback request timed out. Try again in a moment.');
+  }
+
+  /**
+   * Builds an error carrying the API's FastAPI `detail` message, which is the
+   * only place the real cause (bad quality, unknown track, disabled downloads)
+   * is stated.
+   */
+  private async toApiError(response: Response): Promise<ApiError> {
+    let detail = '';
+    try {
+      const body = (await response.json()) as { detail?: unknown } | null;
+      if (typeof body?.detail === 'string') detail = body.detail;
+    } catch {
+      // Non-JSON error bodies fall back to the status line.
+    }
+    const suffix = detail ? `: ${detail}` : '';
+    return new ApiError(`Request failed (${response.status})${suffix}`, response.status);
   }
 
   private handleError(error: unknown): Error {
