@@ -4,8 +4,8 @@ import packageJson from './package.json';
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: 'Luma',
-  slug: 'luma-music-player',
-  owner: 'windsurf29',
+  slug: 'luma',
+  owner: 'wasler4j',
   version: packageJson.version,
   orientation: 'portrait',
   icon: './icon.png',
