@@ -1,0 +1,7 @@
+name: Create Preview Build (APK)
+jobs:
+  build_android:
+    type: build # This job type creates a build for Android
+    params:
+      platform: android
+      profile: preview
