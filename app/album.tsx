@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Image,
   Pressable,
   ScrollView,
@@ -7,7 +8,6 @@ import {
   Text,
   View,
   Share,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -16,159 +16,248 @@ import Icon from '../src/components/ui/Icon';
 import MiniPlayer from '../src/components/ui/MiniPlayer';
 import TrackOptionsMenu from '../src/components/ui/TrackOptionsMenu';
 import { audioService } from '../src/audio/AudioService';
-import { useQueueStore } from '../src/store/queueStore';
-import { useLibraryStore } from '../src/store/libraryStore';
+import { useQueueStore, cacheTracks } from '../src/store/queueStore';
 import { Track } from '../src/providers/types';
+import { getAlbum } from '../src/services/catalogService';
+import { useResponsive } from '../src/hooks/useResponsive';
 
-const SAMPLE_TRACKS = [
-  { id: 't1', num: 1, title: 'Beautiful Tango (Remastered Version)', artist: 'Hindi Zahra', durationMs: 236000 },
-  { id: 't2', num: 2, title: 'Oursoul (Remastered Version)', artist: 'Hindi Zahra', durationMs: 202000 },
-  { id: 't3', num: 3, title: 'Fascination (Remastered Version)', artist: 'Hindi Zahra', durationMs: 218000 },
-  { id: 't4', num: 4, title: 'Set Me Free (Remastered Version)', artist: 'Hindi Zahra', durationMs: 245000 },
-  { id: 't5', num: 5, title: 'Kiss & Thrills (Remastered Version)', artist: 'Hindi Zahra', durationMs: 210000 },
-  { id: 't6', num: 6, title: 'At The Same Time (Remastered Version)', artist: 'Hindi Zahra', durationMs: 198000 },
-];
+type LoadState = 'loading' | 'ready' | 'notFound' | 'error';
+
+function formatDuration(durationMs?: number): string {
+  if (!durationMs) return '--:--';
+  const totalSeconds = Math.round(durationMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = String(totalSeconds % 60).padStart(2, '0');
+  return `${minutes}:${seconds}`;
+}
 
 export default function AlbumScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const title = (params.title as string) || 'Handmade';
-  const artist = (params.artist as string) || 'Hindi Zahra';
-  const coverUrl = (params.coverUrl as string) || 'https://resources.tidal.com/images/13c6aa66/410e/433f/a8d8/a4b13cefe446/320x320.jpg';
+  const { bottomBarClearance } = useResponsive();
 
+  // albumId is the only field that lets the track list be fetched. The rest are
+  // passed alongside it for an instant first paint, then replaced by real data.
+  const albumId = typeof params.albumId === 'string' ? params.albumId : '';
+  const title = (params.title as string) || 'Album';
+  const artist = (params.artist as string) || 'Unknown Artist';
+  const artistId = (params.artistId as string) || '';
+  const fallbackCover = (params.coverUrl as string) || '';
+
+  const [albumTitle, setAlbumTitle] = useState(title);
+  const [albumArtist, setAlbumArtist] = useState(artist);
+  const [cover, setCover] = useState(fallbackCover);
+  const [releaseDate, setReleaseDate] = useState<string | null>(null);
+  const [explicit, setExplicit] = useState(false);
+  const [tracks, setTracks] = useState<Track[]>([]);
+  const [state, setState] = useState<LoadState>(albumId ? 'loading' : 'notFound');
   const [optionsTrack, setOptionsTrack] = useState<Track | null>(null);
-  const [isSaved, setIsSaved] = useState(false);
-  const { playContext } = useQueueStore();
+  const [saved, setSaved] = useState(false);
 
-  const handlePlayAlbum = () => {
-    const tracks: Track[] = SAMPLE_TRACKS.map(t => ({
-      id: t.id,
-      title: t.title,
-      artist: t.artist,
-      album: title,
-      durationMs: t.durationMs,
-      coverUrl,
-    }));
-    playContext(tracks, 0, { type: 'album', name: title });
-    void audioService.playTrack(tracks[0]);
+  const load = useCallback(async () => {
+    if (!albumId) {
+      setState('notFound');
+      return;
+    }
+    setState('loading');
+    try {
+      const result = await getAlbum(albumId);
+      if (!result) {
+        setState('notFound');
+        return;
+      }
+      setAlbumTitle(result.album.title);
+      setAlbumArtist(result.album.artist);
+      setCover(result.album.cover ?? fallbackCover);
+      setReleaseDate(result.album.releaseDate);
+      setExplicit(result.album.explicit);
+      setTracks(result.tracks);
+      setState('ready');
+    } catch {
+      setState('error');
+    }
+  }, [albumId, fallbackCover]);
+
+  useEffect(() => {
+    // Deferred a tick so the initial state comes from the route params and the
+    // fetch does not run synchronously inside the effect body.
+    const timer = setTimeout(() => void load(), 0);
+    return () => clearTimeout(timer);
+  }, [load]);
+
+  const playAlbum = (fromIndex = 0) => {
+    if (tracks.length === 0) return;
+    cacheTracks(tracks);
+    useQueueStore
+      .getState()
+      .playContext(tracks, fromIndex, { type: 'album', name: albumTitle });
+    void audioService.playTrack(tracks[fromIndex]);
   };
 
-  const handleShuffleAlbum = () => {
-    handlePlayAlbum();
+  const handleShuffle = () => {
+    playAlbum();
     useQueueStore.getState().toggleShuffle();
   };
 
   const handleShare = async () => {
     try {
-      await Share.share({
-        message: `Listen to "${title}" by ${artist} on Luma`,
-      });
-    } catch (e) {}
+      await Share.share({ message: `Listen to "${albumTitle}" by ${albumArtist} on Luma` });
+    } catch {}
   };
+
+  const openArtist = () => {
+    if (!artistId) return;
+    router.push({
+      pathname: '/artist' as any,
+      params: { artistId, name: albumArtist, coverUrl: cover },
+    });
+  };
+
+  const year = releaseDate ? releaseDate.slice(0, 4) : null;
 
   return (
     <SafeAreaView style={s.container} edges={['top']}>
-      {/* Ambient Backdrop */}
-      <View style={s.backdrop}>
-        <Image source={{ uri: coverUrl }} style={s.backdropImage} blurRadius={40} />
-        <View style={s.backdropGradient} />
-      </View>
+      {cover ? (
+        <View style={s.backdrop} pointerEvents="none">
+          <Image source={{ uri: cover }} style={s.backdropImage} blurRadius={40} />
+          <View style={s.backdropGradient} />
+        </View>
+      ) : null}
 
       <HeaderBar showBack />
 
-      <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
-        {/* Album Cover */}
+      <ScrollView
+        contentContainerStyle={[{ paddingBottom: bottomBarClearance + 80 }]}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={s.coverContainer}>
-          <Image source={{ uri: coverUrl }} style={s.coverArt} />
-        </View>
-
-        {/* Album Meta */}
-        <View style={s.metaCenter}>
-          <Text style={s.albumTitle}>{title}</Text>
-          <Pressable
-            style={s.artistRow}
-            onPress={() => router.push({ pathname: '/artist' as any, params: { name: artist } })}
-          >
-            <Image source={{ uri: coverUrl }} style={s.artistAvatar} />
-            <Text style={s.artistName}>{artist}</Text>
-          </Pressable>
-          <View style={s.badgesRow}>
-            <Text style={s.yearText}>2010</Text>
-            <View style={s.qualityBadge}>
-              <Text style={s.qualityText}>HIGH</Text>
+          {cover ? (
+            <Image source={{ uri: cover }} style={s.coverArt} />
+          ) : (
+            <View style={[s.coverArt, s.coverPlaceholder]}>
+              <Icon name="albums-outline" size={44} color="#8e8e93" />
             </View>
-          </View>
+          )}
         </View>
 
-        {/* Big Action Buttons (Play / Shuffle) */}
+        <View style={s.metaCenter}>
+          <Text style={s.albumTitle}>{albumTitle}</Text>
+          {artistId ? (
+            <Pressable style={s.artistRow} onPress={openArtist} accessibilityRole="button">
+              {cover ? <Image source={{ uri: cover }} style={s.artistAvatar} /> : null}
+              <Text style={s.artistName}>{albumArtist}</Text>
+            </Pressable>
+          ) : (
+            <View style={s.artistRow}>
+              <Text style={s.artistName}>{albumArtist}</Text>
+            </View>
+          )}
+          {(year || explicit) && (
+            <View style={s.badgesRow}>
+              {year ? <Text style={s.yearText}>{year}</Text> : null}
+              {explicit ? (
+                <View style={s.qualityBadge}>
+                  <Text style={s.qualityText}>E</Text>
+                </View>
+              ) : null}
+            </View>
+          )}
+        </View>
+
         <View style={s.bigButtonsRow}>
-          <Pressable style={s.playBtn} onPress={handlePlayAlbum}>
+          <Pressable
+            style={[s.playBtn, tracks.length === 0 && s.playBtnDisabled]}
+            onPress={() => playAlbum()}
+            disabled={tracks.length === 0}
+            accessibilityRole="button"
+            accessibilityLabel={`Play ${albumTitle}`}
+          >
             <Icon name="play" size={20} color="#000000" />
             <Text style={s.playBtnText}>Play</Text>
           </Pressable>
-          <Pressable style={s.shuffleBtn} onPress={handleShuffleAlbum}>
+          <Pressable
+            style={[s.shuffleBtn, tracks.length === 0 && s.shuffleBtnDisabled]}
+            onPress={handleShuffle}
+            disabled={tracks.length === 0}
+            accessibilityRole="button"
+            accessibilityLabel={`Shuffle ${albumTitle}`}
+          >
             <Icon name="shuffle" size={20} color="#ffffff" />
             <Text style={s.shuffleBtnText}>Shuffle</Text>
           </Pressable>
         </View>
 
-        {/* Secondary Actions (Add, Share, More) */}
         <View style={s.actionsRow}>
-          <Pressable style={s.actionItem} onPress={() => setIsSaved(!isSaved)}>
-            <Icon name={isSaved ? 'heart' : 'heart-outline'} size={24} color="#ffffff" />
-            <Text style={s.actionLabel}>{isSaved ? 'Added' : 'Add'}</Text>
+          <Pressable style={s.actionItem} onPress={() => setSaved((v) => !v)} accessibilityRole="button">
+            <Icon name={saved ? 'heart' : 'heart-outline'} size={24} color="#ffffff" />
+            <Text style={s.actionLabel}>{saved ? 'Added' : 'Add'}</Text>
           </Pressable>
-          <Pressable style={s.actionItem} onPress={handleShare}>
+          <Pressable style={s.actionItem} onPress={handleShare} accessibilityRole="button">
             <Icon name="share-outline" size={24} color="#ffffff" />
             <Text style={s.actionLabel}>Share</Text>
           </Pressable>
-          <Pressable
-            style={s.actionItem}
-            onPress={() => Alert.alert('More Options', `Options for album "${title}"`)}
-          >
-            <Icon name="ellipsis-horizontal" size={24} color="#ffffff" />
-            <Text style={s.actionLabel}>More</Text>
-          </Pressable>
         </View>
 
-        {/* Track List */}
-        <View style={s.trackList}>
-          {SAMPLE_TRACKS.map((t) => {
-            const trackObj: Track = {
-              id: t.id,
-              title: t.title,
-              artist: t.artist,
-              album: title,
-              durationMs: t.durationMs,
-              coverUrl,
-            };
-            return (
+        {state === 'loading' ? (
+          <View style={s.stateBlock}>
+            <ActivityIndicator color="#00e5bf" />
+            <Text style={s.stateText}>Loading album</Text>
+          </View>
+        ) : state === 'notFound' ? (
+          <View style={s.stateBlock}>
+            <Text style={s.stateText}>This album could not be loaded.</Text>
+            <Pressable onPress={() => void load()} style={s.retryBtn} accessibilityRole="button">
+              <Text style={s.retryText}>Try again</Text>
+            </Pressable>
+          </View>
+        ) : state === 'error' ? (
+          <View style={s.stateBlock}>
+            <Text style={s.stateText}>Something went wrong loading this album.</Text>
+            <Pressable onPress={() => void load()} style={s.retryBtn} accessibilityRole="button">
+              <Text style={s.retryText}>Try again</Text>
+            </Pressable>
+          </View>
+        ) : tracks.length === 0 ? (
+          <View style={s.stateBlock}>
+            <Text style={s.stateText}>This album has no playable tracks.</Text>
+          </View>
+        ) : (
+          <View style={s.trackList}>
+            {tracks.map((track, index) => (
               <Pressable
-                key={t.id}
+                key={track.id}
                 style={s.trackItem}
-                onPress={() => audioService.playTrack(trackObj)}
+                onPress={() => playAlbum(index)}
+                onLongPress={() => setOptionsTrack(track)}
+                accessibilityRole="button"
+                accessibilityLabel={`Play ${track.title}`}
               >
-                <Text style={s.trackNum}>{t.num}</Text>
+                <Text style={s.trackNum}>{index + 1}</Text>
                 <View style={s.trackTextCol}>
-                  <Text numberOfLines={1} style={s.trackTitle}>{t.title}</Text>
-                  <Text numberOfLines={1} style={s.trackArtist}>{t.artist}</Text>
+                  <Text numberOfLines={1} style={s.trackTitle}>
+                    {track.title}
+                  </Text>
+                  <Text numberOfLines={1} style={s.trackArtist}>
+                    {albumArtist}
+                  </Text>
                 </View>
+                <Text style={s.trackDuration}>{formatDuration(track.durationMs)}</Text>
                 <Pressable
                   style={s.moreBtn}
-                  onPress={() => setOptionsTrack(trackObj)}
+                  onPress={() => setOptionsTrack(track)}
                   hitSlop={8}
+                  accessibilityLabel={`More options for ${track.title}`}
                 >
                   <Icon name="ellipsis-horizontal" size={18} color="#8e8e93" />
                 </Pressable>
               </Pressable>
-            );
-          })}
-        </View>
+            ))}
+          </View>
+        )}
       </ScrollView>
 
       <MiniPlayer />
 
-      {/* Options Menu Modal */}
       <TrackOptionsMenu
         visible={!!optionsTrack}
         track={optionsTrack}
@@ -350,4 +439,43 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  coverPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#1c1c1e',
+  },
+  trackDuration: {
+    fontSize: 13,
+    color: '#8e8e93',
+    marginRight: 4,
+  },
+  playBtnDisabled: {
+    opacity: 0.4,
+  },
+  shuffleBtnDisabled: {
+    opacity: 0.4,
+  },
+  stateBlock: {
+    paddingVertical: 40,
+    alignItems: 'center',
+    gap: 14,
+  },
+  stateText: {
+    fontSize: 15,
+    color: '#8e8e93',
+    textAlign: 'center',
+  },
+  retryBtn: {
+    paddingHorizontal: 22,
+    minHeight: 44,
+    justifyContent: 'center',
+    borderRadius: 22,
+    backgroundColor: '#2c2c2e',
+  },
+  retryText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
 });
+

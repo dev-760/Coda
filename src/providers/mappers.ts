@@ -1,24 +1,48 @@
 import { z } from 'zod';
 import { Track } from './types';
+import { CatalogAlbum, CatalogArtist, CatalogTrackList } from './catalogTypes';
 
 /**
- * Shared mapping from raw Hifi API track payloads to the app's Track type.
- * Single source of truth — replaces the three inline copies that previously
- * existed in recommendationsService, queueStore and the web client.
+ * Mapping from raw Hifi API payloads to the app domain types.
+ *
+ * The upstream service is inconsistent about envelopes. Verified shapes:
+ *   /info/, /album/, /search/, /recommendations/  -> { version, data }
+ *   /artist/?id=                                 -> { version, artist, cover }
+ *   /artist/?f=                                  -> { version, albums, tracks }
+ *   /cover/                                      -> { version, covers }
+ *
+ * Search nests results by kind under data (artists/albums/playlists/tracks/
+ * videos/genres/topHits), and list entries come as bare objects, `{ item }`
+ * (album tracks) or `{ track }` (recommendations). Every mapper below reads
+ * defensively instead of assuming a single path.
  */
+
+/**
+ * A referenced artist. `id` is optional because credits on some track payloads
+ * carry only a name; requiring it would reject an otherwise valid track.
+ */
+const ArtistRefSchema = z
+  .object({
+    id: z.union([z.string(), z.number()]).optional(),
+    name: z.string(),
+  })
+  .passthrough();
+
+/** A referenced album. As with artists, `id` may be absent. */
+const AlbumRefSchema = z
+  .object({
+    id: z.union([z.string(), z.number()]).optional(),
+    title: z.string(),
+    cover: z.string().optional(),
+  })
+  .passthrough();
 
 const HifiTrackSchema = z.object({
   id: z.union([z.string(), z.number()]),
   title: z.string(),
-  artist: z
-    .union([z.string(), z.object({ name: z.string() }).passthrough()])
-    .optional(),
-  album: z
-    .union([
-      z.string(),
-      z.object({ title: z.string().optional(), cover: z.string().optional() }).passthrough(),
-    ])
-    .optional(),
+  artist: z.union([z.string(), ArtistRefSchema]).optional(),
+  artists: z.array(ArtistRefSchema).optional(),
+  album: z.union([z.string(), AlbumRefSchema]).optional(),
   coverUrl: z.string().optional(),
   duration: z.number().optional(),
 });
@@ -28,39 +52,183 @@ export function tidalCoverUrl(coverId: string, size = '320x320'): string {
 }
 
 /**
- * Maps a raw Hifi API track payload (or a wrapped `{ item: ... }` payload)
- * to a Track. Returns null when the payload lacks the minimum viable fields,
- * so callers can filter instead of propagating garbage tracks.
+ * Unwraps the several list entry shapes the API mixes: bare objects,
+ * `{ item }` (album tracks) and `{ track }` (recommendations).
  */
-export function mapHifiApiTrack(raw: unknown): Track | null {
-  let candidate: unknown = raw;
-  if (candidate && typeof candidate === 'object' && 'item' in candidate) {
-    candidate = (candidate as { item: unknown }).item;
+function unwrapEntry(candidate: unknown): unknown {
+  let current = candidate;
+  for (let depth = 0; depth < 3; depth += 1) {
+    if (!current || typeof current !== 'object') return current;
+    const obj = current as Record<string, unknown>;
+    if (obj.item && typeof obj.item === 'object') {
+      current = obj.item;
+      continue;
+    }
+    if (obj.track && typeof obj.track === 'object') {
+      current = obj.track;
+      continue;
+    }
+    return current;
   }
+  return current;
+}
 
-  const parsed = HifiTrackSchema.safeParse(candidate);
+function resolveCover(parsed: z.infer<typeof HifiTrackSchema>): string | undefined {
+  if (parsed.coverUrl) return parsed.coverUrl;
+  const { album } = parsed;
+  if (album && typeof album === 'object' && album.cover) {
+    return tidalCoverUrl(album.cover);
+  }
+  return undefined;
+}
+
+function resolveArtist(parsed: z.infer<typeof HifiTrackSchema>): string {
+  const { artist } = parsed;
+  if (typeof artist === 'string' && artist) return artist;
+  if (artist && typeof artist === 'object' && typeof artist.name === 'string' && artist.name) {
+    return artist.name;
+  }
+  const first = parsed.artists?.[0];
+  if (first?.name) return first.name;
+  return 'Unknown Artist';
+}
+
+export function mapHifiApiTrack(raw: unknown): Track | null {
+  const parsed = HifiTrackSchema.safeParse(unwrapEntry(raw));
   if (!parsed.success) return null;
 
   const t = parsed.data;
-  const artist =
-    typeof t.artist === 'string' ? t.artist : t.artist?.name ?? 'Unknown Artist';
-  const albumTitle = typeof t.album === 'string' ? t.album : t.album?.title;
-  const coverId = typeof t.album === 'object' ? t.album.cover : undefined;
-
+  const { album } = t;
   return {
     id: String(t.id),
     title: t.title,
-    artist,
-    album: albumTitle,
-    coverUrl: coverId ? tidalCoverUrl(coverId) : t.coverUrl,
+    artist: resolveArtist(t),
+    album: typeof album === 'string' ? album : album?.title,
+    coverUrl: resolveCover(t),
     durationMs: t.duration ? t.duration * 1000 : 0,
   };
 }
 
-/** Maps a list of raw payloads, dropping unparseable entries. */
 export function mapHifiApiTracks(rawItems: unknown): Track[] {
   if (!Array.isArray(rawItems)) return [];
   return rawItems
     .map(mapHifiApiTrack)
     .filter((track): track is Track => track !== null);
+}
+
+/**
+ * Maps an artist payload. `picture` is a bare uuid upstream, not a URL, so it
+ * is resolved here rather than handed to an <Image> directly.
+ */
+export function mapHifiApiArtist(raw: unknown): CatalogArtist | null {
+  const hasEnvelope =
+    raw && typeof raw === 'object' && 'artist' in raw && (raw as { artist: unknown }).artist;
+  const candidate = hasEnvelope ? (raw as { artist: unknown }).artist : raw;
+
+  const parsed = ArtistRefSchema.extend({ picture: z.string().optional() }).safeParse(candidate);
+  if (!parsed.success || parsed.data.id == null) return null;
+
+  const a = parsed.data;
+  const mixes = (candidate as { mixes?: Record<string, string> })?.mixes;
+  const popularity = (candidate as { popularity?: number })?.popularity ?? 0;
+
+  return {
+    id: String(a.id),
+    name: a.name,
+    picture: a.picture ? tidalCoverUrl(a.picture) : null,
+    mixId: mixes?.ARTIST_MIX ?? null,
+    popularity,
+  };
+}
+
+export function mapHifiApiArtists(rawItems: unknown): CatalogArtist[] {
+  if (!Array.isArray(rawItems)) return [];
+  return rawItems
+    .map(mapHifiApiArtist)
+    .filter((artist): artist is CatalogArtist => artist !== null);
+}
+
+/** Maps an album payload. `cover` is a bare uuid upstream. */
+export function mapHifiApiAlbum(raw: unknown): CatalogAlbum | null {
+  const parsed = AlbumRefSchema.extend({
+    artist: z.union([z.string(), ArtistRefSchema]).optional(),
+    releaseDate: z.string().nullish(),
+    numberOfTracks: z.number().optional(),
+    type: z.string().optional(),
+    explicit: z.boolean().optional(),
+  }).safeParse(unwrapEntry(raw));
+  if (!parsed.success || parsed.data.id == null) return null;
+
+  const a = parsed.data;
+  const { artist } = a;
+  const artistName =
+    typeof artist === 'string' ? artist : artist?.name ?? 'Unknown Artist';
+  const artistId =
+    artist && typeof artist === 'object' && artist.id != null ? String(artist.id) : null;
+
+  return {
+    id: String(a.id),
+    title: a.title,
+    artist: artistName,
+    artistId,
+    cover: a.cover ? tidalCoverUrl(a.cover) : null,
+    releaseDate: a.releaseDate ?? null,
+    numberOfTracks: a.numberOfTracks ?? 0,
+    type: a.type ?? 'ALBUM',
+    explicit: a.explicit ?? false,
+  };
+}
+
+export function mapHifiApiAlbums(rawItems: unknown): CatalogAlbum[] {
+  if (!Array.isArray(rawItems)) return [];
+  return rawItems
+    .map(mapHifiApiAlbum)
+    .filter((album): album is CatalogAlbum => album !== null);
+}
+
+/**
+ * Reads an album and its tracks from a `/album/` response. Returns null when the
+ * album itself is missing, so callers can tell "not found" from "empty".
+ */
+export function mapAlbumWithTracks(raw: unknown): CatalogTrackList | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const data = (raw as { data?: unknown }).data;
+  if (!data) return null;
+
+  const album = mapHifiApiAlbum(data);
+  if (!album) return null;
+
+  const items = (data as { items?: unknown }).items;
+  return { album, tracks: mapHifiApiTracks(items) };
+}
+
+/**
+ * Reads the `{ version, data: { artists: {...}, tracks: {...} } }` shape used by
+ * `/search/?a=`, `/search/?s=` and the other search kinds.
+ */
+export function readSearchBucket(
+  raw: unknown,
+  kind: 'tracks' | 'artists' | 'albums' | 'playlists' | 'videos',
+): unknown[] {
+  if (!raw || typeof raw !== 'object') return [];
+  const data = (raw as { data?: Record<string, unknown> }).data;
+  if (!data) return [];
+  const bucket = data[kind];
+  if (!bucket || typeof bucket !== 'object') return [];
+  const items = (bucket as { items?: unknown }).items;
+  return Array.isArray(items) ? items : [];
+}
+
+/** Reads the `{ version, albums: { items: [...] } }` shape of `/artist/?f=`. */
+export function readArtistAlbums(raw: unknown): unknown[] {
+  if (!raw || typeof raw !== 'object') return [];
+  const albums = (raw as { albums?: { items?: unknown } }).albums;
+  return Array.isArray(albums?.items) ? albums.items : [];
+}
+
+/** Reads the `{ version, tracks: [...] }` shape of `/artist/?f=` (a bare array). */
+export function readArtistTracks(raw: unknown): unknown[] {
+  if (!raw || typeof raw !== 'object') return [];
+  const tracks = (raw as { tracks?: unknown }).tracks;
+  return Array.isArray(tracks) ? tracks : [];
 }

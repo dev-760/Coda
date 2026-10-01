@@ -1,13 +1,11 @@
 import { Track } from '../providers/types';
-import { hifiApiClient } from '../services/hifiApiClient';
+import { CatalogAlbum, CatalogArtist } from '../providers/catalogTypes';
+import {
+  getTrackRecommendations,
+  searchCatalog,
+} from './catalogService';
+import { hifiApiClient } from './hifiApiClient';
 import { mapHifiApiTracks } from '../providers/mappers';
-
-export interface RecommendationRequest {
-  trackId?: string;
-  artistId?: string;
-  genre?: string;
-  limit?: number;
-}
 
 export interface RecommendationResponse {
   tracks: Track[];
@@ -21,24 +19,27 @@ export interface RecommendationSource {
   reason: string;
 }
 
-interface HomeRecommendations {
-  recommendedTracks: Track[];
-  similarArtists: unknown[];
-  similarAlbums: unknown[];
-  mixes: Track[];
-  topVideos: unknown[];
-  aiInsights: Track[];
+export interface SearchResults {
+  tracks: Track[];
+  artists: CatalogArtist[];
+  albums: CatalogAlbum[];
 }
 
-interface SearchResults {
-  tracks: Track[];
-  artists: unknown[];
-  albums: unknown[];
-  playlists: unknown[];
+interface HomeRecommendations {
+  recommendedTracks: Track[];
+  mixes: Track[];
 }
 
 const CACHE_LIMIT = 50;
 
+/**
+ * Thin facade over catalogService.
+ *
+ * It previously read `.items` off each response, but the API wraps payloads in
+ * `{ version, data: { items } }`, so every list came back undefined and search
+ * silently returned nothing. Envelope handling now lives in catalogService and
+ * the shared mappers.
+ */
 export class RecommendationsService {
   private cache = new Map<string, unknown>();
 
@@ -51,133 +52,67 @@ export class RecommendationsService {
   }
 
   async searchMulti(query: string): Promise<SearchResults> {
-    const cacheKey = `search_${query}`;
+    const term = query.trim();
+    if (!term) return { tracks: [], artists: [], albums: [] };
+
+    const cacheKey = `search_${term}`;
     const cached = this.cache.get(cacheKey) as SearchResults | undefined;
     if (cached) return cached;
 
-    try {
-      const [tracks, artists, albums, playlists] = await Promise.all([
-        hifiApiClient.searchTracks(query, 10).catch(() => ({ items: [] as unknown[] })),
-        hifiApiClient.searchArtists(query, 5).catch(() => ({ items: [] as unknown[] })),
-        hifiApiClient.searchAlbums(query, 5).catch(() => ({ items: [] as unknown[] })),
-        hifiApiClient.searchPlaylists(query, 5).catch(() => ({ items: [] as unknown[] })),
-      ]);
-
-      const results: SearchResults = {
-        tracks: mapHifiApiTracks(tracks?.items),
-        artists: artists?.items ?? [],
-        albums: albums?.items ?? [],
-        playlists: playlists?.items ?? [],
-      };
-
-      this.setCache(cacheKey, results);
-      return results;
-    } catch (e) {
-      console.error(e);
-      return { tracks: [], artists: [], albums: [], playlists: [] };
-    }
+    const results = await searchCatalog(term, 25);
+    this.setCache(cacheKey, results);
+    return results;
   }
 
+  /**
+   * Track-derived recommendations. With no playing track there is nothing real to
+   * base them on, so this returns empty rather than a hardcoded demo track.
+   */
   async getHomeRecommendations(currentTrack: Track | null): Promise<HomeRecommendations> {
-    const empty: HomeRecommendations = {
-      recommendedTracks: [],
-      similarArtists: [],
-      similarAlbums: [],
-      mixes: [],
-      topVideos: [],
-      aiInsights: [],
-    };
-
-    if (!currentTrack) {
-      // Recommendations are track-derived; with no listening context there is
-      // nothing real to show (previously this fetched a hardcoded demo track).
-      return empty;
-    }
+    if (!currentTrack) return { recommendedTracks: [], mixes: [] };
 
     const cacheKey = `home_${currentTrack.id}`;
     const cached = this.cache.get(cacheKey) as HomeRecommendations | undefined;
     if (cached) return cached;
 
-    try {
-      const aiRecs = await hifiApiClient.getRecommendations(currentTrack.id);
-      const topVideos = await hifiApiClient
-        .getTopVideos('US', 'en_US', 'BROWSER', 5, 0)
-        .catch(() => ({ items: [] as unknown[] }));
+    const tracks = await getTrackRecommendations(currentTrack.id, 20);
+    const results: HomeRecommendations = {
+      recommendedTracks: tracks.slice(0, 10),
+      mixes: tracks.slice(10, 20),
+    };
 
-      const recommendedTracks = mapHifiApiTracks(aiRecs?.items);
-
-      const results: HomeRecommendations = {
-        recommendedTracks: recommendedTracks.slice(0, 10),
-        // Similar albums/artists need an album/artist ID, which Track does not
-        // carry. Left empty instead of faked with a hardcoded ID - wire a
-        // provider lookup through before enabling these shelves.
-        similarArtists: [],
-        similarAlbums: [],
-        mixes: recommendedTracks.slice(10, 20),
-        topVideos: topVideos?.items ?? [],
-        aiInsights: recommendedTracks,
-      };
-
-      this.setCache(cacheKey, results);
-      return results;
-    } catch (e) {
-      console.error('Failed to get home recommendations', e);
-      return empty;
-    }
+    this.setCache(cacheKey, results);
+    return results;
   }
 
-  async getRecommendations(request: RecommendationRequest): Promise<RecommendationResponse> {
-    try {
-      if (!request.trackId) {
-        return { tracks: [], sources: [] };
-      }
-      const response = await hifiApiClient.getRecommendations(request.trackId);
-      return {
-        tracks: mapHifiApiTracks(response?.items),
-        sources: [
-          {
-            id: 'hifi-api',
-            name: 'Hifi Recommendations',
-            type: 'similar',
-            reason: 'Because you listened to this track',
-          },
-        ],
-      };
-    } catch (error) {
-      console.error('Failed to fetch recommendations:', error);
-      return { tracks: [], sources: [] };
-    }
+  async getRecommendations(request: { trackId?: string }): Promise<RecommendationResponse> {
+    if (!request.trackId) return { tracks: [], sources: [] };
+
+    const tracks = await getTrackRecommendations(request.trackId, 20);
+    return {
+      tracks,
+      sources: tracks.length
+        ? [
+            {
+              id: 'hifi-api',
+              name: 'Hifi Recommendations',
+              type: 'similar',
+              reason: 'Because you listened to this track',
+            },
+          ]
+        : [],
+    };
   }
 
   async getSimilarTracks(trackId: string, limit = 10): Promise<Track[]> {
-    const response = await this.getRecommendations({ trackId, limit });
-    return response.tracks;
-  }
-
-  async getArtistRecommendations(artistId: string | number): Promise<unknown[]> {
-    try {
-      const similarArtists = await hifiApiClient.getSimilarArtists(artistId);
-      return similarArtists?.items ?? [];
-    } catch (error) {
-      console.error('Failed to get artist recommendations:', error);
-      return [];
-    }
-  }
-
-  async getAlbumRecommendations(albumId: string | number): Promise<unknown[]> {
-    try {
-      const similarAlbums = await hifiApiClient.getSimilarAlbums(albumId);
-      return similarAlbums?.items ?? [];
-    } catch (error) {
-      console.error('Failed to get album recommendations:', error);
-      return [];
-    }
+    return getTrackRecommendations(trackId, limit);
   }
 
   async getMixRecommendations(mixId: string): Promise<Track[]> {
     try {
       const mix = await hifiApiClient.getMix(mixId);
-      return mapHifiApiTracks(mix?.items);
+      const data = (mix as { data?: { items?: unknown } })?.data;
+      return mapHifiApiTracks(data?.items);
     } catch (error) {
       console.error('Failed to get mix recommendations:', error);
       return [];
@@ -189,5 +124,4 @@ export class RecommendationsService {
   }
 }
 
-// Singleton instance
 export const recommendationsService = new RecommendationsService();

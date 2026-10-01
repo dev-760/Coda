@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Image,
   Pressable,
   ScrollView,
@@ -7,7 +8,6 @@ import {
   Text,
   View,
   Share,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -16,161 +16,277 @@ import Icon from '../src/components/ui/Icon';
 import MiniPlayer from '../src/components/ui/MiniPlayer';
 import TrackOptionsMenu from '../src/components/ui/TrackOptionsMenu';
 import { audioService } from '../src/audio/AudioService';
-import { useQueueStore } from '../src/store/queueStore';
+import { useQueueStore, cacheTracks } from '../src/store/queueStore';
 import { Track } from '../src/providers/types';
+import { CatalogAlbum } from '../src/providers/catalogTypes';
+import { getArtistCatalog } from '../src/services/catalogService';
+import { useResponsive } from '../src/hooks/useResponsive';
 
-const TOP_TRACKS = [
-  { id: 'att-1', title: 'Beautiful Tango', artist: 'Hindi Zahra', durationMs: 236000, coverUrl: 'https://resources.tidal.com/images/13c6aa66/410e/433f/a8d8/a4b13cefe446/320x320.jpg' },
-  { id: 'att-2', title: 'Imik Si Mik', artist: 'Hindi Zahra', durationMs: 228000, coverUrl: 'https://resources.tidal.com/images/13c6aa66/410e/433f/a8d8/a4b13cefe446/320x320.jpg' },
-  { id: 'att-3', title: 'Stand Up', artist: 'Hindi Zahra', durationMs: 250000, coverUrl: 'https://resources.tidal.com/images/13c6aa66/410e/433f/a8d8/a4b13cefe446/320x320.jpg' },
-  { id: 'att-4', title: 'Any Story', artist: 'Hindi Zahra', durationMs: 195000, coverUrl: 'https://resources.tidal.com/images/13c6aa66/410e/433f/a8d8/a4b13cefe446/320x320.jpg' },
-];
+type LoadState = 'loading' | 'ready' | 'notFound' | 'error';
+
+function formatDuration(durationMs?: number): string {
+  if (!durationMs) return '--:--';
+  const totalSeconds = Math.round(durationMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = String(totalSeconds % 60).padStart(2, '0');
+  return `${minutes}:${seconds}`;
+}
 
 export default function ArtistScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const artistName = (params.name as string) || 'Hindi Zahra';
-  const coverUrl = (params.coverUrl as string) || 'https://resources.tidal.com/images/13c6aa66/410e/433f/a8d8/a4b13cefe446/320x320.jpg';
+  const { bottomBarClearance } = useResponsive();
 
-  const [isFollowing, setIsFollowing] = useState(false);
+  // artistId is what makes the discography fetchable; name/coverUrl only give
+  // an instant first paint and are replaced once real data arrives.
+  const artistId = typeof params.artistId === 'string' ? params.artistId : '';
+  const initialName = (params.name as string) || 'Artist';
+  const initialCover = (params.coverUrl as string) || '';
+
+  const [name, setName] = useState(initialName);
+  const [cover, setCover] = useState(initialCover);
+  const [tracks, setTracks] = useState<Track[]>([]);
+  const [albums, setAlbums] = useState<CatalogAlbum[]>([]);
+  const [state, setState] = useState<LoadState>(artistId ? 'loading' : 'notFound');
   const [optionsTrack, setOptionsTrack] = useState<Track | null>(null);
-  const { playContext } = useQueueStore();
+  const [following, setFollowing] = useState(false);
 
-  const handlePlayAll = () => {
-    const tracks: Track[] = TOP_TRACKS.map(t => ({
-      id: t.id,
-      title: t.title,
-      artist: artistName,
-      durationMs: t.durationMs,
-      coverUrl: t.coverUrl,
-    }));
-    playContext(tracks, 0, { type: 'artist', name: artistName });
-    void audioService.playTrack(tracks[0]);
+  const load = useCallback(async () => {
+    if (!artistId) {
+      setState('notFound');
+      return;
+    }
+    setState('loading');
+    try {
+      const result = await getArtistCatalog(artistId);
+      if (!result.artist && result.tracks.length === 0) {
+        setState('notFound');
+        return;
+      }
+      if (result.artist) {
+        setName(result.artist.name);
+        if (result.artist.picture) setCover(result.artist.picture);
+      }
+      setTracks(result.tracks);
+      setAlbums(result.albums);
+      setState('ready');
+    } catch {
+      setState('error');
+    }
+  }, [artistId]);
+
+  useEffect(() => {
+    // Deferred a tick so the initial state comes from the route params and the
+    // fetch does not run synchronously inside the effect body.
+    const timer = setTimeout(() => void load(), 0);
+    return () => clearTimeout(timer);
+  }, [load]);
+
+  const playTracks = (fromIndex = 0) => {
+    if (tracks.length === 0) return;
+    cacheTracks(tracks);
+    useQueueStore.getState().playContext(tracks, fromIndex, { type: 'artist', name });
+    void audioService.playTrack(tracks[fromIndex]);
   };
 
   const handleShuffle = () => {
-    handlePlayAll();
+    playTracks();
     useQueueStore.getState().toggleShuffle();
-  };
-
-  const handleArtistRadio = () => {
-    audioService.playTrack({
-      id: `radio_${artistName}`,
-      title: `${artistName} Radio`,
-      artist: artistName,
-      album: 'Artist Radio',
-      durationMs: 240000,
-      coverUrl,
-    });
-    Alert.alert('Artist Radio', `Started radio station for ${artistName}`);
   };
 
   const handleShare = async () => {
     try {
-      await Share.share({
-        message: `Listen to ${artistName} on Luma`,
-      });
-    } catch (e) {}
+      await Share.share({ message: `Listen to ${name} on Luma` });
+    } catch {}
+  };
+
+  const openAlbum = (album: CatalogAlbum) => {
+    router.push({
+      pathname: '/album' as any,
+      params: {
+        albumId: album.id,
+        title: album.title,
+        artist: album.artist,
+        artistId: album.artistId ?? artistId,
+        coverUrl: album.cover ?? '',
+      },
+    });
   };
 
   return (
     <SafeAreaView style={s.container} edges={['top']}>
-      {/* Top Header */}
       <HeaderBar showBack />
 
-      <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
-        {/* Full-bleed Artist Hero Image */}
+      <ScrollView
+        contentContainerStyle={[{ paddingBottom: bottomBarClearance + 80 }]}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={s.heroContainer}>
-          <Image source={{ uri: coverUrl }} style={s.heroImage} />
+          {cover ? (
+            <Image source={{ uri: cover }} style={s.heroImage} blurRadius={2} />
+          ) : (
+            <View style={[s.heroImage, s.heroFallback]} />
+          )}
           <View style={s.heroGradient} />
-
           <View style={s.heroMeta}>
-            <Text style={s.artistTitle}>{artistName}</Text>
-            <Text style={s.fansCount}>8.7K fans</Text>
+            <Text style={s.artistTitle}>{name}</Text>
           </View>
         </View>
 
-        {/* Action Buttons Row (Play / Shuffle) */}
         <View style={s.bigButtonsRow}>
-          <Pressable style={s.playBtn} onPress={handlePlayAll}>
+          <Pressable
+            style={[s.playBtn, tracks.length === 0 && s.playBtnDisabled]}
+            onPress={() => playTracks()}
+            disabled={tracks.length === 0}
+            accessibilityRole="button"
+            accessibilityLabel={`Play ${name}`}
+          >
             <Icon name="play" size={20} color="#000000" />
             <Text style={s.playBtnText}>Play</Text>
           </Pressable>
-          <Pressable style={s.shuffleBtn} onPress={handleShuffle}>
+          <Pressable
+            style={[s.shuffleBtn, tracks.length === 0 && s.shuffleBtnDisabled]}
+            onPress={handleShuffle}
+            disabled={tracks.length === 0}
+            accessibilityRole="button"
+            accessibilityLabel={`Shuffle ${name}`}
+          >
             <Icon name="shuffle" size={20} color="#ffffff" />
             <Text style={s.shuffleBtnText}>Shuffle</Text>
           </Pressable>
         </View>
 
-        {/* 4 Actions Row (Follow, Artist Radio, Share, More) */}
         <View style={s.actionsRow}>
-          <Pressable style={s.actionItem} onPress={() => setIsFollowing(!isFollowing)}>
-            <Icon name={isFollowing ? 'checkmark' : 'add'} size={22} color="#ffffff" />
-            <Text style={s.actionLabel}>{isFollowing ? 'Following' : 'Follow'}</Text>
+          <Pressable
+            style={s.actionItem}
+            onPress={() => setFollowing((v) => !v)}
+            accessibilityRole="button"
+          >
+            <Icon name={following ? 'checkmark' : 'add'} size={22} color="#ffffff" />
+            <Text style={s.actionLabel}>{following ? 'Following' : 'Follow'}</Text>
           </Pressable>
-          <Pressable style={s.actionItem} onPress={handleArtistRadio}>
-            <Icon name="radio-outline" size={22} color="#ffffff" />
-            <Text style={s.actionLabel}>Artist radio</Text>
-          </Pressable>
-          <Pressable style={s.actionItem} onPress={handleShare}>
+          <Pressable style={s.actionItem} onPress={handleShare} accessibilityRole="button">
             <Icon name="share-outline" size={22} color="#ffffff" />
             <Text style={s.actionLabel}>Share</Text>
           </Pressable>
-          <Pressable
-            style={s.actionItem}
-            onPress={() => Alert.alert('More Options', `Options for artist ${artistName}`)}
-          >
-            <Icon name="ellipsis-horizontal" size={22} color="#ffffff" />
-            <Text style={s.actionLabel}>More</Text>
-          </Pressable>
         </View>
 
-        {/* Section: Top Tracks */}
-        <View style={s.section}>
-          <View style={s.sectionHeader}>
-            <Text style={s.sectionTitle}>Top Tracks</Text>
-            <Pressable>
-              <Text style={s.viewAllText}>View all</Text>
+        {state === 'loading' ? (
+          <View style={s.stateBlock}>
+            <ActivityIndicator color="#00e5bf" />
+            <Text style={s.stateText}>Loading {name}</Text>
+          </View>
+        ) : state === 'notFound' ? (
+          <View style={s.stateBlock}>
+            <Text style={s.stateText}>This artist could not be loaded.</Text>
+            <Pressable onPress={() => void load()} style={s.retryBtn} accessibilityRole="button">
+              <Text style={s.retryText}>Try again</Text>
             </Pressable>
           </View>
-
-          <View style={s.trackList}>
-            {TOP_TRACKS.map((t) => {
-              const trackObj: Track = {
-                id: t.id,
-                title: t.title,
-                artist: artistName,
-                durationMs: t.durationMs,
-                coverUrl: t.coverUrl,
-              };
-              return (
-                <Pressable
-                  key={t.id}
-                  style={s.trackRow}
-                  onPress={() => audioService.playTrack(trackObj)}
-                >
-                  <Image source={{ uri: t.coverUrl }} style={s.trackArt} />
-                  <View style={s.trackMeta}>
-                    <Text numberOfLines={1} style={s.trackTitle}>{t.title}</Text>
-                    <Text numberOfLines={1} style={s.trackArtist}>{t.artist}</Text>
-                  </View>
-                  <Pressable
-                    style={s.moreBtn}
-                    onPress={() => setOptionsTrack(trackObj)}
-                    hitSlop={8}
-                  >
-                    <Icon name="ellipsis-horizontal" size={18} color="#8e8e93" />
-                  </Pressable>
-                </Pressable>
-              );
-            })}
+        ) : state === 'error' ? (
+          <View style={s.stateBlock}>
+            <Text style={s.stateText}>Something went wrong loading this artist.</Text>
+            <Pressable onPress={() => void load()} style={s.retryBtn} accessibilityRole="button">
+              <Text style={s.retryText}>Try again</Text>
+            </Pressable>
           </View>
-        </View>
+        ) : (
+          <>
+            {tracks.length > 0 && (
+              <View style={s.section}>
+                <View style={s.sectionHeader}>
+                  <Text style={s.sectionTitle}>Popular</Text>
+                </View>
+                <View style={s.trackList}>
+                  {tracks.slice(0, 10).map((track, index) => (
+                    <Pressable
+                      key={track.id}
+                      style={s.trackRow}
+                      onPress={() => playTracks(index)}
+                      onLongPress={() => setOptionsTrack(track)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Play ${track.title}`}
+                    >
+                      <View>
+                        {track.coverUrl ? (
+                          <Image source={{ uri: track.coverUrl }} style={s.trackArt} />
+                        ) : (
+                          <View style={[s.trackArt, s.artFallback]}>
+                            <Icon name="musical-note" size={16} color="#8e8e93" />
+                          </View>
+                        )}
+                        <Text style={s.rankBadge}>{index + 1}</Text>
+                      </View>
+                      <View style={s.trackMeta}>
+                        <Text numberOfLines={1} style={s.trackTitle}>
+                          {track.title}
+                        </Text>
+                        <Text numberOfLines={1} style={s.trackArtist}>
+                          {formatDuration(track.durationMs)}
+                        </Text>
+                      </View>
+                      <Pressable
+                        style={s.moreBtn}
+                        onPress={() => setOptionsTrack(track)}
+                        hitSlop={8}
+                        accessibilityLabel={`More options for ${track.title}`}
+                      >
+                        <Icon name="ellipsis-horizontal" size={18} color="#8e8e93" />
+                      </Pressable>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {albums.length > 0 && (
+              <View style={s.section}>
+                <View style={s.sectionHeader}>
+                  <Text style={s.sectionTitle}>Albums</Text>
+                </View>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={s.albumRail}
+                >
+                  {albums.map((album) => (
+                    <Pressable
+                      key={album.id}
+                      style={s.albumCard}
+                      onPress={() => openAlbum(album)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Open album ${album.title}`}
+                    >
+                      {album.cover ? (
+                        <Image source={{ uri: album.cover }} style={s.albumArt} />
+                      ) : (
+                        <View style={[s.albumArt, s.artFallback]}>
+                          <Icon name="albums-outline" size={20} color="#8e8e93" />
+                        </View>
+                      )}
+                      <Text numberOfLines={1} style={s.trackTitle}>
+                        {album.title}
+                      </Text>
+                      <Text numberOfLines={1} style={s.trackArtist}>
+                        {album.releaseDate ? album.releaseDate.slice(0, 4) : album.type}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
+            {tracks.length === 0 && albums.length === 0 && (
+              <View style={s.stateBlock}>
+                <Text style={s.stateText}>Nothing available for this artist.</Text>
+              </View>
+            )}
+          </>
+        )}
       </ScrollView>
 
       <MiniPlayer />
 
-      {/* Options Menu Modal */}
       <TrackOptionsMenu
         visible={!!optionsTrack}
         track={optionsTrack}
@@ -333,4 +449,65 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  heroFallback: {
+    backgroundColor: '#1c1c1e',
+  },
+  artFallback: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#1c1c1e',
+  },
+  rankBadge: {
+    position: 'absolute',
+    left: 4,
+    bottom: 4,
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#ffffff',
+    textShadowColor: 'rgba(0,0,0,0.9)',
+    textShadowRadius: 4,
+  },
+  albumRail: {
+    gap: 14,
+    paddingVertical: 4,
+  },
+  albumCard: {
+    width: 140,
+  },
+  albumArt: {
+    width: 140,
+    height: 140,
+    borderRadius: 8,
+    backgroundColor: '#1c1c1e',
+    marginBottom: 8,
+  },
+  playBtnDisabled: {
+    opacity: 0.4,
+  },
+  shuffleBtnDisabled: {
+    opacity: 0.4,
+  },
+  stateBlock: {
+    paddingVertical: 40,
+    alignItems: 'center',
+    gap: 14,
+  },
+  stateText: {
+    fontSize: 15,
+    color: '#8e8e93',
+    textAlign: 'center',
+  },
+  retryBtn: {
+    paddingHorizontal: 22,
+    minHeight: 44,
+    justifyContent: 'center',
+    borderRadius: 22,
+    backgroundColor: '#2c2c2e',
+  },
+  retryText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
 });
+

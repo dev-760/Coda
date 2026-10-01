@@ -1,21 +1,44 @@
 # Hifi API — Reference (generated from client source)
 
 > **Status: unofficial, undocumented upstream.** This reference was reverse-engineered from
-> `src/services/hifiApiClient.ts`, `src/api/coreClient.ts`, and `src/config/hifiApi.ts`.
-> It is the source of truth for what the app actually calls. The upstream service
-> (`hifi-api00.vercel.app`) is a third-party proxy with no published contract — any
-> endpoint can change or disappear without notice. Field shapes below reflect what the
-> client's mapper (`src/providers/mappers.ts`) reads; anything not listed there is
-> passed through as `unknown`.
+> `src/services/hifiApiClient.ts`, `src/services/catalogService.ts`, and
+> `src/config/hifiApi.ts`, and verified against the live service (version 2.10).
+> The upstream service (`hifi-api00.vercel.app`, repo `binimum/hifi-api`) is a
+> third-party proxy with no published contract — any endpoint can change or disappear
+> without notice. Field shapes below reflect what the mappers in
+> `src/providers/mappers.ts` read; anything not listed there is passed through as
+> `unknown`.
 
 ## Connection
 
 | | |
 |---|---|
 | Base URL | `https://hifi-api00.vercel.app` |
+| Upstream repo | `https://github.com/binimum/hifi-api` |
 | Auth | None observed in client requests |
 | Timeout | 30 s |
 | Content type | `application/json` |
+
+## Response envelopes
+
+The service is **not consistent** about envelopes. This is verified per endpoint and is
+the single most common source of "no results" bugs — reading `.items` off a response
+returns `undefined` because the array lives one or two levels deeper.
+
+| Endpoint | Envelope |
+|---|---|
+| `/info/`, `/album/`, `/search/`, `/recommendations/`, `/playlist/` | `{ version, data }` |
+| `/artist/?id=` | `{ version, artist, cover }` |
+| `/artist/?f=` | `{ version, albums: { items }, tracks: [...] }` |
+| `/cover/` | `{ version, covers }` |
+
+`/search/` additionally nests by kind: `data.tracks`, `data.artists`, `data.albums`,
+`data.playlists`, `data.videos`, `data.genres`, `data.topHits`.
+
+List entries come in three shapes and must be unwrapped defensively:
+bare objects, `{ item, type }` (album tracks) and `{ track, sources }` (recommendations).
+
+`src/providers/mappers.ts` handles all of this; screens never touch raw responses.
 
 ## Track payload (as mapped by `mapHifiApiTrack`)
 

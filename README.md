@@ -114,17 +114,23 @@ queue is a list of small ids rather than a copy of every track.
 npm test
 ```
 
-67 tests across 5 suites, all covering pure logic: queue insertion and removal relative
+96 tests across 7 suites, all covering pure logic: queue insertion and removal relative
 to the playhead, repeat modes, shuffle and restore, the download index and its repair,
-and the suggestion scoring rules.
+the suggestion scoring rules, the responsive breakpoints, and the API response mappers.
 
 ## Known limitations
 
 - The catalog endpoints are reached through a hardcoded HiFi API base URL. There is no
-  API key or environment variable support yet, so the same URL is duplicated in two
-  files.
-- Album and artist detail screens are built on placeholder catalog data. They render and
-  navigate, but the track lists are not fetched from the API.
+  API key or environment variable support yet.
+- The HiFi API is an unofficial, undocumented third-party proxy with no published
+  contract. Endpoints can change or disappear without notice, and there is no auth, so
+  the app has no catalog at all if that service is unreachable.
+- Album and artist screens fetch real data through `/album/` and `/artist/?f=`. A screen
+  opened without an id (a deep link, or a stale route) shows a retry state rather than
+  invented content.
+- The Collection > Albums grid is derived from tracks the user has saved, because the app
+  has no "save album" feature yet. It cannot show an album the user has not favorited a
+  track from.
 - Crossfade and an equalizer were removed. expo-audio has no equalizer, and crossfade
   could not be made reliable with a single player.
 - Download pause and resume are not exposed in the UI. Cancel and retry work.

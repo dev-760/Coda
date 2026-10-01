@@ -205,6 +205,8 @@ Removed during the last pass, each confirmed by grep for importers:
 | `ExpoAudioBackend` (old stub) | threw in every method; replaced |
 | `TrackPlayerBackend.ts`, `playbackService.ts` | replaced by expo-audio |
 | `recommendationsService` on Home | replaced by the suggestion engine; still used by search |
+| `app/(tabs)/feed.tsx`, `app/(tabs)/live.tsx` | rendered a hardcoded notification and "Live & Uploads" list; removed from the navigation |
+| Collection > Videos / Profiles / Purchases | menu rows that always showed "No items found"; never had a data source |
 
 Unused dependencies were removed together with the lockfile entries: `react-native-track-player`,
 `axios`, `expo-document-picker`, `expo-web-browser`, `jszip`, `quickjs-emscripten`,

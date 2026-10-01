@@ -142,10 +142,16 @@ export default function LyricsScreen() {
       <View style={styles.anchorCardContainer}>
         <View style={styles.anchorCard}>
           <View style={styles.anchorLeft}>
-            <Image 
-              source={{ uri: currentTrack?.artwork || 'https://via.placeholder.com/150' }} 
-              style={styles.artwork} 
-            />
+            {currentTrack?.artwork || currentTrack?.coverUrl ? (
+              <Image
+                source={{ uri: (currentTrack?.artwork || currentTrack?.coverUrl) as string }}
+                style={styles.artwork}
+              />
+            ) : (
+              <View style={[styles.artwork, styles.artworkFallback]}>
+                <Icon name="musical-note" size={22} color="#8e8e93" />
+              </View>
+            )}
             <View style={styles.anchorText}>
               <Text style={styles.trackTitle} numberOfLines={1}>
                 {currentTrack?.title || 'Unknown Track'}
@@ -361,6 +367,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: sp.sm,
     flex: 1,
+  },
+  artworkFallback: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#1c1c1e',
   },
   artwork: {
     width: 48,

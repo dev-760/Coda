@@ -8,7 +8,6 @@ import {
   TextInput,
   View,
   ActivityIndicator,
-  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -19,9 +18,9 @@ import TrackOptionsMenu from '../../src/components/ui/TrackOptionsMenu';
 import { recommendationsService } from '../../src/services/recommendationsService';
 import { audioService } from '../../src/audio/AudioService';
 import { Track } from '../../src/providers/types';
+import { CatalogAlbum, CatalogArtist } from '../../src/providers/catalogTypes';
 import { useLibraryStore } from '../../src/store/libraryStore';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+import { useQueueStore, cacheTracks } from '../../src/store/queueStore';
 
 const GENRES = [
   'Hip-Hop',
@@ -36,26 +35,22 @@ const GENRES = [
   'Classical',
 ];
 
-const FEATURED_ITEMS = [
-  {
-    id: 'feat-1',
-    tag: '10TH ANNIVERSARY',
-    artist: 'Solange',
-    title: 'A Seat at the Table',
-    coverUrl: 'https://resources.tidal.com/images/13c6aa66/410e/433f/a8d8/a4b13cefe446/320x320.jpg',
-  },
-  {
-    id: 'feat-2',
-    tag: 'NEW ALBUM',
-    artist: 'ElGrandeToto',
-    title: 'SALGOAT (Vol. 2)',
-    coverUrl: 'https://resources.tidal.com/images/13c6aa66/410e/433f/a8d8/a4b13cefe446/320x320.jpg',
-  },
-];
+type SearchTab = 'Top' | 'Tracks' | 'Artists' | 'Albums';
 
-type SearchTab = 'Top results' | 'Tracks' | 'Profiles' | 'Uploads';
+interface Results {
+  tracks: Track[];
+  artists: CatalogArtist[];
+  albums: CatalogAlbum[];
+}
 
-const EMPTY_RESULTS = { tracks: [], artists: [], albums: [], playlists: [] };
+const EMPTY_RESULTS: Results = { tracks: [], artists: [], albums: [] };
+
+function formatDuration(durationMs: number): string {
+  const totalSeconds = Math.round(durationMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = String(totalSeconds % 60).padStart(2, '0');
+  return `${minutes}:${seconds}`;
+}
 
 export default function SearchScreen() {
   const router = useRouter();
@@ -66,33 +61,23 @@ export default function SearchScreen() {
   const [query, setQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [hasSubmitted, setHasSubmitted] = useState(false);
-  const [activeTab, setActiveTab] = useState<SearchTab>('Top results');
+  const [activeTab, setActiveTab] = useState<SearchTab>('Top');
   const [loading, setLoading] = useState(false);
-  const [featuredIndex, setFeaturedIndex] = useState(0);
+  const [error, setError] = useState<string | null>(null);
   const [optionsTrack, setOptionsTrack] = useState<Track | null>(null);
+  const [results, setResults] = useState<Results>(EMPTY_RESULTS);
 
-  const [results, setResults] = useState<{
-    tracks: Track[];
-    artists: any[];
-    albums: any[];
-    playlists: any[];
-  }>({
-    tracks: [],
-    artists: [],
-    albums: [],
-    playlists: [],
-  });
-
-  // Debounced search query
   useEffect(() => {
     const term = query.trim();
     let active = true;
 
     if (!term) {
+      // Deferred so this is not a synchronous setState in the effect body.
       const timer = setTimeout(() => {
         if (!active) return;
         setResults(EMPTY_RESULTS);
         setLoading(false);
+        setError(null);
       }, 0);
       return () => {
         active = false;
@@ -102,11 +87,16 @@ export default function SearchScreen() {
 
     const timer = setTimeout(async () => {
       setLoading(true);
+      setError(null);
       try {
         const data = await recommendationsService.searchMulti(term);
-        if (active) setResults(data);
-      } catch (err) {
-        if (active) setResults(EMPTY_RESULTS);
+        if (!active) return;
+        setResults(data);
+      } catch {
+        if (active) {
+          setResults(EMPTY_RESULTS);
+          setError('Search failed. Check your connection and try again.');
+        }
       } finally {
         if (active) setLoading(false);
       }
@@ -119,9 +109,9 @@ export default function SearchScreen() {
   }, [query]);
 
   const handleSubmitSearch = (searchTerm?: string) => {
-    const term = searchTerm || query;
-    if (term.trim()) {
-      addToSearchHistory(term.trim());
+    const term = (searchTerm || query).trim();
+    if (term) {
+      addToSearchHistory(term);
       setHasSubmitted(true);
     }
   };
@@ -133,86 +123,65 @@ export default function SearchScreen() {
     inputRef.current?.blur();
   };
 
-  const handlePlayTrack = (track: Track) => {
-    audioService.playTrack(track);
+  const playOne = (track: Track, context: string) => {
+    cacheTracks([track]);
+    useQueueStore.getState().playContext([track], 0, { type: 'collection', name: context });
+    void audioService.playTrack(track);
   };
 
-  const handleFeaturedPrev = () => {
-    setFeaturedIndex((prev) => (prev > 0 ? prev - 1 : FEATURED_ITEMS.length - 1));
+  const playMany = (tracks: Track[], context: string) => {
+    if (tracks.length === 0) return;
+    cacheTracks(tracks);
+    useQueueStore.getState().playContext(tracks, 0, { type: 'collection', name: context });
+    void audioService.playTrack(tracks[0]);
   };
 
-  const handleFeaturedNext = () => {
-    setFeaturedIndex((prev) => (prev < FEATURED_ITEMS.length - 1 ? prev + 1 : 0));
+  const openAlbum = (album: CatalogAlbum) => {
+    router.push({
+      pathname: '/album' as any,
+      params: {
+        albumId: album.id,
+        title: album.title,
+        artist: album.artist,
+        artistId: album.artistId ?? '',
+        coverUrl: album.cover ?? '',
+      },
+    });
   };
 
-  const currentFeatured = FEATURED_ITEMS[featuredIndex];
+  const openArtist = (artist: CatalogArtist) => {
+    router.push({
+      pathname: '/artist' as any,
+      params: {
+        artistId: artist.id,
+        name: artist.name,
+        coverUrl: artist.picture ?? '',
+      },
+    });
+  };
 
-  // 1. Explore State (Screenshot 8)
   const renderExploreHome = () => (
-    <ScrollView contentContainerStyle={[s.content, { paddingBottom: bottomBarClearance }]} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      contentContainerStyle={[s.content, { paddingBottom: bottomBarClearance }]}
+      showsVerticalScrollIndicator={false}
+    >
       <Text style={s.pageTitle}>Explore</Text>
 
-      {/* Search Input Bar (Touch to activate search) */}
       <Pressable
         style={s.searchBar}
         onPress={() => {
           setIsSearching(true);
           setTimeout(() => inputRef.current?.focus(), 50);
         }}
+        accessibilityRole="search"
+        accessibilityLabel="Search"
       >
         <Icon name="search" size={20} color="#8e8e93" />
         <Text style={s.searchPlaceholder}>Search</Text>
       </Pressable>
 
-      {/* Featured Section */}
       <View style={s.section}>
-        <View style={s.sectionHeader}>
-          <Text style={s.sectionTitle}>Featured</Text>
-          <View style={s.navArrows}>
-            <Pressable style={s.navArrowBtn} onPress={handleFeaturedPrev}>
-              <Icon name="chevron-back" size={16} color="#ffffff" />
-            </Pressable>
-            <Pressable style={s.navArrowBtn} onPress={handleFeaturedNext}>
-              <Icon name="chevron-forward" size={16} color="#ffffff" />
-            </Pressable>
-          </View>
-        </View>
-
-        {/* Featured Card */}
-        <Pressable
-          style={s.featuredCard}
-          onPress={() => {
-            router.push({
-              pathname: '/album' as any,
-              params: {
-                title: currentFeatured.title,
-                artist: currentFeatured.artist,
-                coverUrl: currentFeatured.coverUrl,
-              },
-            });
-          }}
-        >
-          <View style={s.featuredArtContainer}>
-            <View style={s.ambientGlow} />
-            <Image source={{ uri: currentFeatured.coverUrl }} style={s.featuredArt} />
-          </View>
-          <View style={s.featuredMeta}>
-            <Text style={s.featuredTag}>{currentFeatured.tag}</Text>
-            <Text style={s.featuredArtist}>{currentFeatured.artist}</Text>
-            <Text style={s.featuredTitle}>{currentFeatured.title}</Text>
-          </View>
-        </Pressable>
-      </View>
-
-      {/* Genres Section */}
-      <View style={s.section}>
-        <View style={s.sectionHeader}>
-          <Text style={s.sectionTitle}>Genres</Text>
-          <Pressable>
-            <Text style={s.viewAllText}>View all</Text>
-          </Pressable>
-        </View>
-
+        <Text style={s.sectionTitle}>Genres</Text>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -226,7 +195,10 @@ export default function SearchScreen() {
                 setQuery(genre);
                 setIsSearching(true);
                 setHasSubmitted(true);
+                addToSearchHistory(genre);
               }}
+              accessibilityRole="button"
+              accessibilityLabel={`Search ${genre}`}
             >
               <Text style={s.genreText}>{genre}</Text>
             </Pressable>
@@ -236,10 +208,11 @@ export default function SearchScreen() {
     </ScrollView>
   );
 
-  // 2. Active Search Suggestions & History (Screenshot 9)
   const renderSearchSuggestions = () => (
-    <ScrollView contentContainerStyle={[s.content, { paddingBottom: bottomBarClearance }]} showsVerticalScrollIndicator={false}>
-      {/* Search Input Row with Cancel button */}
+    <ScrollView
+      contentContainerStyle={[s.content, { paddingBottom: bottomBarClearance }]}
+      showsVerticalScrollIndicator={false}
+    >
       <View style={s.searchInputRow}>
         <View style={s.activeInputBox}>
           <Icon name="search" size={18} color="#8e8e93" />
@@ -255,19 +228,18 @@ export default function SearchScreen() {
             autoFocus
           />
           {!!query && (
-            <Pressable onPress={() => setQuery('')} hitSlop={8}>
+            <Pressable onPress={() => setQuery('')} hitSlop={8} accessibilityLabel="Clear search">
               <Icon name="close" size={18} color="#8e8e93" />
             </Pressable>
           )}
         </View>
-        <Pressable onPress={handleCancelSearch} hitSlop={8}>
+        <Pressable onPress={handleCancelSearch} hitSlop={8} accessibilityLabel="Cancel search">
           <Text style={s.cancelText}>Cancel</Text>
         </Pressable>
       </View>
 
       {loading && <ActivityIndicator color="#00e5bf" style={{ marginVertical: 16 }} />}
 
-      {/* Recent searches */}
       {searchHistory.length > 0 && (
         <View style={s.suggestionsList}>
           {searchHistory.map((item) => (
@@ -278,6 +250,8 @@ export default function SearchScreen() {
                 setQuery(item);
                 handleSubmitSearch(item);
               }}
+              accessibilityRole="button"
+              accessibilityLabel={`Search ${item} again`}
             >
               <View style={s.suggestionLeft}>
                 <Icon name="time-outline" size={20} color="#8e8e93" />
@@ -287,6 +261,8 @@ export default function SearchScreen() {
                 onPress={() => removeFromSearchHistory(item)}
                 hitSlop={8}
                 style={{ padding: 4 }}
+                accessibilityRole="button"
+                accessibilityLabel={`Remove ${item} from recent searches`}
               >
                 <Icon name="trash-outline" size={18} color="#8e8e93" />
               </Pressable>
@@ -295,54 +271,49 @@ export default function SearchScreen() {
         </View>
       )}
 
-      {/* Live search suggestions */}
-      {results.tracks.slice(0, 4).map((t) => (
-        <Pressable
-          key={`sugg_${t.id}`}
-          style={s.suggestionRow}
-          onPress={() => {
-            setQuery(t.title);
-            handleSubmitSearch(t.title);
-          }}
-        >
-          <View style={s.suggestionLeft}>
-            <Icon name="search" size={20} color="#8e8e93" />
-            <Text style={s.suggestionText}>{t.title.toLowerCase()}</Text>
-          </View>
-        </Pressable>
-      ))}
-
-      {/* Suggested Artists */}
       {results.artists.slice(0, 3).map((artist) => (
         <Pressable
-          key={`art_${artist.id || artist.name}`}
+          key={`art_${artist.id}`}
           style={s.suggestionRow}
-          onPress={() => {
-            router.push({
-              pathname: '/artist' as any,
-              params: { name: artist.name },
-            });
-          }}
+          onPress={() => openArtist(artist)}
+          accessibilityRole="button"
+          accessibilityLabel={`View artist ${artist.name}`}
         >
           <View style={s.suggestionLeft}>
-            <Image
-              source={{ uri: artist.picture || 'https://resources.tidal.com/images/13c6aa66/410e/433f/a8d8/a4b13cefe446/320x320.jpg' }}
-              style={s.artistAvatar}
-            />
+            {artist.picture ? (
+              <Image source={{ uri: artist.picture }} style={s.artistAvatar} />
+            ) : (
+              <View style={[s.artistAvatar, s.avatarFallback]}>
+                <Icon name="person" size={18} color="#8e8e93" />
+              </View>
+            )}
             <Text style={s.suggestionText}>{artist.name}</Text>
           </View>
-          <Icon name="ellipsis-horizontal" size={18} color="#8e8e93" />
+          <Icon name="chevron-forward" size={18} color="#8e8e93" />
         </Pressable>
       ))}
     </ScrollView>
   );
 
-  // 3. Search Results (Screenshot 10)
+  const showTracks = activeTab === 'Top' || activeTab === 'Tracks';
+  const showArtists = activeTab === 'Top' || activeTab === 'Artists';
+  const showAlbums = activeTab === 'Top' || activeTab === 'Albums';
+  const hasAnyResults =
+    results.tracks.length > 0 || results.artists.length > 0 || results.albums.length > 0;
+
   const renderSearchResults = () => (
-    <ScrollView contentContainerStyle={[s.content, { paddingBottom: bottomBarClearance }]} showsVerticalScrollIndicator={false}>
-      {/* Search Bar with Back Button */}
+    <ScrollView
+      contentContainerStyle={[s.content, { paddingBottom: bottomBarClearance }]}
+      showsVerticalScrollIndicator={false}
+    >
       <View style={s.resultsHeaderRow}>
-        <Pressable onPress={() => setHasSubmitted(false)} style={s.circleBtn} hitSlop={8}>
+        <Pressable
+          onPress={() => setHasSubmitted(false)}
+          style={s.circleBtn}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Back to explore"
+        >
           <Icon name="chevron-back" size={20} color="#ffffff" />
         </Pressable>
         <View style={s.resultsInputBox}>
@@ -358,22 +329,30 @@ export default function SearchScreen() {
             placeholderTextColor="#8e8e93"
           />
           {!!query && (
-            <Pressable onPress={() => { setQuery(''); setHasSubmitted(false); }} hitSlop={8}>
+            <Pressable
+              onPress={() => {
+                setQuery('');
+                setHasSubmitted(false);
+              }}
+              hitSlop={8}
+              accessibilityLabel="Clear search"
+            >
               <Icon name="close" size={18} color="#8e8e93" />
             </Pressable>
           )}
         </View>
       </View>
 
-      {/* Pill Filter Tabs */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.tabsRow}>
-        {(['Top results', 'Tracks', 'Profiles', 'Uploads'] as const).map((tab) => {
+        {(['Top', 'Tracks', 'Artists', 'Albums'] as const).map((tab) => {
           const isActive = activeTab === tab;
           return (
             <Pressable
               key={tab}
               style={[s.filterPill, isActive ? s.filterPillActive : s.filterPillInactive]}
               onPress={() => setActiveTab(tab)}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: isActive }}
             >
               <Text style={[s.filterPillText, isActive ? s.filterPillTextActive : s.filterPillTextInactive]}>
                 {tab}
@@ -385,78 +364,141 @@ export default function SearchScreen() {
 
       {loading && <ActivityIndicator color="#00e5bf" style={{ marginVertical: 20 }} />}
 
-      {/* Results List matching Screenshot 10 */}
-      <View style={s.resultsList}>
-        {/* Render Tracks */}
-        {(activeTab === 'Top results' || activeTab === 'Tracks') &&
-          results.tracks.map((track) => (
-            <Pressable
-              key={track.id}
-              style={s.resultItem}
-              onPress={() => handlePlayTrack(track)}
-            >
-              <Image source={{ uri: track.coverUrl }} style={s.resultArt} />
-              <View style={s.resultMeta}>
-                <Text numberOfLines={1} style={s.resultTitle}>{track.title}</Text>
-                <Text numberOfLines={1} style={s.resultSub}>Track • {track.artist}</Text>
+      {error ? (
+        <View style={s.stateBlock}>
+          <Text style={s.stateText}>{error}</Text>
+        </View>
+      ) : !loading && !hasAnyResults ? (
+        <View style={s.stateBlock}>
+          <Text style={s.stateText}>No results for &ldquo;{query.trim()}&rdquo;.</Text>
+        </View>
+      ) : (
+        <>
+          {showTracks && results.tracks.length > 0 && (
+            <View style={s.resultsGroup}>
+              <View style={s.resultsGroupHeader}>
+                <Text style={s.sectionTitle}>Tracks</Text>
+                <Pressable
+                  onPress={() => playMany(results.tracks, query.trim() || 'Search')}
+                  hitSlop={8}
+                  style={{ minHeight: 44, justifyContent: 'center' }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Play all results"
+                >
+                  <Text style={s.viewAllText}>Play all</Text>
+                </Pressable>
               </View>
-              <Pressable onPress={() => setOptionsTrack(track)} hitSlop={8} style={{ padding: 6 }}>
-                <Icon name="ellipsis-horizontal" size={18} color="#8e8e93" />
-              </Pressable>
-            </Pressable>
-          ))}
+              <View style={s.resultsList}>
+                {results.tracks.map((track) => (
+                  <Pressable
+                    key={track.id}
+                    style={s.resultItem}
+                    onPress={() => playOne(track, query.trim() || 'Search')}
+                    onLongPress={() => setOptionsTrack(track)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Play ${track.title} by ${track.artist}`}
+                  >
+                    {track.coverUrl ? (
+                      <Image source={{ uri: track.coverUrl }} style={s.resultArt} />
+                    ) : (
+                      <View style={[s.resultArt, s.artFallback]}>
+                        <Icon name="musical-note" size={20} color="#8e8e93" />
+                      </View>
+                    )}
+                    <View style={s.resultMeta}>
+                      <Text numberOfLines={1} style={s.resultTitle}>
+                        {track.title}
+                      </Text>
+                      <Text numberOfLines={1} style={s.resultSub}>
+                        {track.artist}
+                        {track.album ? ` • ${track.album}` : ''}
+                        {track.durationMs ? ` • ${formatDuration(track.durationMs)}` : ''}
+                      </Text>
+                    </View>
+                    <Pressable
+                      onPress={() => setOptionsTrack(track)}
+                      hitSlop={8}
+                      style={{ padding: 6 }}
+                      accessibilityLabel={`More options for ${track.title}`}
+                    >
+                      <Icon name="ellipsis-horizontal" size={18} color="#8e8e93" />
+                    </Pressable>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          )}
 
-        {/* Render Artist Profiles */}
-        {(activeTab === 'Top results' || activeTab === 'Profiles') &&
-          results.artists.map((artist) => (
-            <Pressable
-              key={artist.id || artist.name}
-              style={s.resultItem}
-              onPress={() => {
-                router.push({
-                  pathname: '/artist' as any,
-                  params: { name: artist.name },
-                });
-              }}
-            >
-              <Image
-                source={{ uri: artist.picture || 'https://resources.tidal.com/images/13c6aa66/410e/433f/a8d8/a4b13cefe446/320x320.jpg' }}
-                style={[s.resultArt, s.resultArtCircle]}
-              />
-              <View style={s.resultMeta}>
-                <Text numberOfLines={1} style={s.resultTitle}>{artist.name}</Text>
+          {showArtists && results.artists.length > 0 && (
+            <View style={s.resultsGroup}>
+              <Text style={s.sectionTitle}>Artists</Text>
+              <View style={s.resultsList}>
+                {results.artists.map((artist) => (
+                  <Pressable
+                    key={artist.id}
+                    style={s.resultItem}
+                    onPress={() => openArtist(artist)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`View artist ${artist.name}`}
+                  >
+                    {artist.picture ? (
+                      <Image source={{ uri: artist.picture }} style={[s.resultArt, s.resultArtCircle]} />
+                    ) : (
+                      <View style={[s.resultArt, s.resultArtCircle, s.artFallback]}>
+                        <Icon name="person" size={20} color="#8e8e93" />
+                      </View>
+                    )}
+                    <View style={s.resultMeta}>
+                      <Text numberOfLines={1} style={s.resultTitle}>
+                        {artist.name}
+                      </Text>
+                      <Text numberOfLines={1} style={s.resultSub}>
+                        Artist
+                      </Text>
+                    </View>
+                    <Icon name="chevron-forward" size={18} color="#8e8e93" />
+                  </Pressable>
+                ))}
               </View>
-            </Pressable>
-          ))}
+            </View>
+          )}
 
-        {/* Render Albums */}
-        {(activeTab === 'Top results') &&
-          results.albums.map((album) => (
-            <Pressable
-              key={album.id || album.title}
-              style={s.resultItem}
-              onPress={() => {
-                router.push({
-                  pathname: '/album' as any,
-                  params: {
-                    title: album.title,
-                    artist: album.artist?.name || album.artist,
-                    coverUrl: album.cover,
-                  },
-                });
-              }}
-            >
-              <Image
-                source={{ uri: album.cover || 'https://resources.tidal.com/images/13c6aa66/410e/433f/a8d8/a4b13cefe446/320x320.jpg' }}
-                style={s.resultArt}
-              />
-              <View style={s.resultMeta}>
-                <Text numberOfLines={1} style={s.resultTitle}>{album.title}</Text>
-                <Text numberOfLines={1} style={s.resultSub}>Album • {album.artist?.name || album.artist}</Text>
+          {showAlbums && results.albums.length > 0 && (
+            <View style={s.resultsGroup}>
+              <Text style={s.sectionTitle}>Albums</Text>
+              <View style={s.resultsList}>
+                {results.albums.map((album) => (
+                  <Pressable
+                    key={album.id}
+                    style={s.resultItem}
+                    onPress={() => openAlbum(album)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Open album ${album.title} by ${album.artist}`}
+                  >
+                    {album.cover ? (
+                      <Image source={{ uri: album.cover }} style={s.resultArt} />
+                    ) : (
+                      <View style={[s.resultArt, s.artFallback]}>
+                        <Icon name="albums-outline" size={20} color="#8e8e93" />
+                      </View>
+                    )}
+                    <View style={s.resultMeta}>
+                      <Text numberOfLines={1} style={s.resultTitle}>
+                        {album.title}
+                      </Text>
+                      <Text numberOfLines={1} style={s.resultSub}>
+                        {album.artist}
+                        {album.releaseDate ? ` • ${album.releaseDate.slice(0, 4)}` : ''}
+                      </Text>
+                    </View>
+                    <Icon name="chevron-forward" size={18} color="#8e8e93" />
+                  </Pressable>
+                ))}
               </View>
-            </Pressable>
-          ))}
-      </View>
+            </View>
+          )}
+        </>
+      )}
     </ScrollView>
   );
 
@@ -468,7 +510,6 @@ export default function SearchScreen() {
       {isSearching && !hasSubmitted && renderSearchSuggestions()}
       {hasSubmitted && renderSearchResults()}
 
-      {/* Options Menu Modal */}
       <TrackOptionsMenu
         visible={!!optionsTrack}
         track={optionsTrack}
@@ -734,4 +775,31 @@ const s = StyleSheet.create({
     fontSize: 13,
     color: '#8e8e93',
   },
+
+  resultsGroup: {
+    gap: 12,
+  },
+  resultsGroupHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  stateBlock: {
+    paddingVertical: 32,
+    alignItems: 'center',
+  },
+  stateText: {
+    fontSize: 15,
+    color: '#8e8e93',
+    textAlign: 'center',
+  },
+  artFallback: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarFallback: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });
+

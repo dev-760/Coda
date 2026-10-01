@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Image,
   Pressable,
@@ -22,7 +22,7 @@ import { Track } from '../../src/providers/types';
 import { CreatePlaylistModal } from '../../src/components/playlist/CreatePlaylistModal';
 import { PlaylistActionsModal } from '../../src/components/playlist/PlaylistActionsModal';
 
-type SubView = 'root' | 'mixes' | 'playlists' | 'albums' | 'tracks' | 'videos' | 'profiles' | 'purchases';
+type SubView = 'root' | 'mixes' | 'playlists' | 'albums' | 'tracks';
 
 export default function LibraryScreen() {
   const router = useRouter();
@@ -37,30 +37,45 @@ export default function LibraryScreen() {
   const { playlists, favorites, createPlaylist } = useLibraryStore();
   const { addToQueue } = useQueueStore();
 
-  // Mock sample albums matching Screenshot 6
-  const ALBUMS = [
-    {
-      id: 'alb-1',
-      title: 'SALGOAT (Vol. 2)',
-      artist: 'ElGrandeToto',
-      year: '2026',
-      explicit: true,
-      coverUrl: 'https://resources.tidal.com/images/13c6aa66/410e/433f/a8d8/a4b13cefe446/320x320.jpg',
-    },
-    {
-      id: 'alb-2',
-      title: 'Handmade',
-      artist: 'Hindi Zahra',
-      year: '2010',
-      explicit: false,
-      coverUrl: 'https://resources.tidal.com/images/13c6aa66/410e/433f/a8d8/a4b13cefe446/320x320.jpg',
-    },
-  ];
+  // Albums are derived from tracks the user actually saved, so the grid only
+    // ever shows real, reachable albums rather than a hardcoded sample.
+    const savedAlbums = useMemo(() => {
+      const byKey = new Map<string, {
+        id: string;
+        title: string;
+        artist: string;
+        coverUrl: string;
+        year: string;
+        explicit: boolean;
+      }>();
 
-  const filteredAlbums = ALBUMS.filter(a =>
-    a.title.toLowerCase().includes(albumFilter.toLowerCase()) ||
-    a.artist.toLowerCase().includes(albumFilter.toLowerCase())
-  );
+      const consider = (track: Track) => {
+        if (!track.album) return;
+        const key = `${track.artist}|${track.album}`;
+        if (byKey.has(key)) return;
+        byKey.set(key, {
+          id: key,
+          title: track.album as string,
+          artist: track.artist,
+          coverUrl: track.coverUrl ?? '',
+          year: '',
+          explicit: false,
+        });
+      };
+
+      for (const track of favorites) consider(track);
+      for (const playlist of playlists) {
+        for (const entry of playlist.tracks) {
+          consider(entry as unknown as Track);
+        }
+      }
+      return [...byKey.values()];
+    }, [favorites, playlists]);
+
+    const filteredAlbums = savedAlbums.filter((a) =>
+      a.title.toLowerCase().includes(albumFilter.toLowerCase()) ||
+      a.artist.toLowerCase().includes(albumFilter.toLowerCase()),
+    );
 
   // 1. Root Collection Menu (Screenshot 4)
   const renderRootView = () => (
@@ -98,34 +113,10 @@ export default function LibraryScreen() {
             <Text style={s.menuLabel}>Tracks</Text>
           </View>
           <Icon name="chevron-forward" size={20} color="#8e8e93" />
-        </Pressable>
-
-        <Pressable style={s.menuRow} onPress={() => setCurrentView('videos')}>
-          <View style={s.menuLeft}>
-            <Icon name="play-circle-outline" size={24} color="#ffffff" />
-            <Text style={s.menuLabel}>Videos</Text>
-          </View>
-          <Icon name="chevron-forward" size={20} color="#8e8e93" />
-        </Pressable>
-
-        <Pressable style={s.menuRow} onPress={() => setCurrentView('profiles')}>
-          <View style={s.menuLeft}>
-            <Icon name="people-outline" size={24} color="#ffffff" />
-            <Text style={s.menuLabel}>Profiles</Text>
-          </View>
-          <Icon name="chevron-forward" size={20} color="#8e8e93" />
-        </Pressable>
-
-        <Pressable style={s.menuRow} onPress={() => setCurrentView('purchases')}>
-          <View style={s.menuLeft}>
-            <Icon name="pricetag-outline" size={24} color="#ffffff" />
-            <Text style={s.menuLabel}>Purchases</Text>
-          </View>
-          <Icon name="chevron-forward" size={20} color="#8e8e93" />
-        </Pressable>
-      </View>
-    </ScrollView>
-  );
+                  </Pressable>
+                </View>
+              </ScrollView>
+            );
 
   // 2. Mixes and radio
   const renderMixesView = () => (
@@ -234,36 +225,53 @@ export default function LibraryScreen() {
       </View>
 
       {/* Albums Grid */}
-      <View style={s.albumGrid}>
-        {filteredAlbums.map((album) => (
-          <Pressable
-            key={album.id}
-            style={s.albumCard}
-            onPress={() => {
-              router.push({
-                pathname: '/album' as any,
-                params: { title: album.title, artist: album.artist, coverUrl: album.coverUrl },
-              });
-            }}
-          >
-            <Image source={{ uri: album.coverUrl }} style={s.albumCover} />
-            <View style={s.albumMeta}>
-              <View style={s.albumTitleRow}>
-                <Text numberOfLines={1} style={s.albumTitle}>{album.title}</Text>
-                {album.explicit && (
-                  <View style={s.explicitBadge}>
-                    <Text style={s.explicitText}>E</Text>
-                  </View>
-                )}
+            {filteredAlbums.length === 0 ? (
+              <View style={s.emptyCenter}>
+                <Icon name="albums-outline" size={64} color="#8e8e93" />
+                <Text style={s.emptyText}>
+                  {savedAlbums.length === 0
+                    ? 'No saved albums yet. Favorite a track and the album it belongs to shows up here.'
+                    : 'No albums match that filter.'}
+                </Text>
               </View>
-              <Text numberOfLines={1} style={s.albumArtist}>{album.artist}</Text>
-              <Text style={s.albumYear}>{album.year}</Text>
-            </View>
-          </Pressable>
-        ))}
-      </View>
-    </ScrollView>
-  );
+            ) : (
+              <View style={s.albumGrid}>
+                {filteredAlbums.map((album) => (
+                  <Pressable
+                    key={album.id}
+                    style={s.albumCard}
+                    onPress={() => {
+                      router.push({
+                        pathname: '/album' as any,
+                        params: {
+                          title: album.title,
+                          artist: album.artist,
+                          coverUrl: album.coverUrl,
+                        },
+                      });
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Open album ${album.title} by ${album.artist}`}
+                  >
+                    {album.coverUrl ? (
+                      <Image source={{ uri: album.coverUrl }} style={s.albumCover} />
+                    ) : (
+                      <View style={[s.albumCover, s.albumCoverFallback]}>
+                        <Icon name="albums-outline" size={28} color="#8e8e93" />
+                      </View>
+                    )}
+                    <View style={s.albumMeta}>
+                      <View style={s.albumTitleRow}>
+                        <Text numberOfLines={1} style={s.albumTitle}>{album.title}</Text>
+                      </View>
+                      <Text numberOfLines={1} style={s.albumArtist}>{album.artist}</Text>
+                    </View>
+                  </Pressable>
+                ))}
+              </View>
+            )}
+          </ScrollView>
+        );
 
   // 5. Tracks View
   const renderTracksView = () => (
@@ -308,10 +316,7 @@ export default function LibraryScreen() {
       case 'playlists': return 'Playlists';
       case 'mixes': return '';
       case 'tracks': return 'Tracks';
-      case 'videos': return 'Videos';
-      case 'profiles': return 'Profiles';
-      case 'purchases': return 'Purchases';
-      default: return undefined;
+            default: return undefined;
     }
   };
 
@@ -339,13 +344,6 @@ export default function LibraryScreen() {
       {currentView === 'playlists' && renderPlaylistsView()}
       {currentView === 'albums' && renderAlbumsView()}
       {currentView === 'tracks' && renderTracksView()}
-      {(currentView === 'videos' || currentView === 'profiles' || currentView === 'purchases') && (
-        <View style={s.emptyContainer}>
-          <View style={s.emptyCenter}>
-            <Text style={s.emptyText}>No items found in your collection.</Text>
-          </View>
-        </View>
-      )}
 
       {/* Modals */}
       <CreatePlaylistModal
@@ -522,6 +520,11 @@ const s = StyleSheet.create({
     fontWeight: '700',
     color: '#ffffff',
     flexShrink: 1,
+  },
+  albumCoverFallback: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#1c1c1e',
   },
   explicitBadge: {
     backgroundColor: '#333333',

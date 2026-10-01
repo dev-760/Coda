@@ -7,8 +7,7 @@ interface HeaderBarProps {
   showBack?: boolean;
   onBack?: () => void;
   title?: string;
-  /** Opens Settings. On by default so every screen can reach it. */
-  showSettings?: boolean;
+  /** Extra controls rendered on the trailing edge (overflow menus, etc). */
   rightAction?: React.ReactNode;
 }
 
@@ -16,7 +15,6 @@ export default function HeaderBar({
   showBack = false,
   onBack,
   title,
-  showSettings = true,
   rightAction,
 }: HeaderBarProps) {
   const router = useRouter();
@@ -54,19 +52,8 @@ export default function HeaderBar({
       )}
 
       <View style={s.right}>
-        {rightAction}
-        {showSettings && !showBack && (
-          <Pressable
-            onPress={() => router.push('/settings' as any)}
-            style={s.circleBtn}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel="Settings"
-          >
-            <Icon name="settings-outline" size={18} color="#ffffff" />
-          </Pressable>
-        )}
-      </View>
+              {rightAction}
+            </View>
     </View>
   );
 }
