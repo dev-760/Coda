@@ -7,7 +7,7 @@ import { Playlist } from '../../store/libraryStore';
 interface PlaylistActionsModalProps {
   visible: boolean;
   onClose: () => void;
-  playlist: Playlist;
+  playlist: Playlist | null;
   onEdit: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
@@ -27,6 +27,10 @@ export const PlaylistActionsModal: React.FC<PlaylistActionsModalProps> = ({
   onPlay,
   onShufflePlay,
 }) => {
+  // The caller clears the selection to dismiss the sheet, so a render can land
+  // here with a null playlist while the modal is still mounted.
+  if (!playlist) return null;
+
   const handleDelete = () => {
     Alert.alert(
       'Delete Playlist',

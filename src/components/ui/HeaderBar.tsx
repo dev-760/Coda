@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, Pressable, Text } from 'react-native';
 import { useRouter } from 'expo-router';
-import TidalLogo from './TidalLogo';
+import AppLogo from './AppLogo';
 import Icon from './Icon';
 
 interface HeaderBarProps {
@@ -17,7 +17,7 @@ export default function HeaderBar({
   showBack = false,
   onBack,
   title,
-  showProfile = true,
+  showProfile = false,
   onProfilePress,
   rightAction,
 }: HeaderBarProps) {
@@ -48,7 +48,7 @@ export default function HeaderBar({
           </Pressable>
         ) : (
           <Pressable onPress={() => router.push('/')} hitSlop={8}>
-            <TidalLogo size={24} color="#ffffff" />
+            <AppLogo size={24} color="#ffffff" />
           </Pressable>
         )}
       </View>

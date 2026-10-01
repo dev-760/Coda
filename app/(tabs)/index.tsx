@@ -44,7 +44,7 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={s.container} edges={['top']}>
-      <HeaderBar showBack={false} showProfile={false} title="Home" />
+      <HeaderBar showBack={false} title="Home" />
 
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
         {offline && (

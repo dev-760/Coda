@@ -115,7 +115,7 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#000000' }} edges={['top']}>
-      <HeaderBar showBack showProfile={false} title="Settings" />
+      <HeaderBar showBack title="Settings" />
 
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
         {/* PLAYBACK */}
