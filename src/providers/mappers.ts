@@ -150,21 +150,25 @@ export function mapHifiApiArtists(rawItems: unknown): CatalogArtist[] {
 
 /** Maps an album payload. `cover` is a bare uuid upstream. */
 export function mapHifiApiAlbum(raw: unknown): CatalogAlbum | null {
+  // Not unwrapped: an album entry is a bare object, and unwrapping would look
+  // for item/track keys that a top-level album record never has.
   const parsed = AlbumRefSchema.extend({
-    artist: z.union([z.string(), ArtistRefSchema]).optional(),
+    artist: z.union([z.string(), ArtistRefSchema]).nullish(),
+    artists: z.array(ArtistRefSchema).optional(),
     releaseDate: z.string().nullish(),
     numberOfTracks: z.number().optional(),
     type: z.string().optional(),
     explicit: z.boolean().optional(),
-  }).safeParse(unwrapEntry(raw));
+  }).safeParse(raw);
   if (!parsed.success || parsed.data.id == null) return null;
 
   const a = parsed.data;
-  const { artist } = a;
+  const credit =
+    a.artist ?? a.artists?.find((entry) => entry.id != null) ?? a.artists?.[0];
   const artistName =
-    typeof artist === 'string' ? artist : artist?.name ?? 'Unknown Artist';
+    typeof credit === 'string' ? credit : credit?.name ?? 'Unknown Artist';
   const artistId =
-    artist && typeof artist === 'object' && artist.id != null ? String(artist.id) : null;
+    credit && typeof credit === 'object' && credit.id != null ? String(credit.id) : null;
 
   return {
     id: String(a.id),
@@ -203,8 +207,11 @@ export function mapAlbumWithTracks(raw: unknown): CatalogTrackList | null {
 }
 
 /**
- * Reads the `{ version, data: { artists: {...}, tracks: {...} } }` shape used by
- * `/search/?a=`, `/search/?s=` and the other search kinds.
+ * Reads the array out of a search response.
+ *
+ * `/search/?s=` is the outlier: it returns `{ data: { items } }` directly,
+ * while every other kind returns `{ data: { <kind>: { items } } }`. Both are
+ * checked, in that order, so the same reader works for either.
  */
 export function readSearchBucket(
   raw: unknown,
@@ -213,10 +220,17 @@ export function readSearchBucket(
   if (!raw || typeof raw !== 'object') return [];
   const data = (raw as { data?: Record<string, unknown> }).data;
   if (!data) return [];
+
   const bucket = data[kind];
-  if (!bucket || typeof bucket !== 'object') return [];
-  const items = (bucket as { items?: unknown }).items;
-  return Array.isArray(items) ? items : [];
+  if (bucket && typeof bucket === 'object') {
+    const nested = (bucket as { items?: unknown }).items;
+    if (Array.isArray(nested)) return nested;
+  }
+
+  // `/search/?s=` puts the array straight on data.
+  if (kind === 'tracks' && Array.isArray(data.items)) return data.items;
+
+  return [];
 }
 
 /** Reads the `{ version, albums: { items: [...] } }` shape of `/artist/?f=`. */

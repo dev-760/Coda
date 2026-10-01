@@ -210,3 +210,56 @@ describe('readArtistAlbums / readArtistTracks', () => {
     expect(readArtistTracks({ artist: {} })).toEqual([]);
   });
 });
+
+describe('regressions found against the live service', () => {
+  it('/search/?s= returns data.items directly, not data.tracks.items', () => {
+    // Verified live: ?s= gives { data: { items } } while ?a=/?al=/?p= give
+    // { data: { <kind>: { items } } }. Reading only the nested path silently
+    // returned zero tracks.
+    const sResponse = {
+      version: '2.10',
+      data: { limit: 2, totalNumberOfItems: 2, items: [{ id: 1, title: 'One More Time' }] },
+    };
+    expect(readSearchBucket(sResponse, 'tracks')).toHaveLength(1);
+  });
+
+  it('still reads the nested path for the multi-kind response', () => {
+    const multi = {
+      version: '2.10',
+      data: { tracks: { items: [{ id: 2, title: 'Get Lucky' }] } },
+    };
+    expect(readSearchBucket(multi, 'tracks')).toHaveLength(1);
+  });
+
+  it('prefers the nested bucket when both are present', () => {
+    const both = { data: { tracks: { items: [{ id: 3, title: 'Nested' }] }, items: [{ id: 4, title: 'Flat' }] } };
+    expect(readSearchBucket(both, 'tracks')[0]).toMatchObject({ title: 'Nested' });
+  });
+
+  it('does not unwrap an album, so its artist survives', () => {
+    // The artist lives on the album record itself. Treating it as a wrapper
+    // entry produced "Unknown Artist" on every album.
+    const album = mapHifiApiAlbum({
+      id: 20115556,
+      title: 'Random Access Memories',
+      cover: 'b66a5c40-c34d-4507-a0dc-5f98e46fdd20',
+      artist: { id: 8847, name: 'Daft Punk', type: 'MAIN' },
+      artists: [{ id: 8847, name: 'Daft Punk' }],
+    });
+    expect(album).toMatchObject({ artist: 'Daft Punk', artistId: '8847' });
+  });
+
+  it('falls back to the artists array when artist is absent', () => {
+    const album = mapHifiApiAlbum({
+      id: 7,
+      title: 'X',
+      artists: [{ id: 8, name: 'From Array' }],
+    });
+    expect(album).toMatchObject({ artist: 'From Array', artistId: '8' });
+  });
+
+  it('accepts an album with no artist at all', () => {
+    expect(mapHifiApiAlbum({ id: 9, title: 'Orphan' })?.artist).toBe('Unknown Artist');
+  });
+});
+
