@@ -6,7 +6,6 @@ import {
   StyleSheet,
   Text,
   View,
-  Dimensions,
   Share,
   Alert,
 } from 'react-native';
@@ -19,8 +18,6 @@ import TrackOptionsMenu from '../src/components/ui/TrackOptionsMenu';
 import { audioService } from '../src/audio/AudioService';
 import { useQueueStore } from '../src/store/queueStore';
 import { Track } from '../src/providers/types';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const TOP_TRACKS = [
   { id: 'att-1', title: 'Beautiful Tango', artist: 'Hindi Zahra', durationMs: 236000, coverUrl: 'https://resources.tidal.com/images/13c6aa66/410e/433f/a8d8/a4b13cefe446/320x320.jpg' },

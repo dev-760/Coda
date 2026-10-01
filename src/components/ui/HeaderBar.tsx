@@ -1,15 +1,14 @@
 import React from 'react';
 import { View, StyleSheet, Pressable, Text } from 'react-native';
 import { useRouter } from 'expo-router';
-import AppLogo from './AppLogo';
 import Icon from './Icon';
 
 interface HeaderBarProps {
   showBack?: boolean;
   onBack?: () => void;
   title?: string;
-  showProfile?: boolean;
-  onProfilePress?: () => void;
+  /** Opens Settings. On by default so every screen can reach it. */
+  showSettings?: boolean;
   rightAction?: React.ReactNode;
 }
 
@@ -17,8 +16,7 @@ export default function HeaderBar({
   showBack = false,
   onBack,
   title,
-  showProfile = false,
-  onProfilePress,
+  showSettings = true,
   rightAction,
 }: HeaderBarProps) {
   const router = useRouter();
@@ -31,24 +29,18 @@ export default function HeaderBar({
     }
   };
 
-  const handleProfile = () => {
-    if (onProfilePress) {
-      onProfilePress();
-    } else {
-      router.push('/settings' as any);
-    }
-  };
-
   return (
     <View style={s.container}>
       <View style={s.left}>
-        {showBack ? (
-          <Pressable onPress={handleBack} style={s.circleBtn} hitSlop={8}>
+        {showBack && (
+          <Pressable
+            onPress={handleBack}
+            style={s.circleBtn}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Back"
+          >
             <Icon name="chevron-back" size={20} color="#ffffff" />
-          </Pressable>
-        ) : (
-          <Pressable onPress={() => router.push('/')} hitSlop={8}>
-            <AppLogo size={24} color="#ffffff" />
           </Pressable>
         )}
       </View>
@@ -63,9 +55,15 @@ export default function HeaderBar({
 
       <View style={s.right}>
         {rightAction}
-        {showProfile && (
-          <Pressable onPress={handleProfile} style={s.circleBtn} hitSlop={8}>
-            <Icon name="person" size={18} color="#ffffff" />
+        {showSettings && !showBack && (
+          <Pressable
+            onPress={() => router.push('/settings' as any)}
+            style={s.circleBtn}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Settings"
+          >
+            <Icon name="settings-outline" size={18} color="#ffffff" />
           </Pressable>
         )}
       </View>

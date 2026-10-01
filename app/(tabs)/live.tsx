@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import HeaderBar from '../../src/components/ui/HeaderBar';
+import { useResponsive } from '../../src/hooks/useResponsive';
 import Icon from '../../src/components/ui/Icon';
 import { audioService } from '../../src/audio/AudioService';
 
@@ -23,6 +24,7 @@ const DROPS = [
 ];
 
 export default function LiveScreen() {
+  const { bottomBarClearance } = useResponsive();
   const handlePlay = (item: typeof DROPS[0]) => {
     audioService.playTrack({
       id: item.id,
@@ -36,7 +38,10 @@ export default function LiveScreen() {
   return (
     <SafeAreaView style={s.container} edges={['top']}>
       <HeaderBar />
-      <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[s.content, { paddingBottom: bottomBarClearance }]}
+        showsVerticalScrollIndicator={false}
+      >
         <Text style={s.pageTitle}>Live & Uploads</Text>
 
         <View style={s.section}>

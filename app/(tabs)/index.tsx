@@ -19,6 +19,7 @@ import { audioService } from '../../src/audio/AudioService';
 import { useQueueStore, cacheTracks } from '../../src/store/queueStore';
 import { Track } from '../../src/providers/types';
 import { subscribeToConnectivity } from '../../src/services/connectivity';
+import { useResponsive } from '../../src/hooks/useResponsive';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -42,11 +43,16 @@ export default function HomeScreen() {
   const hasAnything = favorites.length > 0 || playlists.length > 0
     || recentlyPlayed.length > 0 || completedDownloads.length > 0;
 
-  return (
-    <SafeAreaView style={s.container} edges={['top']}>
-      <HeaderBar showBack={false} title="Home" />
+  const { bottomBarClearance } = useResponsive();
 
-      <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+    return (
+      <SafeAreaView style={s.container} edges={['top']}>
+        <HeaderBar showBack={false} title="Home" />
+
+        <ScrollView
+          contentContainerStyle={[s.content, { paddingBottom: bottomBarClearance }]}
+          showsVerticalScrollIndicator={false}
+        >
         {offline && (
           <View style={s.offlineBanner} accessibilityRole="alert">
             <Icon name="cloud-offline-outline" size={18} color="#ffb340" />

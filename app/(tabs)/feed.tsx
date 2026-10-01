@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Image, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import HeaderBar from '../../src/components/ui/HeaderBar';
+import { useResponsive } from '../../src/hooks/useResponsive';
 import Icon from '../../src/components/ui/Icon';
 import { audioService } from '../../src/audio/AudioService';
 import { Track } from '../../src/providers/types';
@@ -34,6 +35,7 @@ const NOTIFICATIONS = [
 ];
 
 export default function FeedScreen() {
+  const { bottomBarClearance } = useResponsive();
   const handlePlay = (item: typeof NOTIFICATIONS[0]) => {
     const track: Track = {
       id: item.id,
@@ -48,7 +50,10 @@ export default function FeedScreen() {
   return (
     <SafeAreaView style={s.container} edges={['top']}>
       <HeaderBar />
-      <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[s.content, { paddingBottom: bottomBarClearance }]}
+        showsVerticalScrollIndicator={false}
+      >
         <Text style={s.pageTitle}>Activity</Text>
 
         <View style={s.list}>

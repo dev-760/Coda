@@ -5,7 +5,6 @@ import {
   StyleSheet,
   Text,
   View,
-  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -15,12 +14,12 @@ import { usePlaybackStore } from '../src/store/playbackStore';
 import { audioService } from '../src/audio/AudioService';
 import { useQueueStore } from '../src/store/queueStore';
 import { useLibraryStore } from '../src/store/libraryStore';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const ARTWORK_SIZE = Math.min(SCREEN_WIDTH - 48, 340);
+import { useResponsive } from '../src/hooks/useResponsive';
 
 export default function NowPlayingScreen() {
   const router = useRouter();
+  const { gutter, artworkSize } = useResponsive();
+  const artSize = artworkSize(340);
   const { currentTrack, isPlaying, positionMs, durationMs, error, isLoading } = usePlaybackStore();
   const { addFavorite, removeFavorite, isFavorite } = useLibraryStore();
   const { shuffle, toggleShuffle, repeat, setRepeat } = useQueueStore();
@@ -118,9 +117,9 @@ export default function NowPlayingScreen() {
       </View>
 
       {/* Main Content Area */}
-      <View style={s.content}>
+      <View style={[s.content, { paddingHorizontal: gutter }]}>
         {/* Large Artwork matching Screenshot 13 */}
-        <View style={s.artworkWrap}>
+        <View style={[s.artworkWrap, { width: artSize, height: artSize }]}>
           {track.coverUrl ? (
             <Image source={{ uri: track.coverUrl }} style={s.artwork} />
           ) : (
@@ -337,14 +336,10 @@ const s = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: 24,
-    justifyContent: 'space-between',
     paddingBottom: 20,
     paddingTop: 10,
   },
   artworkWrap: {
-    width: ARTWORK_SIZE,
-    height: ARTWORK_SIZE,
     alignSelf: 'center',
     borderRadius: 4,
     overflow: 'hidden',

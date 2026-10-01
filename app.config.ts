@@ -7,7 +7,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   slug: 'luma',
   owner: 'wasler4j',
   version: packageJson.version,
-  orientation: 'portrait',
+  orientation: 'default',
   icon: './icon.png',
   scheme: 'luma',
   userInterfaceStyle: 'dark',

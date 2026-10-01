@@ -6,7 +6,6 @@ import {
   StyleSheet,
   Text,
   View,
-  Dimensions,
   Share,
   Alert,
 } from 'react-native';
@@ -20,8 +19,6 @@ import { audioService } from '../src/audio/AudioService';
 import { useQueueStore } from '../src/store/queueStore';
 import { useLibraryStore } from '../src/store/libraryStore';
 import { Track } from '../src/providers/types';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const SAMPLE_TRACKS = [
   { id: 't1', num: 1, title: 'Beautiful Tango (Remastered Version)', artist: 'Hindi Zahra', durationMs: 236000 },

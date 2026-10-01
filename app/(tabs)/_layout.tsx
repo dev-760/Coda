@@ -1,6 +1,7 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { View, StyleSheet, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from '../../src/components/ui/Icon';
 import MiniPlayer from '../../src/components/ui/MiniPlayer';
 
@@ -26,6 +27,11 @@ function CollectionIcon({ focused }: { focused: boolean }) {
 }
 
 export default function TabLayout() {
+  // Reading the real inset keeps the bar clear of the home indicator on devices
+  // that report more than the old hardcoded 24pt.
+  const insets = useSafeAreaInsets();
+  const bottomInset = Math.max(insets.bottom, Platform.OS === 'ios' ? 24 : 8);
+
   return (
     <View style={{ flex: 1, backgroundColor: '#000000' }}>
       <Tabs
@@ -38,9 +44,9 @@ export default function TabLayout() {
             backgroundColor: '#000000',
             borderTopColor: '#1c1c1e',
             borderTopWidth: StyleSheet.hairlineWidth,
-            height: Platform.OS === 'ios' ? 84 : 64,
+            height: 64 + bottomInset,
             paddingTop: 8,
-            paddingBottom: Platform.OS === 'ios' ? 24 : 8,
+            paddingBottom: bottomInset,
           },
         }}
       >

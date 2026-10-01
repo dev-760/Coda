@@ -283,12 +283,6 @@ export default function LyricsScreen() {
             <Icon name="repeat" size={20} color={queue.repeat !== 'off' ? colors.primary : colors.onSurfaceVariant} />
           </Pressable>
         </View>
-
-        {/* Audio Route Device Indicator */}
-        <View style={styles.routeIndicator}>
-          <Icon name="headset" size={15} color={colors.primary} />
-          <Text style={styles.routeIndicatorText}>Bluetooth • AirPods Pro</Text>
-        </View>
       </View>
     </SafeAreaView>
   );
@@ -305,7 +299,7 @@ const styles = StyleSheet.create({
   ambientGlow: {
     position: 'absolute',
     top: -50,
-    left: Dimensions.get('window').width / 2 - 160,
+    alignSelf: 'center',
     width: 320,
     height: 288,
     borderRadius: 160,

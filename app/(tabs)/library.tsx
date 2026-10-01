@@ -8,11 +8,11 @@ import {
   View,
   TextInput,
   Alert,
-  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import HeaderBar from '../../src/components/ui/HeaderBar';
+import { useResponsive } from '../../src/hooks/useResponsive';
 import Icon from '../../src/components/ui/Icon';
 import TrackOptionsMenu from '../../src/components/ui/TrackOptionsMenu';
 import { useLibraryStore } from '../../src/store/libraryStore';
@@ -22,12 +22,11 @@ import { Track } from '../../src/providers/types';
 import { CreatePlaylistModal } from '../../src/components/playlist/CreatePlaylistModal';
 import { PlaylistActionsModal } from '../../src/components/playlist/PlaylistActionsModal';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
 type SubView = 'root' | 'mixes' | 'playlists' | 'albums' | 'tracks' | 'videos' | 'profiles' | 'purchases';
 
 export default function LibraryScreen() {
   const router = useRouter();
+  const { bottomBarClearance } = useResponsive();
   const [currentView, setCurrentView] = useState<SubView>('root');
   const [albumFilter, setAlbumFilter] = useState('');
   const [createModalVisible, setCreateModalVisible] = useState(false);
@@ -65,7 +64,7 @@ export default function LibraryScreen() {
 
   // 1. Root Collection Menu (Screenshot 4)
   const renderRootView = () => (
-    <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+    <ScrollView contentContainerStyle={[s.content, { paddingBottom: bottomBarClearance }]} showsVerticalScrollIndicator={false}>
       <Text style={s.pageTitle}>Collection</Text>
 
       <View style={s.menuList}>
@@ -169,7 +168,7 @@ export default function LibraryScreen() {
     }
 
     return (
-      <ScrollView contentContainerStyle={s.content}>
+      <ScrollView contentContainerStyle={[s.content, { paddingBottom: bottomBarClearance }]}>
         <View style={s.headerRow}>
           <Pressable style={s.whitePillBtn} onPress={() => setCreateModalVisible(true)}>
             <Icon name="add" size={18} color="#000000" />
@@ -216,7 +215,7 @@ export default function LibraryScreen() {
 
   // 4. Albums (Screenshot 6)
   const renderAlbumsView = () => (
-    <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+    <ScrollView contentContainerStyle={[s.content, { paddingBottom: bottomBarClearance }]} showsVerticalScrollIndicator={false}>
       {/* Search / Filter bar */}
       <View style={s.filterBar}>
         <Icon name="search" size={18} color="#8e8e93" />
@@ -268,7 +267,7 @@ export default function LibraryScreen() {
 
   // 5. Tracks View
   const renderTracksView = () => (
-    <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+    <ScrollView contentContainerStyle={[s.content, { paddingBottom: bottomBarClearance }]} showsVerticalScrollIndicator={false}>
       {favorites.length === 0 ? (
         <View style={s.emptyCenter}>
           <Icon name="heart-outline" size={64} color="#8e8e93" />
@@ -392,10 +391,9 @@ const s = StyleSheet.create({
     backgroundColor: '#000000',
   },
   content: {
-    paddingHorizontal: 16,
-    paddingBottom: 130,
-    gap: 16,
-  },
+      paddingHorizontal: 16,
+      gap: 16,
+    },
   pageTitle: {
     fontSize: 32,
     fontWeight: '700',
@@ -502,7 +500,7 @@ const s = StyleSheet.create({
     marginTop: 8,
   },
   albumCard: {
-    width: (SCREEN_WIDTH - 48) / 2,
+    flex: 1,
     gap: 6,
   },
   albumCover: {

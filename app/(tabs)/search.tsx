@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import HeaderBar from '../../src/components/ui/HeaderBar';
+import { useResponsive } from '../../src/hooks/useResponsive';
 import Icon from '../../src/components/ui/Icon';
 import TrackOptionsMenu from '../../src/components/ui/TrackOptionsMenu';
 import { recommendationsService } from '../../src/services/recommendationsService';
@@ -58,6 +59,7 @@ const EMPTY_RESULTS = { tracks: [], artists: [], albums: [], playlists: [] };
 
 export default function SearchScreen() {
   const router = useRouter();
+  const { bottomBarClearance } = useResponsive();
   const inputRef = useRef<TextInput>(null);
   const { searchHistory, addToSearchHistory, removeFromSearchHistory } = useLibraryStore();
 
@@ -147,7 +149,7 @@ export default function SearchScreen() {
 
   // 1. Explore State (Screenshot 8)
   const renderExploreHome = () => (
-    <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+    <ScrollView contentContainerStyle={[s.content, { paddingBottom: bottomBarClearance }]} showsVerticalScrollIndicator={false}>
       <Text style={s.pageTitle}>Explore</Text>
 
       {/* Search Input Bar (Touch to activate search) */}
@@ -236,7 +238,7 @@ export default function SearchScreen() {
 
   // 2. Active Search Suggestions & History (Screenshot 9)
   const renderSearchSuggestions = () => (
-    <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+    <ScrollView contentContainerStyle={[s.content, { paddingBottom: bottomBarClearance }]} showsVerticalScrollIndicator={false}>
       {/* Search Input Row with Cancel button */}
       <View style={s.searchInputRow}>
         <View style={s.activeInputBox}>
@@ -337,7 +339,7 @@ export default function SearchScreen() {
 
   // 3. Search Results (Screenshot 10)
   const renderSearchResults = () => (
-    <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+    <ScrollView contentContainerStyle={[s.content, { paddingBottom: bottomBarClearance }]} showsVerticalScrollIndicator={false}>
       {/* Search Bar with Back Button */}
       <View style={s.resultsHeaderRow}>
         <Pressable onPress={() => setHasSubmitted(false)} style={s.circleBtn} hitSlop={8}>
@@ -483,7 +485,6 @@ const s = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 16,
-    paddingBottom: 130,
     gap: 20,
   },
   pageTitle: {
