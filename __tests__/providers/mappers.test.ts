@@ -8,6 +8,7 @@ import {
   readArtistAlbums,
   readArtistTracks,
   tidalCoverUrl,
+  withCoverSize,
 } from '../../src/providers/mappers';
 
 /**
@@ -20,6 +21,32 @@ describe('tidalCoverUrl', () => {
     expect(tidalCoverUrl('13c6aa66-410e-433f-a8d8-a4b13cefe446')).toBe(
       'https://resources.tidal.com/images/13c6aa66/410e/433f/a8d8/a4b13cefe446/320x320.jpg',
     );
+  });
+
+  it('honours an explicit size', () => {
+    expect(tidalCoverUrl('aa-bb-cc-dd', '80x80')).toBe(
+      'https://resources.tidal.com/images/aa/bb/cc/dd/80x80.jpg',
+    );
+  });
+});
+
+describe('withCoverSize', () => {
+  const base = 'https://resources.tidal.com/images/aa/bb/cc/dd/320x320.jpg';
+
+  it('retargets a Tidal cover to the requested size', () => {
+    expect(withCoverSize(base, '80x80')).toBe(
+      'https://resources.tidal.com/images/aa/bb/cc/dd/80x80.jpg',
+    );
+  });
+
+  it('leaves a non-Tidal URL untouched', () => {
+    const other = 'https://cdn.example.com/art/cover.jpg';
+    expect(withCoverSize(other, '80x80')).toBe(other);
+  });
+
+  it('passes null and undefined through', () => {
+    expect(withCoverSize(null, '80x80')).toBeNull();
+    expect(withCoverSize(undefined, '80x80')).toBeNull();
   });
 });
 

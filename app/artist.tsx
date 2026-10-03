@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import HeaderBar from '../src/components/ui/HeaderBar';
 import Icon from '../src/components/ui/Icon';
+import CoverThumb from '../src/components/ui/CoverThumb';
 import MiniPlayer from '../src/components/ui/MiniPlayer';
 import TrackOptionsMenu from '../src/components/ui/TrackOptionsMenu';
 import { audioService } from '../src/audio/AudioService';
@@ -21,6 +22,7 @@ import { Track } from '../src/providers/types';
 import { CatalogAlbum } from '../src/providers/catalogTypes';
 import { getArtistCatalog } from '../src/services/catalogService';
 import { useResponsive } from '../src/hooks/useResponsive';
+import { colors, FONTS } from '../src/theme/theme';
 
 type LoadState = 'loading' | 'ready' | 'notFound' | 'error';
 
@@ -141,7 +143,7 @@ export default function ArtistScreen() {
             accessibilityRole="button"
             accessibilityLabel={`Play ${name}`}
           >
-            <Icon name="play" size={20} color="#000000" />
+            <Icon name="play" size={20} color={colors.background} />
             <Text style={s.playBtnText}>Play</Text>
           </Pressable>
           <Pressable
@@ -151,7 +153,7 @@ export default function ArtistScreen() {
             accessibilityRole="button"
             accessibilityLabel={`Shuffle ${name}`}
           >
-            <Icon name="shuffle" size={20} color="#ffffff" />
+            <Icon name="shuffle" size={20} color={colors.onSurface} />
             <Text style={s.shuffleBtnText}>Shuffle</Text>
           </Pressable>
         </View>
@@ -162,18 +164,18 @@ export default function ArtistScreen() {
             onPress={() => setFollowing((v) => !v)}
             accessibilityRole="button"
           >
-            <Icon name={following ? 'checkmark' : 'add'} size={22} color="#ffffff" />
+            <Icon name={following ? 'checkmark' : 'add'} size={22} color={colors.onSurface} />
             <Text style={s.actionLabel}>{following ? 'Following' : 'Follow'}</Text>
           </Pressable>
           <Pressable style={s.actionItem} onPress={handleShare} accessibilityRole="button">
-            <Icon name="share-outline" size={22} color="#ffffff" />
+            <Icon name="share-outline" size={22} color={colors.onSurface} />
             <Text style={s.actionLabel}>Share</Text>
           </Pressable>
         </View>
 
         {state === 'loading' ? (
           <View style={s.stateBlock}>
-            <ActivityIndicator color="#00e5bf" />
+            <ActivityIndicator color={colors.accent} />
             <Text style={s.stateText}>Loading {name}</Text>
           </View>
         ) : state === 'notFound' ? (
@@ -208,13 +210,7 @@ export default function ArtistScreen() {
                       accessibilityLabel={`Play ${track.title}`}
                     >
                       <View>
-                        {track.coverUrl ? (
-                          <Image source={{ uri: track.coverUrl }} style={s.trackArt} />
-                        ) : (
-                          <View style={[s.trackArt, s.artFallback]}>
-                            <Icon name="musical-note" size={16} color="#8e8e93" />
-                          </View>
-                        )}
+                        <CoverThumb uri={track.coverUrl} size={48} borderRadius={4} />
                         <Text style={s.rankBadge}>{index + 1}</Text>
                       </View>
                       <View style={s.trackMeta}>
@@ -231,7 +227,7 @@ export default function ArtistScreen() {
                         hitSlop={8}
                         accessibilityLabel={`More options for ${track.title}`}
                       >
-                        <Icon name="ellipsis-horizontal" size={18} color="#8e8e93" />
+                        <Icon name="ellipsis-horizontal" size={18} color={colors.onSurfaceVariant} />
                       </Pressable>
                     </Pressable>
                   ))}
@@ -261,7 +257,7 @@ export default function ArtistScreen() {
                         <Image source={{ uri: album.cover }} style={s.albumArt} />
                       ) : (
                         <View style={[s.albumArt, s.artFallback]}>
-                          <Icon name="albums-outline" size={20} color="#8e8e93" />
+                          <Icon name="albums-outline" size={20} color={colors.onSurfaceVariant} />
                         </View>
                       )}
                       <Text numberOfLines={1} style={s.trackTitle}>
@@ -299,7 +295,7 @@ export default function ArtistScreen() {
 const s = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: colors.background,
   },
   content: {
     paddingBottom: 130,
@@ -310,7 +306,7 @@ const s = StyleSheet.create({
     height: 320,
     position: 'relative',
     justifyContent: 'flex-end',
-    backgroundColor: '#161616',
+    backgroundColor: colors.surfaceContainerLow,
   },
   heroImage: {
     position: 'absolute',
@@ -336,7 +332,7 @@ const s = StyleSheet.create({
   artistTitle: {
     fontSize: 32,
     fontWeight: '700',
-    color: '#ffffff',
+    color: colors.onSurface,
     letterSpacing: -0.5,
   },
   fansCount: {
@@ -353,7 +349,7 @@ const s = StyleSheet.create({
     flex: 1,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.onSurface,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -362,13 +358,13 @@ const s = StyleSheet.create({
   playBtnText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#000000',
+    color: colors.background,
   },
   shuffleBtn: {
     flex: 1,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#262626',
+    backgroundColor: colors.surfaceContainerHigh,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -377,7 +373,7 @@ const s = StyleSheet.create({
   shuffleBtnText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#ffffff',
+    color: colors.onSurface,
   },
   actionsRow: {
     flexDirection: 'row',
@@ -391,7 +387,7 @@ const s = StyleSheet.create({
   },
   actionLabel: {
     fontSize: 12,
-    color: '#ffffff',
+    color: colors.onSurface,
     fontWeight: '500',
   },
   section: {
@@ -404,15 +400,16 @@ const s = StyleSheet.create({
     justifyContent: 'space-between',
   },
   sectionTitle: {
+    fontFamily: FONTS.display,
     fontSize: 20,
     fontWeight: '700',
-    color: '#ffffff',
+    color: colors.onSurface,
     letterSpacing: -0.3,
   },
   viewAllText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#8e8e93',
+    color: colors.onSurfaceVariant,
   },
   trackList: {
     gap: 10,
@@ -427,7 +424,7 @@ const s = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 4,
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surfaceContainer,
   },
   trackMeta: {
     flex: 1,
@@ -435,13 +432,14 @@ const s = StyleSheet.create({
     gap: 2,
   },
   trackTitle: {
+    fontFamily: FONTS.display,
     fontSize: 15,
     fontWeight: '600',
-    color: '#ffffff',
+    color: colors.onSurface,
   },
   trackArtist: {
     fontSize: 13,
-    color: '#8e8e93',
+    color: colors.onSurfaceVariant,
   },
   moreBtn: {
     width: 36,
@@ -450,12 +448,12 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   heroFallback: {
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surfaceContainer,
   },
   artFallback: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surfaceContainer,
   },
   rankBadge: {
     position: 'absolute',
@@ -463,7 +461,7 @@ const s = StyleSheet.create({
     bottom: 4,
     fontSize: 11,
     fontWeight: '700',
-    color: '#ffffff',
+    color: colors.onSurface,
     textShadowColor: 'rgba(0,0,0,0.9)',
     textShadowRadius: 4,
   },
@@ -478,7 +476,7 @@ const s = StyleSheet.create({
     width: 140,
     height: 140,
     borderRadius: 8,
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surfaceContainer,
     marginBottom: 8,
   },
   playBtnDisabled: {
@@ -494,7 +492,7 @@ const s = StyleSheet.create({
   },
   stateText: {
     fontSize: 15,
-    color: '#8e8e93',
+    color: colors.onSurfaceVariant,
     textAlign: 'center',
   },
   retryBtn: {
@@ -502,12 +500,12 @@ const s = StyleSheet.create({
     minHeight: 44,
     justifyContent: 'center',
     borderRadius: 22,
-    backgroundColor: '#2c2c2e',
+    backgroundColor: colors.surfaceContainerHighest,
   },
   retryText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#ffffff',
+    color: colors.onSurface,
   },
 });
 

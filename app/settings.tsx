@@ -17,6 +17,7 @@ import { useListeningStore } from '../src/store/listeningStore';
 import { useDownloadStore } from '../src/downloads/downloadStore';
 import { autoQueueService } from '../src/services/autoQueueService';
 import { formatBytes } from '../src/utils/formatting';
+import { colors, FONTS } from '../src/theme/theme';
 
 const DOWNLOAD_QUALITY_OPTIONS: DownloadQuality[] = ['LOSSLESS', 'HIGH', 'LOW'];
 
@@ -68,7 +69,7 @@ const SettingItem = ({
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, flex: 1, minWidth: 0 }}>
         {icon && (
           <View style={s.iconContainer}>
-            <Icon name={icon} size={20} color={danger ? '#ff453a' : '#ffffff'} />
+            <Icon name={icon} size={20} color={danger ? '#ff453a' : colors.onSurface} />
           </View>
         )}
         <View style={{ flex: 1, minWidth: 0 }}>
@@ -82,7 +83,7 @@ const SettingItem = ({
       {type === 'toggle' ? (
         <Switch value={value ?? false} onValueChange={onValueChange ?? (() => {})} />
       ) : type !== 'info' ? (
-        <Icon name="chevron-forward" size={18} color="#8e8e93" />
+        <Icon name="chevron-forward" size={18} color={colors.onSurfaceVariant} />
       ) : null}
     </Pressable>
   );
@@ -114,7 +115,7 @@ export default function SettingsScreen() {
   }, [downloads]);
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#000000' }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
       <HeaderBar showBack title="Settings" />
 
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
@@ -281,7 +282,7 @@ export default function SettingsScreen() {
                   {DOWNLOAD_QUALITY_LABELS[option]}
                 </Text>
                 {downloadQuality === option && (
-                  <Icon name="checkmark" size={18} color="#00e5bf" />
+                  <Icon name="checkmark" size={18} color={colors.accent} />
                 )}
               </Pressable>
             ))}
@@ -303,25 +304,25 @@ const s = StyleSheet.create({
     alignItems: 'center',
     gap: 16,
     padding: 16,
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surfaceContainer,
     borderRadius: 16,
   },
   avatar: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#2c2c2e',
+    backgroundColor: colors.surfaceContainerHighest,
     alignItems: 'center',
     justifyContent: 'center',
   },
   accountName: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#ffffff',
+    color: colors.onSurface,
   },
   accountPlan: {
     fontSize: 12,
-    color: '#00e5bf',
+    color: colors.accent,
     marginTop: 2,
     fontWeight: '600',
   },
@@ -331,13 +332,13 @@ const s = StyleSheet.create({
   sectionHeader: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#8e8e93',
+    color: colors.onSurfaceVariant,
     letterSpacing: 0.8,
     marginLeft: 4,
   },
   section: {
     borderRadius: 16,
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surfaceContainer,
     overflow: 'hidden',
   },
   settingItem: {
@@ -346,24 +347,24 @@ const s = StyleSheet.create({
     justifyContent: 'space-between',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#262626',
+    borderBottomColor: colors.surfaceContainerHigh,
   },
   iconContainer: {
     width: 32,
     height: 32,
     borderRadius: 8,
-    backgroundColor: '#262626',
+    backgroundColor: colors.surfaceContainerHigh,
     alignItems: 'center',
     justifyContent: 'center',
   },
   settingTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#ffffff',
+    color: colors.onSurface,
   },
   settingSubtitle: {
     fontSize: 13,
-    color: '#8e8e93',
+    color: colors.onSurfaceVariant,
     marginTop: 2,
   },
   toggle: {
@@ -375,13 +376,13 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   toggleOn: {
-    backgroundColor: '#00e5bf',
+    backgroundColor: colors.accent,
   },
   toggleKnob: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.onSurface,
   },
   toggleKnobOn: {
     alignSelf: 'flex-end',
@@ -389,7 +390,7 @@ const s = StyleSheet.create({
   signOut: {
     padding: 16,
     borderRadius: 16,
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surfaceContainer,
     alignItems: 'center',
     marginTop: 8,
   },
@@ -416,7 +417,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 24,
   },
   modalSheet: {
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surfaceContainer,
     borderRadius: 16,
     padding: 20,
     gap: 4,
@@ -424,7 +425,7 @@ const s = StyleSheet.create({
   modalTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#ffffff',
+    color: colors.onSurface,
     marginBottom: 8,
   },
   modalOption: {
@@ -438,10 +439,10 @@ const s = StyleSheet.create({
   modalOptionText: {
     flex: 1,
     fontSize: 15,
-    color: '#ffffff',
+    color: colors.onSurface,
     lineHeight: 20,
   },
   modalOptionTextSelected: {
-    color: '#00e5bf',
+    color: colors.accent,
   },
 });

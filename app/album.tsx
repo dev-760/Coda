@@ -20,6 +20,7 @@ import { useQueueStore, cacheTracks } from '../src/store/queueStore';
 import { Track } from '../src/providers/types';
 import { getAlbum } from '../src/services/catalogService';
 import { useResponsive } from '../src/hooks/useResponsive';
+import { colors, FONTS } from '../src/theme/theme';
 
 type LoadState = 'loading' | 'ready' | 'notFound' | 'error';
 
@@ -135,7 +136,7 @@ export default function AlbumScreen() {
             <Image source={{ uri: cover }} style={s.coverArt} />
           ) : (
             <View style={[s.coverArt, s.coverPlaceholder]}>
-              <Icon name="albums-outline" size={44} color="#8e8e93" />
+              <Icon name="albums-outline" size={44} color={colors.onSurfaceVariant} />
             </View>
           )}
         </View>
@@ -172,7 +173,7 @@ export default function AlbumScreen() {
             accessibilityRole="button"
             accessibilityLabel={`Play ${albumTitle}`}
           >
-            <Icon name="play" size={20} color="#000000" />
+            <Icon name="play" size={20} color={colors.background} />
             <Text style={s.playBtnText}>Play</Text>
           </Pressable>
           <Pressable
@@ -182,25 +183,25 @@ export default function AlbumScreen() {
             accessibilityRole="button"
             accessibilityLabel={`Shuffle ${albumTitle}`}
           >
-            <Icon name="shuffle" size={20} color="#ffffff" />
+            <Icon name="shuffle" size={20} color={colors.onSurface} />
             <Text style={s.shuffleBtnText}>Shuffle</Text>
           </Pressable>
         </View>
 
         <View style={s.actionsRow}>
           <Pressable style={s.actionItem} onPress={() => setSaved((v) => !v)} accessibilityRole="button">
-            <Icon name={saved ? 'heart' : 'heart-outline'} size={24} color="#ffffff" />
+            <Icon name={saved ? 'heart' : 'heart-outline'} size={24} color={colors.onSurface} />
             <Text style={s.actionLabel}>{saved ? 'Added' : 'Add'}</Text>
           </Pressable>
           <Pressable style={s.actionItem} onPress={handleShare} accessibilityRole="button">
-            <Icon name="share-outline" size={24} color="#ffffff" />
+            <Icon name="share-outline" size={24} color={colors.onSurface} />
             <Text style={s.actionLabel}>Share</Text>
           </Pressable>
         </View>
 
         {state === 'loading' ? (
           <View style={s.stateBlock}>
-            <ActivityIndicator color="#00e5bf" />
+            <ActivityIndicator color={colors.accent} />
             <Text style={s.stateText}>Loading album</Text>
           </View>
         ) : state === 'notFound' ? (
@@ -248,7 +249,7 @@ export default function AlbumScreen() {
                   hitSlop={8}
                   accessibilityLabel={`More options for ${track.title}`}
                 >
-                  <Icon name="ellipsis-horizontal" size={18} color="#8e8e93" />
+                  <Icon name="ellipsis-horizontal" size={18} color={colors.onSurfaceVariant} />
                 </Pressable>
               </Pressable>
             ))}
@@ -270,7 +271,7 @@ export default function AlbumScreen() {
 const s = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: colors.background,
   },
   backdrop: {
     position: 'absolute',
@@ -305,7 +306,7 @@ const s = StyleSheet.create({
     width: 190,
     height: 190,
     borderRadius: 4,
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surfaceContainer,
   },
   metaCenter: {
     alignItems: 'center',
@@ -313,9 +314,10 @@ const s = StyleSheet.create({
     marginTop: 8,
   },
   albumTitle: {
+    fontFamily: FONTS.display,
     fontSize: 24,
     fontWeight: '700',
-    color: '#ffffff',
+    color: colors.onSurface,
     textAlign: 'center',
   },
   artistRow: {
@@ -331,7 +333,7 @@ const s = StyleSheet.create({
   artistName: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#ffffff',
+    color: colors.onSurface,
   },
   badgesRow: {
     flexDirection: 'row',
@@ -340,7 +342,7 @@ const s = StyleSheet.create({
   },
   yearText: {
     fontSize: 13,
-    color: '#8e8e93',
+    color: colors.onSurfaceVariant,
   },
   qualityBadge: {
     backgroundColor: '#163330',
@@ -351,7 +353,7 @@ const s = StyleSheet.create({
   qualityText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#00e5bf',
+    color: colors.accent,
   },
   bigButtonsRow: {
     flexDirection: 'row',
@@ -362,7 +364,7 @@ const s = StyleSheet.create({
     flex: 1,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.onSurface,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -371,13 +373,13 @@ const s = StyleSheet.create({
   playBtnText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#000000',
+    color: colors.background,
   },
   shuffleBtn: {
     flex: 1,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#262626',
+    backgroundColor: colors.surfaceContainerHigh,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -386,7 +388,7 @@ const s = StyleSheet.create({
   shuffleBtnText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#ffffff',
+    color: colors.onSurface,
   },
   actionsRow: {
     flexDirection: 'row',
@@ -399,7 +401,7 @@ const s = StyleSheet.create({
   },
   actionLabel: {
     fontSize: 12,
-    color: '#ffffff',
+    color: colors.onSurface,
     fontWeight: '500',
   },
   trackList: {
@@ -415,7 +417,7 @@ const s = StyleSheet.create({
   trackNum: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#8e8e93',
+    color: colors.onSurfaceVariant,
     width: 20,
     textAlign: 'center',
   },
@@ -425,13 +427,14 @@ const s = StyleSheet.create({
     gap: 2,
   },
   trackTitle: {
+    fontFamily: FONTS.display,
     fontSize: 15,
     fontWeight: '600',
-    color: '#ffffff',
+    color: colors.onSurface,
   },
   trackArtist: {
     fontSize: 13,
-    color: '#8e8e93',
+    color: colors.onSurfaceVariant,
   },
   moreBtn: {
     width: 36,
@@ -442,11 +445,11 @@ const s = StyleSheet.create({
   coverPlaceholder: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surfaceContainer,
   },
   trackDuration: {
     fontSize: 13,
-    color: '#8e8e93',
+    color: colors.onSurfaceVariant,
     marginRight: 4,
   },
   playBtnDisabled: {
@@ -462,7 +465,7 @@ const s = StyleSheet.create({
   },
   stateText: {
     fontSize: 15,
-    color: '#8e8e93',
+    color: colors.onSurfaceVariant,
     textAlign: 'center',
   },
   retryBtn: {
@@ -470,12 +473,12 @@ const s = StyleSheet.create({
     minHeight: 44,
     justifyContent: 'center',
     borderRadius: 22,
-    backgroundColor: '#2c2c2e',
+    backgroundColor: colors.surfaceContainerHighest,
   },
   retryText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#ffffff',
+    color: colors.onSurface,
   },
 });
 

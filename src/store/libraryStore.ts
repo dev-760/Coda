@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { Track } from '../providers/types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_KEYS } from '../storage/StorageKeys';
+import { colors } from '../theme/theme';
 
 export interface Playlist {
   id: string;
@@ -163,7 +164,8 @@ export const useLibraryStore = create<LibraryState>()(
             tracks: [],
             isPublic: false,
             tags: [],
-            color: color || '#6366f1',
+            // Falls back to Luma Steel so an unnamed playlist still matches the palette.
+color: color || colors.primary,
             icon: icon || 'musical-notes',
             createdAt: Date.now(),
             updatedAt: Date.now(),

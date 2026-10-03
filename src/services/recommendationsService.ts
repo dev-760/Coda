@@ -51,7 +51,7 @@ export class RecommendationsService {
     this.cache.set(key, value);
   }
 
-  async searchMulti(query: string): Promise<SearchResults> {
+  async searchMulti(query: string, abortSignal?: AbortSignal): Promise<SearchResults> {
     const term = query.trim();
     if (!term) return { tracks: [], artists: [], albums: [] };
 
@@ -59,7 +59,7 @@ export class RecommendationsService {
     const cached = this.cache.get(cacheKey) as SearchResults | undefined;
     if (cached) return cached;
 
-    const results = await searchCatalog(term, 25);
+    const results = await searchCatalog(term, 25, abortSignal);
     this.setCache(cacheKey, results);
     return results;
   }

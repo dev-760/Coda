@@ -11,7 +11,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   icon: './icon.png',
   scheme: 'luma',
   userInterfaceStyle: 'dark',
-  backgroundColor: '#000000', // App background
+  backgroundColor: '#090B10', // App background
   ios: {
     bundleIdentifier: 'com.luma.musicplayer',
     infoPlist: {
@@ -23,7 +23,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     versionCode: 4,
     adaptiveIcon: {
       foregroundImage: './icon.png',
-      backgroundColor: '#000000',
+      backgroundColor: '#090B10',
     },
     permissions: [
       'android.permission.FOREGROUND_SERVICE',
@@ -31,11 +31,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'android.permission.INTERNET',
       'android.permission.ACCESS_NETWORK_STATE'
     ],
-    backgroundColor: '#000000', // Android splash background
+    backgroundColor: '#090B10', // Android splash background
   },
   web: {
     output: 'static',
-    backgroundColor: '#000000', // Web background
+    backgroundColor: '#090B10', // Web background
   },
   plugins: [
     'expo-router',
@@ -44,7 +44,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       'expo-splash-screen',
       {
-        backgroundColor: '#000000',
+        backgroundColor: '#090B10',
         image: './splash.png',
         imageWidth: 180,
         resizeMode: 'contain',

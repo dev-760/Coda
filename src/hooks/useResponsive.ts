@@ -1,4 +1,4 @@
-import { useWindowDimensions, PixelRatio } from 'react-native';
+import { useWindowDimensions, PixelRatio, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export type SizeClass = 'compact' | 'regular' | 'large';
@@ -25,6 +25,17 @@ export const TAB_BAR_HEIGHT = 64;
 
 /** Height of the docked mini player that sits above the tab bar. */
 export const MINI_PLAYER_HEIGHT = 60;
+
+/**
+ * Bottom inset the tab bar reserves for the device navigation area.
+ *
+ * Some devices report no safe-area inset while still drawing navigation keys,
+ * so the bar keeps a minimum. Overlays docked above the bar and list clearance
+ * both call this, so they stay in agreement about the reserved height.
+ */
+export function resolveTabBarInset(bottomInset: number, os: 'ios' | 'android' | 'web' | 'windows' | 'macos'): number {
+  return Math.max(bottomInset, os === 'ios' ? 24 : 8);
+}
 
 /**
  * Clearance a scrolling list needs so its last row is not hidden behind the
@@ -82,6 +93,6 @@ export function useResponsive() {
     gridColumns,
     round,
       /** Safe-area aware clearance for lists sitting under the fixed bars. */
-      bottomBarClearance: bottomBarClearance(insets.bottom),
+      bottomBarClearance: bottomBarClearance(resolveTabBarInset(insets.bottom, Platform.OS)),
     };
   }

@@ -20,6 +20,7 @@ import { useQueueStore, cacheTracks } from '../../src/store/queueStore';
 import { Track } from '../../src/providers/types';
 import { subscribeToConnectivity } from '../../src/services/connectivity';
 import { useResponsive } from '../../src/hooks/useResponsive';
+import { colors, FONTS } from '../../src/theme/theme';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -118,7 +119,7 @@ export default function HomeScreen() {
                         <Image source={{ uri: item.track.coverUrl }} style={s.artwork} />
                       ) : (
                         <View style={[s.artwork, s.artworkPlaceholder]}>
-                          <Icon name="musical-notes" size={22} color="#8e8e93" />
+                          <Icon name="musical-notes" size={22} color={colors.onSurfaceVariant} />
                         </View>
                       )}
                       <Text numberOfLines={1} style={s.cardTitle}>{item.track.title}</Text>
@@ -146,7 +147,7 @@ export default function HomeScreen() {
                         <Image source={{ uri: track.coverUrl }} style={s.artwork} />
                       ) : (
                         <View style={[s.artwork, s.artworkPlaceholder]}>
-                          <Icon name="musical-notes" size={22} color="#8e8e93" />
+                          <Icon name="musical-notes" size={22} color={colors.onSurfaceVariant} />
                         </View>
                       )}
                       <Text numberOfLines={1} style={s.cardTitle}>{track.title}</Text>
@@ -174,7 +175,7 @@ export default function HomeScreen() {
                         <Image source={{ uri: track.coverUrl }} style={s.artwork} />
                       ) : (
                         <View style={[s.artwork, s.artworkPlaceholder]}>
-                          <Icon name="musical-notes" size={22} color="#8e8e93" />
+                          <Icon name="musical-notes" size={22} color={colors.onSurfaceVariant} />
                         </View>
                       )}
                       <Text numberOfLines={1} style={s.cardTitle}>{track.title}</Text>
@@ -210,7 +211,7 @@ export default function HomeScreen() {
                         <Image source={{ uri: playlist.coverUrl }} style={s.artwork} />
                       ) : (
                         <View style={[s.artwork, s.artworkPlaceholder]}>
-                          <Icon name="musical-notes" size={22} color="#8e8e93" />
+                          <Icon name="musical-notes" size={22} color={colors.onSurfaceVariant} />
                         </View>
                       )}
                       <Text numberOfLines={1} style={s.cardTitle}>{playlist.name}</Text>
@@ -240,7 +241,7 @@ export default function HomeScreen() {
 const s = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: colors.background,
   },
   content: {
     paddingBottom: 140,
@@ -283,7 +284,7 @@ const s = StyleSheet.create({
   sectionHeader: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#ffffff',
+    color: colors.onSurface,
     paddingHorizontal: 20,
     marginBottom: 12,
   },
@@ -293,7 +294,7 @@ const s = StyleSheet.create({
   },
   sectionActionText: {
     fontSize: 14,
-    color: '#00e5bf',
+    color: colors.accent,
     fontWeight: '600',
   },
   rail: {
@@ -307,7 +308,7 @@ const s = StyleSheet.create({
     width: 148,
     height: 148,
     borderRadius: 8,
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surfaceContainer,
     marginBottom: 10,
   },
   artworkPlaceholder: {
@@ -317,11 +318,11 @@ const s = StyleSheet.create({
   cardTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#ffffff',
+    color: colors.onSurface,
   },
   cardArtist: {
     fontSize: 13,
-    color: '#8e8e93',
+    color: colors.onSurfaceVariant,
     marginTop: 2,
   },
   emptyState: {
@@ -331,13 +332,14 @@ const s = StyleSheet.create({
     gap: 12,
   },
   emptyTitle: {
+    fontFamily: FONTS.display,
     fontSize: 20,
     fontWeight: '700',
-    color: '#ffffff',
+    color: colors.onSurface,
   },
   emptyBody: {
     fontSize: 15,
-    color: '#8e8e93',
+    color: colors.onSurfaceVariant,
     textAlign: 'center',
     lineHeight: 21,
   },
@@ -348,11 +350,11 @@ const s = StyleSheet.create({
     minHeight: 44,
     justifyContent: 'center',
     borderRadius: 22,
-    backgroundColor: '#2c2c2e',
+    backgroundColor: colors.surfaceContainerHighest,
   },
   emptyButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#ffffff',
+    color: colors.onSurface,
   },
 });

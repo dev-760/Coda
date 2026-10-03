@@ -239,12 +239,12 @@ class HifiApiClient {
     );
   }
 
-  async searchArtists(query: string, limit = 25, offset = 0): Promise<any> {
-    return this.get('/search/', { a: query, limit: limit.toString(), offset: offset.toString() });
+  async searchArtists(query: string, limit = 25, offset = 0, abortSignal?: AbortSignal): Promise<any> {
+    return this.get('/search/', { a: query, limit: limit.toString(), offset: offset.toString() }, abortSignal);
   }
 
-  async searchAlbums(query: string, limit = 25, offset = 0): Promise<any> {
-    return this.get('/search/', { al: query, limit: limit.toString(), offset: offset.toString() });
+  async searchAlbums(query: string, limit = 25, offset = 0, abortSignal?: AbortSignal): Promise<any> {
+    return this.get('/search/', { al: query, limit: limit.toString(), offset: offset.toString() }, abortSignal);
   }
 
   async searchVideos(query: string, limit = 25, offset = 0): Promise<any> {

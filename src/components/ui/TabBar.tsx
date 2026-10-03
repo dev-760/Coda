@@ -3,6 +3,8 @@ import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, usePathname } from 'expo-router';
 import Icon from './Icon';
+import { resolveTabBarInset, TAB_BAR_HEIGHT } from '../../hooks/useResponsive';
+import { colors } from '../../theme/theme';
 
 /**
  * Bottom navigation with a Settings action.
@@ -12,10 +14,8 @@ import Icon from './Icon';
  * a per-screen header affordance.
  */
 
-const TAB_BAR_HEIGHT = 64;
-
-const INACTIVE = '#8e8e93';
-const ACTIVE = '#ffffff';
+const INACTIVE = colors.onSurfaceVariant;
+const ACTIVE = colors.onSurface;
 
 interface TabItem {
   href: string;
@@ -37,7 +37,7 @@ function isActivePath(pathname: string, href: string): boolean {
 export default function TabBar() {
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
-  const bottomInset = Math.max(insets.bottom, Platform.OS === 'ios' ? 24 : 8);
+  const bottomInset = resolveTabBarInset(insets.bottom, Platform.OS);
 
   return (
     <View style={[s.container, { height: TAB_BAR_HEIGHT + bottomInset, paddingBottom: bottomInset }]}>
@@ -52,9 +52,10 @@ export default function TabBar() {
             accessibilityState={{ selected: focused }}
             accessibilityLabel={tab.label}
           >
-            <View style={[s.iconWrapper, focused && s.iconWrapperActive]}>
-              <Icon name={tab.icon} size={22} color={focused ? ACTIVE : INACTIVE} />
-            </View>
+            <View style={s.iconWrapper}>
+                          {focused && <View style={s.activeIndicator} />}
+                          <Icon name={tab.icon} size={22} color={focused ? ACTIVE : INACTIVE} />
+                        </View>
           </Pressable>
         );
       })}
@@ -77,8 +78,8 @@ const s = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#000000',
-    borderTopColor: '#1c1c1e',
+    backgroundColor: colors.background,
+    borderTopColor: colors.surfaceContainer,
     borderTopWidth: StyleSheet.hairlineWidth,
     paddingTop: 8,
   },
@@ -88,14 +89,23 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 44,
   },
-  iconWrapper: {
-    paddingHorizontal: 18,
-    paddingVertical: 6,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconWrapperActive: {
-    backgroundColor: '#303030',
-  },
-});
+  /**
+     * Active state is a rule above the icon rather than a capsule behind it. A
+     * filled pill behind every standard action is the category default Design.md
+     * rejects, and the indicator also survives at a glance while scrolling.
+     */
+    iconWrapper: {
+      paddingHorizontal: 18,
+      paddingVertical: 6,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    activeIndicator: {
+      position: 'absolute',
+      top: -8,
+      height: 2,
+      width: 22,
+      borderRadius: 1,
+      backgroundColor: colors.accent,
+    },
+  });

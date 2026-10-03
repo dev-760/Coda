@@ -52,6 +52,20 @@ export function tidalCoverUrl(coverId: string, size = '320x320'): string {
 }
 
 /**
+ * Retargets an already-resolved cover URL to another CDN size.
+ *
+ * The API hands back one size per cover, but the same URL is reused for list
+ * thumbnails and full-bleed artwork. Asking the CDN for the size actually being
+ * drawn avoids downloading a 320px image to fill a 48px row. Non-Tidal and
+ * already-correct URLs are returned untouched.
+ */
+export function withCoverSize(url: string | null | undefined, size: string): string | null {
+  if (!url) return null;
+  if (!url.includes('resources.tidal.com/images/')) return url;
+  return url.replace(/\/\d+x\d+\.jpg$/, `/${size}.jpg`);
+}
+
+/**
  * Unwraps the several list entry shapes the API mixes: bare objects,
  * `{ item }` (album tracks) and `{ track }` (recommendations).
  */

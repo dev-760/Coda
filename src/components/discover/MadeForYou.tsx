@@ -7,6 +7,7 @@ import { isOnline } from '../../services/connectivity';
 import { audioService } from '../../audio/AudioService';
 import { useQueueStore, cacheTracks } from '../../store/queueStore';
 import { useDownloadStore } from '../../downloads/downloadStore';
+import { colors } from '../../theme/theme';
 
 type LoadState = 'idle' | 'loading' | 'ready' | 'empty' | 'error';
 
@@ -149,18 +150,18 @@ export default function MadeForYou({
               <Image source={{ uri: item.track.coverUrl }} style={s.artwork} />
             ) : (
               <View style={[s.artwork, s.artworkPlaceholder]}>
-                <Icon name="musical-notes" size={22} color="#8e8e93" />
+                <Icon name="musical-notes" size={22} color={colors.onSurfaceVariant} />
               </View>
             )}
             <Text numberOfLines={2} style={s.cardTitle}>{item.track.title}</Text>
             <Text numberOfLines={1} style={s.cardArtist}>{item.track.artist}</Text>
             <View style={s.reasonRow}>
-              <Icon name="information-circle-outline" size={12} color="#8e8e93" />
+              <Icon name="information-circle-outline" size={12} color={colors.onSurfaceVariant} />
               <Text numberOfLines={1} style={s.cardReason}>{item.reason}</Text>
             </View>
             {isDownloaded(item.track.id) && (
               <View style={s.downloadedTag}>
-                <Icon name="checkmark-circle" size={12} color="#00e5bf" />
+                <Icon name="checkmark-circle" size={12} color={colors.accent} />
                 <Text style={s.downloadedText}>On device</Text>
               </View>
             )}
@@ -185,7 +186,7 @@ const s = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#ffffff',
+    color: colors.onSurface,
     paddingHorizontal: 20,
   },
   playAllButton: {
@@ -194,18 +195,18 @@ const s = StyleSheet.create({
   },
   playAllText: {
     fontSize: 14,
-    color: '#00e5bf',
+    color: colors.accent,
     fontWeight: '600',
   },
   loadingText: {
     fontSize: 14,
-    color: '#8e8e93',
+    color: colors.onSurfaceVariant,
     paddingHorizontal: 20,
     marginTop: 8,
   },
   emptyBody: {
     fontSize: 14,
-    color: '#8e8e93',
+    color: colors.onSurfaceVariant,
     lineHeight: 20,
     paddingHorizontal: 20,
     marginTop: 8,
@@ -218,11 +219,11 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     alignSelf: 'flex-start',
     borderRadius: 22,
-    backgroundColor: '#2c2c2e',
+    backgroundColor: colors.surfaceContainerHighest,
   },
   actionText: {
     fontSize: 14,
-    color: '#ffffff',
+    color: colors.onSurface,
     fontWeight: '600',
   },
   rail: {
@@ -236,7 +237,7 @@ const s = StyleSheet.create({
     width: 148,
     height: 148,
     borderRadius: 8,
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surfaceContainer,
     marginBottom: 10,
   },
   artworkPlaceholder: {
@@ -246,12 +247,12 @@ const s = StyleSheet.create({
   cardTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#ffffff',
+    color: colors.onSurface,
     lineHeight: 18,
   },
   cardArtist: {
     fontSize: 13,
-    color: '#8e8e93',
+    color: colors.onSurfaceVariant,
     marginTop: 2,
   },
   reasonRow: {
@@ -263,7 +264,7 @@ const s = StyleSheet.create({
   cardReason: {
     flex: 1,
     fontSize: 11,
-    color: '#8e8e93',
+    color: colors.onSurfaceVariant,
   },
   downloadedTag: {
     flexDirection: 'row',
@@ -273,6 +274,6 @@ const s = StyleSheet.create({
   },
   downloadedText: {
     fontSize: 11,
-    color: '#00e5bf',
+    color: colors.accent,
   },
 });

@@ -10,17 +10,22 @@ interface CreatePlaylistModalProps {
   isLoading?: boolean;
 }
 
+/**
+ * Playlist identity colours, drawn from the Luma structural ramp rather than a
+ * saturated rainbow. Design.md rules out saturated purple and cyan states, so
+ * these stay in the steel-to-warm family and read as one system.
+ */
 const COLORS = [
-  '#6366f1', // Indigo
-  '#8b5cf6', // Violet
-  '#ec4899', // Pink
-  '#f43f5e', // Rose
-  '#f97316', // Orange
-  '#eab308', // Yellow
-  '#22c55e', // Green
-  '#06b6d4', // Cyan
-  '#3b82f6', // Blue
-  '#64748b', // Slate
+  '#6F7E88', // Steel
+  '#8D8170', // Warm accent
+  '#5A6B75', // Deep steel
+  '#7D8794', // Slate
+  '#A38F76', // Sand
+  '#4A5463', // Graphite
+  '#8A94A2', // Pewter
+  '#6B6152', // Umber
+  '#5F7180', // Harbour
+  '#737D8C', // Ash
 ];
 
 const ICONS = [

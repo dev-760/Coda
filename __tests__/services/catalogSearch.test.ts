@@ -91,10 +91,20 @@ describe('searchCatalog', () => {
     it('sends the correct query parameter for each kind', async () => {
         await searchCatalog('daft punk', 25);
 
-        expect(mockSearchTracks).toHaveBeenCalledWith('daft punk', 25, 0);
-        expect(mockSearchArtists).toHaveBeenCalledWith('daft punk', 25);
-        expect(mockSearchAlbums).toHaveBeenCalledWith('daft punk', 25);
+            expect(mockSearchTracks).toHaveBeenCalledWith('daft punk', 25, 0, undefined);
+            expect(mockSearchArtists).toHaveBeenCalledWith('daft punk', 25, 0, undefined);
+            expect(mockSearchAlbums).toHaveBeenCalledWith('daft punk', 25, 0, undefined);
     });
+
+        it('passes an abort signal through to every kind', async () => {
+            const controller = new AbortController();
+
+            await searchCatalog('daft punk', 25, controller.signal);
+
+            expect(mockSearchTracks).toHaveBeenCalledWith('daft punk', 25, 0, controller.signal);
+            expect(mockSearchArtists).toHaveBeenCalledWith('daft punk', 25, 0, controller.signal);
+            expect(mockSearchAlbums).toHaveBeenCalledWith('daft punk', 25, 0, controller.signal);
+        });
 
     it('resolves Tidal cover uuids for artists and albums', async () => {
         const result = await searchCatalog('daft punk', 25);

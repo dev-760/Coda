@@ -4,17 +4,19 @@ import {
   Text,
   Pressable,
   FlatList,
-  Image,
-  StyleSheet,
-  Alert,
-} from 'react-native';
+    StyleSheet,
+    Alert,
+  } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Icon from '../src/components/ui/Icon';
+import CoverThumb from '../src/components/ui/CoverThumb';
 import { useDownloadStore } from '../src/downloads/downloadStore';
 import { audioService } from '../src/audio/AudioService';
+import { useQueueStore } from '../src/store/queueStore';
 import { formatBytes } from '../src/utils/formatting';
 import { DownloadMetadata } from '../src/downloads/downloadTypes';
+import { colors, FONTS } from '../src/theme/theme';
 
 type Filter = 'all' | 'completed' | 'downloading' | 'failed';
 
@@ -59,11 +61,14 @@ export default function DownloadsScreen() {
 
   const playAll = async () => {
     const ready = downloads.filter((d) => d.status === 'completed' && d.filePath);
-    for (const item of ready) {
-      await audioService.playTrack(item.track);
-      break;
-    }
-  };
+      if (ready.length === 0) return;
+      const tracks = ready.map((d) => d.track);
+      useQueueStore.getState().playContext(tracks, 0, {
+        type: 'collection',
+        name: 'Downloads',
+      });
+      await audioService.playTrack(tracks[0]);
+    };
 
   const confirmDelete = (item: DownloadMetadata) => {
     Alert.alert(
@@ -85,19 +90,26 @@ export default function DownloadsScreen() {
         <Pressable
           style={s.rowMain}
           onPress={() => {
-            if (item.status === 'completed') void audioService.playTrack(track);
-          }}
+                      if (item.status === 'completed') {
+                        const ready = downloads
+                          .filter((d) => d.status === 'completed' && d.filePath)
+                          .map((d) => d.track);
+                        const index = Math.max(
+                          0,
+                          ready.findIndex((t) => t.id === track.id),
+                        );
+                        useQueueStore.getState().playContext(ready, index, {
+                          type: 'collection',
+                          name: 'Downloads',
+                        });
+                        void audioService.playTrack(track);
+                      }
+                    }}
           disabled={item.status !== 'completed'}
           accessibilityRole="button"
           accessibilityLabel={`${track.title} by ${track.artist}`}
         >
-          {track.coverUrl ? (
-            <Image source={{ uri: track.coverUrl }} style={s.artwork} />
-          ) : (
-            <View style={[s.artwork, s.artworkPlaceholder]}>
-              <Icon name="musical-notes" size={18} color="#8e8e93" />
-            </View>
-          )}
+          <CoverThumb uri={track.coverUrl} size={48} borderRadius={4} />
 
           <View style={s.meta}>
             <Text numberOfLines={1} style={s.title}>{track.title}</Text>
@@ -133,7 +145,7 @@ export default function DownloadsScreen() {
             accessibilityRole="button"
             accessibilityLabel={`Cancel download of ${track.title}`}
           >
-            <Icon name="close" size={20} color="#8e8e93" />
+            <Icon name="close" size={20} color={colors.onSurfaceVariant} />
           </Pressable>
         ) : item.status === 'failed' ? (
           <Pressable
@@ -142,7 +154,7 @@ export default function DownloadsScreen() {
             accessibilityRole="button"
             accessibilityLabel={`Retry download of ${track.title}`}
           >
-            <Icon name="refresh" size={20} color="#ffffff" />
+            <Icon name="refresh" size={20} color={colors.onSurface} />
           </Pressable>
         ) : null}
 
@@ -152,7 +164,7 @@ export default function DownloadsScreen() {
           accessibilityRole="button"
           accessibilityLabel={`Delete ${track.title}`}
         >
-          <Icon name="trash-outline" size={20} color="#8e8e93" />
+          <Icon name="trash-outline" size={20} color={colors.onSurfaceVariant} />
         </Pressable>
       </View>
     );
@@ -168,7 +180,7 @@ export default function DownloadsScreen() {
           accessibilityRole="button"
           accessibilityLabel="Back"
         >
-          <Icon name="chevron-back" size={24} color="#ffffff" />
+          <Icon name="chevron-back" size={24} color={colors.onSurface} />
         </Pressable>
         <Text style={s.headerTitle}>Downloads</Text>
         <Pressable
@@ -276,7 +288,7 @@ export default function DownloadsScreen() {
 const s = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -293,7 +305,7 @@ const s = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#ffffff',
+    color: colors.onSurface,
   },
   headerAction: {
     minWidth: 60,
@@ -303,7 +315,7 @@ const s = StyleSheet.create({
   },
   headerActionText: {
     fontSize: 14,
-    color: '#00e5bf',
+    color: colors.accent,
     fontWeight: '600',
   },
   summaryBar: {
@@ -316,7 +328,7 @@ const s = StyleSheet.create({
   summaryText: {
     flex: 1,
     fontSize: 13,
-    color: '#8e8e93',
+    color: colors.onSurfaceVariant,
   },
   summaryAction: {
     minHeight: 44,
@@ -324,7 +336,7 @@ const s = StyleSheet.create({
   },
   summaryActionText: {
     fontSize: 13,
-    color: '#00e5bf',
+    color: colors.accent,
     fontWeight: '600',
   },
   filterRow: {
@@ -338,17 +350,17 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 14,
     borderRadius: 18,
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surfaceContainer,
   },
   filterChipSelected: {
     backgroundColor: 'rgba(0, 229, 191, 0.14)',
   },
   filterText: {
     fontSize: 13,
-    color: '#8e8e93',
+    color: colors.onSurfaceVariant,
   },
   filterTextSelected: {
-    color: '#00e5bf',
+    color: colors.accent,
     fontWeight: '600',
   },
   listContent: {
@@ -372,7 +384,7 @@ const s = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 4,
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surfaceContainer,
   },
   artworkPlaceholder: {
     alignItems: 'center',
@@ -385,16 +397,16 @@ const s = StyleSheet.create({
   title: {
     fontSize: 15,
     fontWeight: '500',
-    color: '#ffffff',
+    color: colors.onSurface,
   },
   artist: {
     fontSize: 13,
-    color: '#8e8e93',
+    color: colors.onSurfaceVariant,
     marginTop: 2,
   },
   statusText: {
     fontSize: 12,
-    color: '#8e8e93',
+    color: colors.onSurfaceVariant,
     marginTop: 4,
   },
   progressBlock: {
@@ -403,12 +415,12 @@ const s = StyleSheet.create({
   progressTrack: {
     height: 3,
     borderRadius: 2,
-    backgroundColor: '#2c2c2e',
+    backgroundColor: colors.surfaceContainerHighest,
     overflow: 'hidden',
   },
   progressFill: {
     height: 3,
-    backgroundColor: '#00e5bf',
+    backgroundColor: colors.accent,
   },
   action: {
     width: 44,
@@ -423,13 +435,14 @@ const s = StyleSheet.create({
     gap: 12,
   },
   emptyTitle: {
+    fontFamily: FONTS.display,
     fontSize: 18,
     fontWeight: '700',
-    color: '#ffffff',
+    color: colors.onSurface,
   },
   emptyBody: {
     fontSize: 15,
-    color: '#8e8e93',
+    color: colors.onSurfaceVariant,
     textAlign: 'center',
     lineHeight: 21,
   },
@@ -440,11 +453,11 @@ const s = StyleSheet.create({
     minHeight: 44,
     justifyContent: 'center',
     borderRadius: 22,
-    backgroundColor: '#2c2c2e',
+    backgroundColor: colors.surfaceContainerHighest,
   },
   emptyButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#ffffff',
+    color: colors.onSurface,
   },
 });

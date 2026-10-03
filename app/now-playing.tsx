@@ -15,6 +15,7 @@ import { audioService } from '../src/audio/AudioService';
 import { useQueueStore } from '../src/store/queueStore';
 import { useLibraryStore } from '../src/store/libraryStore';
 import { useResponsive } from '../src/hooks/useResponsive';
+import { colors, FONTS } from '../src/theme/theme';
 
 export default function NowPlayingScreen() {
   const router = useRouter();
@@ -111,7 +112,7 @@ export default function NowPlayingScreen() {
         <View style={{ width: 40 }} />
         <Pressable onPress={() => router.back()} style={s.chevronBtn} hitSlop={12}
           accessibilityRole="button" accessibilityLabel="Close player">
-          <Icon name="chevron-down" size={26} color="#ffffff" />
+          <Icon name="chevron-down" size={26} color={colors.onSurface} />
         </Pressable>
         <View style={{ width: 40 }} />
       </View>
@@ -124,7 +125,7 @@ export default function NowPlayingScreen() {
             <Image source={{ uri: track.coverUrl }} style={s.artwork} />
           ) : (
             <View style={[s.artwork, s.artPlaceholder]}>
-              <Icon name="musical-notes" size={96} color="#8e8e93" />
+              <Icon name="musical-notes" size={96} color={colors.onSurfaceVariant} />
             </View>
           )}
         </View>
@@ -143,7 +144,7 @@ export default function NowPlayingScreen() {
             accessibilityLabel={liked ? 'Remove from favorites' : 'Add to favorites'}
             accessibilityState={{ selected: liked }}
           >
-            <Icon name={liked ? 'heart' : 'heart-outline'} size={26} color="#ffffff" />
+            <Icon name={liked ? 'heart' : 'heart-outline'} size={26} color={colors.onSurface} />
           </Pressable>
         </View>
 
@@ -180,7 +181,7 @@ export default function NowPlayingScreen() {
             accessibilityLabel="Shuffle"
             accessibilityState={{ checked: shuffle }}
           >
-            <Icon name="shuffle" size={22} color={shuffle ? '#00e5bf' : '#8e8e93'} />
+            <Icon name="shuffle" size={22} color={shuffle ? colors.accent : colors.onSurfaceVariant} />
           </Pressable>
 
           <Pressable
@@ -195,7 +196,7 @@ export default function NowPlayingScreen() {
             <Icon
               name="play-skip-back"
               size={28}
-              color={hasPrevious ? '#ffffff' : '#5a5a5e'}
+              color={hasPrevious ? colors.onSurface : '#5a5a5e'}
             />
           </Pressable>
 
@@ -213,7 +214,7 @@ export default function NowPlayingScreen() {
                 <View style={s.pauseBar} />
               </View>
             ) : (
-              <Icon name="play" size={38} color="#ffffff" style={{ marginLeft: 4 }} />
+              <Icon name="play" size={38} color={colors.onSurface} style={{ marginLeft: 4 }} />
             )}
           </Pressable>
 
@@ -229,7 +230,7 @@ export default function NowPlayingScreen() {
             <Icon
               name="play-skip-forward"
               size={28}
-              color={hasNext ? '#ffffff' : '#5a5a5e'}
+              color={hasNext ? colors.onSurface : '#5a5a5e'}
             />
           </Pressable>
 
@@ -240,7 +241,7 @@ export default function NowPlayingScreen() {
             accessibilityRole="button"
             accessibilityLabel={`Repeat: ${repeat === 'off' ? 'off' : repeat === 'all' ? 'all tracks' : 'this track'}`}
           >
-            <Icon name="repeat" size={22} color={repeat !== 'off' ? '#00e5bf' : '#8e8e93'} />
+            <Icon name="repeat" size={22} color={repeat !== 'off' ? colors.accent : colors.onSurfaceVariant} />
           </Pressable>
         </View>
 
@@ -248,23 +249,35 @@ export default function NowPlayingScreen() {
         <View style={s.bottomRow}>
           <Pressable
             style={s.bottomCircleBtn}
-            onPress={() => router.push('/queue' as any)}
+            onPress={() => router.push('/lyrics' as any)}
             hitSlop={8}
             accessibilityRole="button"
-            accessibilityLabel="Open queue"
+            accessibilityLabel="Show lyrics"
           >
-            <Icon name="reorder-three" size={22} color="#ffffff" />
+            <Icon name="document-text-outline" size={20} color={colors.onSurface} />
           </Pressable>
 
-          <Pressable
-            style={s.bottomCircleBtn}
-            onPress={() => setOptionsVisible(true)}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel="More options"
-          >
-            <Icon name="ellipsis-horizontal" size={20} color="#ffffff" />
-          </Pressable>
+          <View style={s.bottomRightGroup}>
+            <Pressable
+              style={s.bottomCircleBtn}
+              onPress={() => router.push('/queue' as any)}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Open queue"
+            >
+              <Icon name="reorder-three" size={22} color={colors.onSurface} />
+            </Pressable>
+
+            <Pressable
+              style={s.bottomCircleBtn}
+              onPress={() => setOptionsVisible(true)}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="More options"
+            >
+              <Icon name="ellipsis-horizontal" size={20} color={colors.onSurface} />
+            </Pressable>
+          </View>
         </View>
       </View>
 
@@ -287,13 +300,14 @@ const s = StyleSheet.create({
     gap: 12,
   },
   emptyTitle: {
+    fontFamily: FONTS.display,
     fontSize: 20,
     fontWeight: '700',
-    color: '#ffffff',
+    color: colors.onSurface,
   },
   emptyBody: {
     fontSize: 15,
-    color: '#8e8e93',
+    color: colors.onSurfaceVariant,
     textAlign: 'center',
     lineHeight: 21,
   },
@@ -304,12 +318,12 @@ const s = StyleSheet.create({
     minHeight: 44,
     justifyContent: 'center',
     borderRadius: 22,
-    backgroundColor: '#2c2c2e',
+    backgroundColor: colors.surfaceContainerHighest,
   },
   emptyButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#ffffff',
+    color: colors.onSurface,
   },
   errorText: {
     fontSize: 13,
@@ -319,7 +333,7 @@ const s = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: colors.background,
     justifyContent: 'space-between',
   },
   topHeader: {
@@ -343,7 +357,7 @@ const s = StyleSheet.create({
     alignSelf: 'center',
     borderRadius: 4,
     overflow: 'hidden',
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surfaceContainer,
   },
   artwork: {
     width: '100%',
@@ -371,9 +385,10 @@ const s = StyleSheet.create({
     gap: 6,
   },
   trackTitle: {
+    fontFamily: FONTS.display,
     fontSize: 18,
     fontWeight: '700',
-    color: '#ffffff',
+    color: colors.onSurface,
     flexShrink: 1,
   },
   explicitBadge: {
@@ -385,11 +400,11 @@ const s = StyleSheet.create({
   explicitText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#ffffff',
+    color: colors.onSurface,
   },
   trackArtist: {
     fontSize: 14,
-    color: '#8e8e93',
+    color: colors.onSurfaceVariant,
   },
   heartBtn: {
     padding: 4,
@@ -410,18 +425,21 @@ const s = StyleSheet.create({
   },
   scrubFill: {
     height: '100%',
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.onSurface,
   },
   timeRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  // Monospace so the readout does not reflow as digits change during scrubbing.
   timeText: {
-    fontSize: 12,
-    color: '#8e8e93',
-    fontWeight: '500',
-  },
+      fontFamily: FONTS.mono,
+      fontSize: 12,
+      lineHeight: 16,
+      letterSpacing: 0.3,
+      color: colors.onSurfaceVariant,
+    },
   controlsRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -450,7 +468,7 @@ const s = StyleSheet.create({
   pauseBar: {
     width: 6,
     height: 30,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.onSurface,
     borderRadius: 2,
   },
   bottomRow: {
@@ -459,11 +477,17 @@ const s = StyleSheet.create({
     alignItems: 'center',
     marginTop: 20,
   },
+  /** Keeps the secondary actions together on the trailing edge. */
+  bottomRightGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
   bottomCircleBtn: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#262626',
+    backgroundColor: colors.surfaceContainerHigh,
     alignItems: 'center',
     justifyContent: 'center',
   },

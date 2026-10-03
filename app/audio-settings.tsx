@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Icon from '../src/components/ui/Icon';
+import { colors, FONTS } from '../src/theme/theme';
 import { COLORS } from '../src/theme/theme';
 import { useSettingsStore } from '../src/store/settingsStore';
 import { useListeningStore } from '../src/store/listeningStore';
@@ -225,6 +226,7 @@ const s = StyleSheet.create({
     marginTop: 28,
   },
   sectionTitle: {
+    fontFamily: FONTS.display,
     fontSize: 13,
     fontWeight: '700',
     color: COLORS.onSurfaceVariant,
@@ -316,7 +318,7 @@ const s = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.onSurface,
   },
   switchThumbOn: {
     alignSelf: 'flex-end',

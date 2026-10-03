@@ -1,20 +1,21 @@
-import React, { useState } from 'react';
+import React, { memo, useState } from 'react';
 import {
   View,
   Text,
   Pressable,
   ScrollView,
-  Image,
-  StyleSheet,
-} from 'react-native';
+    StyleSheet,
+  } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Icon from '../src/components/ui/Icon';
+import CoverThumb from '../src/components/ui/CoverThumb';
 import TrackOptionsMenu from '../src/components/ui/TrackOptionsMenu';
 import { useQueueStore, getCachedTrack, QueueEntry } from '../src/store/queueStore';
 import { usePlaybackStore } from '../src/store/playbackStore';
 import { audioService } from '../src/audio/AudioService';
 import { Track } from '../src/providers/types';
+import { colors, FONTS } from '../src/theme/theme';
 
 interface QueueRow {
   entry: QueueEntry;
@@ -22,7 +23,7 @@ interface QueueRow {
   index: number;
 }
 
-function QueueRowItem({
+function QueueRowItemComponent({
   row,
   isCurrent,
   onPlay,
@@ -43,13 +44,7 @@ function QueueRowItem({
       accessibilityRole="button"
       accessibilityLabel={`${track.title} by ${track.artist}`}
     >
-      {track.coverUrl ? (
-        <Image source={{ uri: track.coverUrl }} style={s.trackArt} />
-      ) : (
-        <View style={[s.trackArt, s.trackArtPlaceholder]}>
-          <Icon name="musical-notes" size={18} color="#8e8e93" />
-        </View>
-      )}
+      <CoverThumb uri={track.coverUrl} size={44} borderRadius={4} />
       <View style={s.trackMeta}>
         <Text
           numberOfLines={1}
@@ -68,7 +63,7 @@ function QueueRowItem({
         accessibilityRole="button"
         accessibilityLabel={`Options for ${track.title}`}
       >
-        <Icon name="ellipsis-horizontal" size={18} color="#8e8e93" />
+        <Icon name="ellipsis-horizontal" size={18} color={colors.onSurfaceVariant} />
       </Pressable>
       {!isCurrent && (
         <Pressable
@@ -78,15 +73,28 @@ function QueueRowItem({
           accessibilityRole="button"
           accessibilityLabel={`Remove ${track.title} from queue`}
         >
-          <Icon name="close" size={20} color="#8e8e93" />
+          <Icon name="close" size={20} color={colors.onSurfaceVariant} />
         </Pressable>
       )}
     </Pressable>
   );
 }
 
-export default function QueueScreen() {
-  const router = useRouter();
+      /**
+       * Rows get fresh closures each render, so the default shallow compare would
+       * always fail. What actually changes is the entry it points at, so that is the
+       * only thing compared.
+       */
+      const QueueRowItem = memo(QueueRowItemComponent, (prev, next) => {
+        return (
+          prev.row.entry.entryId === next.row.entry.entryId &&
+          prev.row.index === next.row.index &&
+          prev.isCurrent === next.isCurrent
+        );
+      });
+
+      export default function QueueScreen() {
+        const router = useRouter();
   const insets = useSafeAreaInsets();
   const entries = useQueueStore((state) => state.entries);
   const currentIndex = useQueueStore((state) => state.currentIndex);
@@ -259,7 +267,7 @@ export default function QueueScreen() {
             accessibilityLabel="Shuffle"
             accessibilityState={{ checked: shuffle }}
           >
-            <Icon name="shuffle" size={20} color={shuffle ? '#00e5bf' : '#ffffff'} />
+            <Icon name="shuffle" size={20} color={shuffle ? colors.accent : colors.onSurface} />
           </Pressable>
           <Pressable
             onPress={() => audioService.playPrevious()}
@@ -268,7 +276,7 @@ export default function QueueScreen() {
             accessibilityRole="button"
             accessibilityLabel="Previous track"
           >
-            <Icon name="play-skip-back" size={24} color="#ffffff" />
+            <Icon name="play-skip-back" size={24} color={colors.onSurface} />
           </Pressable>
           <Pressable
             onPress={handleTogglePlay}
@@ -279,7 +287,7 @@ export default function QueueScreen() {
             accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
             accessibilityState={{ disabled: !currentTrack }}
           >
-            <Icon name={isPlaying ? 'pause' : 'play'} size={32} color="#ffffff" />
+            <Icon name={isPlaying ? 'pause' : 'play'} size={32} color={colors.onSurface} />
           </Pressable>
           <Pressable
             onPress={() => audioService.playNextInQueue()}
@@ -293,7 +301,7 @@ export default function QueueScreen() {
             <Icon
               name="play-skip-forward"
               size={24}
-              color={upcomingRows.length === 0 ? '#5a5a5e' : '#ffffff'}
+              color={upcomingRows.length === 0 ? '#5a5a5e' : colors.onSurface}
             />
           </Pressable>
           <Pressable
@@ -303,7 +311,7 @@ export default function QueueScreen() {
             accessibilityRole="button"
             accessibilityLabel={repeatLabel}
           >
-            <Icon name="repeat" size={20} color={repeat !== 'off' ? '#00e5bf' : '#ffffff'} />
+            <Icon name="repeat" size={20} color={repeat !== 'off' ? colors.accent : colors.onSurface} />
           </Pressable>
         </View>
       </View>
@@ -320,7 +328,7 @@ export default function QueueScreen() {
 const s = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -332,7 +340,7 @@ const s = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#ffffff',
+    color: colors.onSurface,
   },
   headerAction: {
     minHeight: 44,
@@ -341,7 +349,7 @@ const s = StyleSheet.create({
   },
   clearText: {
     fontSize: 15,
-    color: '#00e5bf',
+    color: colors.accent,
     fontWeight: '600',
   },
   scrollContent: {
@@ -354,14 +362,14 @@ const s = StyleSheet.create({
   sectionHeader: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#8e8e93',
+    color: colors.onSurfaceVariant,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 8,
   },
   endOfQueue: {
     fontSize: 14,
-    color: '#8e8e93',
+    color: colors.onSurfaceVariant,
     lineHeight: 20,
   },
   trackRow: {
@@ -378,7 +386,7 @@ const s = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 4,
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surfaceContainer,
   },
   trackArtPlaceholder: {
     alignItems: 'center',
@@ -389,16 +397,17 @@ const s = StyleSheet.create({
     minWidth: 0,
   },
   trackTitle: {
+    fontFamily: FONTS.display,
     fontSize: 15,
-    color: '#ffffff',
+    color: colors.onSurface,
     fontWeight: '500',
   },
   trackTitleCurrent: {
-    color: '#00e5bf',
+    color: colors.accent,
   },
   trackArtist: {
     fontSize: 13,
-    color: '#8e8e93',
+    color: colors.onSurfaceVariant,
     marginTop: 2,
   },
   rowAction: {
@@ -415,13 +424,14 @@ const s = StyleSheet.create({
     gap: 12,
   },
   emptyTitle: {
+    fontFamily: FONTS.display,
     fontSize: 20,
     fontWeight: '700',
-    color: '#ffffff',
+    color: colors.onSurface,
   },
   emptyBody: {
     fontSize: 15,
-    color: '#8e8e93',
+    color: colors.onSurfaceVariant,
     textAlign: 'center',
     lineHeight: 21,
   },
@@ -432,19 +442,19 @@ const s = StyleSheet.create({
     minHeight: 44,
     justifyContent: 'center',
     borderRadius: 22,
-    backgroundColor: '#2c2c2e',
+    backgroundColor: colors.surfaceContainerHighest,
   },
   emptyButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#ffffff',
+    color: colors.onSurface,
   },
   bottomBar: {
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#2c2c2e',
+    borderTopColor: colors.surfaceContainerHighest,
     paddingTop: 12,
     paddingHorizontal: 20,
-    backgroundColor: '#000000',
+    backgroundColor: colors.background,
   },
   transportRow: {
     flexDirection: 'row',

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, ScrollView, Pressable, Image, Dimensions, Alert } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from '../src/components/ui/Icon';
-import { colors, sp, t, r } from '../src/theme/theme';
+import { colors, sp, t, r, FONTS } from '../src/theme/theme';
 import { usePlaybackStore } from '../src/store/playbackStore';
 import { audioService } from '../src/audio/AudioService';
 import { hifiApiClient } from '../src/services/hifiApiClient';
@@ -106,6 +106,28 @@ export default function LyricsScreen() {
     Alert.alert('Report Lyrics', 'Report feature coming soon!');
   };
 
+  if (!currentTrack) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+        <View style={styles.emptyState}>
+          <Icon name="musical-notes-outline" size={56} color={colors.onSurfaceVariant} />
+          <Text style={styles.emptyTitle}>Nothing playing</Text>
+          <Text style={styles.emptyBody}>
+            Start a track and its lyrics will show up here.
+          </Text>
+          <Pressable
+            style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
+            onPress={handleDismiss}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
+            <Icon name="chevron-down" size={24} color={colors.onSurfaceVariant} />
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* Background Ambience Mock */}
@@ -149,7 +171,7 @@ export default function LyricsScreen() {
               />
             ) : (
               <View style={[styles.artwork, styles.artworkFallback]}>
-                <Icon name="musical-note" size={22} color="#8e8e93" />
+                <Icon name="musical-note" size={22} color={colors.onSurfaceVariant} />
               </View>
             )}
             <View style={styles.anchorText}>
@@ -302,6 +324,23 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.7,
   },
+  emptyState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    paddingHorizontal: 32,
+  },
+  emptyTitle: {
+    fontFamily: FONTS.display,
+    ...t.h3,
+    color: colors.onSurface,
+  },
+  emptyBody: {
+    ...t.bodyMd,
+    color: colors.onSurfaceVariant,
+    textAlign: 'center',
+  },
   ambientGlow: {
     position: 'absolute',
     top: -50,
@@ -336,7 +375,7 @@ const styles = StyleSheet.create({
   },
   headerSubtitle: {
     ...t.labelSm,
-    color: colors.outline,
+    color: colors.outlineText,
     textTransform: 'uppercase',
     letterSpacing: 1.2,
   },
@@ -371,7 +410,7 @@ const styles = StyleSheet.create({
   artworkFallback: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surfaceContainer,
   },
   artwork: {
     width: 48,
@@ -383,6 +422,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   trackTitle: {
+    fontFamily: FONTS.display,
     ...t.titleMd,
     color: colors.onSurface,
   },
@@ -470,7 +510,7 @@ const styles = StyleSheet.create({
   },
   providerCreditText: {
     ...t.labelSm,
-    color: colors.outline,
+    color: colors.outlineText,
     textTransform: 'uppercase',
     letterSpacing: 1.2,
   },
@@ -544,10 +584,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  // Monospace keeps the elapsed time from shifting as the digits tick.
   timeText: {
-    ...t.labelSm,
-    color: colors.onSurfaceVariant,
-  },
+      fontFamily: FONTS.mono,
+      fontSize: 12,
+      lineHeight: 16,
+      letterSpacing: 0.3,
+      color: colors.onSurfaceVariant,
+    },
   transportControls: {
     flexDirection: 'row',
     alignItems: 'center',

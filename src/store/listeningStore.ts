@@ -88,7 +88,7 @@ export const useListeningStore = create<ListeningState>()(
     (set, get) => ({
       stats: {},
       history: [],
-      autoQueueEnabled: false,
+            autoQueueEnabled: true,
       clearedAt: null,
 
       recordPlay: (track, positionMs) => {

@@ -53,7 +53,7 @@ interface Playlist {
 const newPlaylist = await createPlaylist(
   "My Favorites",
   "Best songs ever",
-  "#6366f1",
+  "#6F7E88",
   "heart"
 );
 ```
@@ -136,16 +136,19 @@ await updatePlaylistLastPlayed(playlistId);
 - Validation and error handling
 
 **Color Options:**
-- Indigo (#6366f1)
-- Violet (#8b5cf6)
-- Pink (#ec4899)
-- Rose (#f43f5e)
-- Orange (#f97316)
-- Yellow (#eab308)
-- Green (#22c55e)
-- Cyan (#06b6d4)
-- Blue (#3b82f6)
-- Slate (#64748b)
+Drawn from the Luma structural ramp (see `Design.md`), not a saturated
+rainbow. Saturated purple and cyan states are ruled out by the design system.
+
+- Steel (#6F7E88)
+- Warm accent (#8D8170)
+- Deep steel (#5A6B75)
+- Slate (#7D8794)
+- Sand (#A38F76)
+- Graphite (#4A5463)
+- Pewter (#8A94A2)
+- Umber (#6B6152)
+- Harbour (#5F7180)
+- Ash (#737D8C)
 
 **Icon Options:**
 - musical-notes, heart, star, flame, leaf, sun, moon, cloud, lightning, rocket
@@ -222,7 +225,7 @@ STORAGE_KEYS = {
     "name": "My Playlist",
     "description": "Description here",
     "tracks": [...],
-    "color": "#6366f1",
+    "color": "#6F7E88",
     "icon": "musical-notes",
     "createdAt": 1234567890000,
     "updatedAt": 1234567890000,
@@ -341,7 +344,7 @@ const playlist = await createPlaylist("Workout Mix");
 const detailedPlaylist = await createPlaylist(
   "Chill Vibes",
   "Relaxing music for studying",
-  "#8b5cf6",
+  "#8D8170",
   "moon"
 );
 ```

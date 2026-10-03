@@ -3,9 +3,11 @@ import { View, Text, StyleSheet, Modal, Pressable, Image, ScrollView, Alert, Sha
 import { Track } from '../../providers/types';
 import Icon from './Icon';
 import { useLibraryStore } from '../../store/libraryStore';
+import { useQueueStore } from '../../store/queueStore';
 import { audioService } from '../../audio/AudioService';
 import { useDownloadStore } from '../../downloads/downloadStore';
 import { useRouter } from 'expo-router';
+import { colors, FONTS } from '../../theme/theme';
 
 interface TrackOptionsMenuProps {
   visible: boolean;
@@ -82,6 +84,10 @@ export default function TrackOptionsMenu({
 
   const handleTrackRadio = async () => {
     onClose();
+    useQueueStore.getState().playContext([track], 0, {
+      type: 'radio',
+      name: `${track.title} radio`,
+    });
     await audioService.playTrack(track);
   };
 
@@ -114,7 +120,7 @@ export default function TrackOptionsMenu({
             <Image source={{ uri: track.coverUrl }} style={s.art} />
           ) : (
             <View style={[s.art, s.artPlaceholder]}>
-              <Icon name="musical-notes" size={24} color="#8e8e93" />
+              <Icon name="musical-notes" size={24} color={colors.onSurfaceVariant} />
             </View>
           )}
           <View style={s.trackInfo}>
@@ -133,7 +139,7 @@ export default function TrackOptionsMenu({
             else Alert.alert('Add to playlist', 'Open a playlist from your collection to add this track.');
           }}>
             <Text style={s.optionLabel}>Add to playlist</Text>
-            <Icon name="chevron-forward" size={18} color="#8e8e93" />
+            <Icon name="chevron-forward" size={18} color={colors.onSurfaceVariant} />
           </Pressable>
 
           <Pressable style={s.optionRow} onPress={handleToggleCollection}>
@@ -150,7 +156,7 @@ export default function TrackOptionsMenu({
                   ? 'Cancel download'
                   : 'Download'}
             </Text>
-            {downloadStatus === 'completed' && <Icon name="checkmark" size={18} color="#00e5bf" />}
+            {downloadStatus === 'completed' && <Icon name="checkmark" size={18} color={colors.accent} />}
           </Pressable>
 
           <Pressable style={s.optionRow} onPress={handleTrackRadio}>
@@ -167,12 +173,12 @@ export default function TrackOptionsMenu({
 
           <Pressable style={s.optionRow} onPress={handleGoToArtist}>
             <Text style={s.optionLabel}>Go to artist</Text>
-            <Icon name="chevron-forward" size={18} color="#8e8e93" />
+            <Icon name="chevron-forward" size={18} color={colors.onSurfaceVariant} />
           </Pressable>
 
           <Pressable style={s.optionRow} onPress={handleShare}>
             <Text style={s.optionLabel}>Share</Text>
-            <Icon name="chevron-forward" size={18} color="#8e8e93" />
+            <Icon name="chevron-forward" size={18} color={colors.onSurfaceVariant} />
           </Pressable>
         </ScrollView>
 
@@ -199,7 +205,7 @@ const s = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surfaceContainer,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingTop: 16,
@@ -217,7 +223,7 @@ const s = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 4,
-    backgroundColor: '#262626',
+    backgroundColor: colors.surfaceContainerHigh,
   },
   artPlaceholder: {
     alignItems: 'center',
@@ -229,17 +235,18 @@ const s = StyleSheet.create({
     gap: 4,
   },
   trackTitle: {
+    fontFamily: FONTS.display,
     fontSize: 16,
     fontWeight: '700',
-    color: '#ffffff',
+    color: colors.onSurface,
   },
   trackArtist: {
     fontSize: 13,
-    color: '#8e8e93',
+    color: colors.onSurfaceVariant,
   },
   separator: {
     height: 1,
-    backgroundColor: '#2c2c2e',
+    backgroundColor: colors.surfaceContainerHighest,
     marginBottom: 8,
   },
   optionsList: {
@@ -253,12 +260,12 @@ const s = StyleSheet.create({
   },
   optionLabel: {
     fontSize: 16,
-    color: '#ffffff',
+    color: colors.onSurface,
     fontWeight: '500',
   },
   closeBtn: {
     marginTop: 16,
-    backgroundColor: '#2c2c2e',
+    backgroundColor: colors.surfaceContainerHighest,
     height: 52,
     borderRadius: 26,
     alignItems: 'center',
@@ -267,6 +274,6 @@ const s = StyleSheet.create({
   closeBtnText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#ffffff',
+    color: colors.onSurface,
   },
 });

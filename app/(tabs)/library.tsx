@@ -14,6 +14,7 @@ import { useRouter } from 'expo-router';
 import HeaderBar from '../../src/components/ui/HeaderBar';
 import { useResponsive } from '../../src/hooks/useResponsive';
 import Icon from '../../src/components/ui/Icon';
+import CoverThumb from '../../src/components/ui/CoverThumb';
 import TrackOptionsMenu from '../../src/components/ui/TrackOptionsMenu';
 import { useLibraryStore } from '../../src/store/libraryStore';
 import { useQueueStore } from '../../src/store/queueStore';
@@ -21,6 +22,7 @@ import { audioService } from '../../src/audio/AudioService';
 import { Track } from '../../src/providers/types';
 import { CreatePlaylistModal } from '../../src/components/playlist/CreatePlaylistModal';
 import { PlaylistActionsModal } from '../../src/components/playlist/PlaylistActionsModal';
+import { colors, FONTS } from '../../src/theme/theme';
 
 type SubView = 'root' | 'mixes' | 'playlists' | 'albums' | 'tracks';
 
@@ -35,7 +37,6 @@ export default function LibraryScreen() {
   const [optionsTrack, setOptionsTrack] = useState<Track | null>(null);
 
   const { playlists, favorites, createPlaylist } = useLibraryStore();
-  const { addToQueue } = useQueueStore();
 
   // Albums are derived from tracks the user actually saved, so the grid only
     // ever shows real, reachable albums rather than a hardcoded sample.
@@ -85,34 +86,34 @@ export default function LibraryScreen() {
       <View style={s.menuList}>
         <Pressable style={s.menuRow} onPress={() => setCurrentView('mixes')}>
           <View style={s.menuLeft}>
-            <Icon name="radio-outline" size={24} color="#ffffff" />
+            <Icon name="radio-outline" size={24} color={colors.onSurface} />
             <Text style={s.menuLabel}>Mixes & Radio</Text>
           </View>
-          <Icon name="chevron-forward" size={20} color="#8e8e93" />
+          <Icon name="chevron-forward" size={20} color={colors.onSurfaceVariant} />
         </Pressable>
 
         <Pressable style={s.menuRow} onPress={() => setCurrentView('playlists')}>
           <View style={s.menuLeft}>
-            <Icon name="musical-notes-outline" size={24} color="#ffffff" />
+            <Icon name="musical-notes-outline" size={24} color={colors.onSurface} />
             <Text style={s.menuLabel}>Playlists</Text>
           </View>
-          <Icon name="chevron-forward" size={20} color="#8e8e93" />
+          <Icon name="chevron-forward" size={20} color={colors.onSurfaceVariant} />
         </Pressable>
 
         <Pressable style={s.menuRow} onPress={() => setCurrentView('albums')}>
           <View style={s.menuLeft}>
-            <Icon name="disc-outline" size={24} color="#ffffff" />
+            <Icon name="disc-outline" size={24} color={colors.onSurface} />
             <Text style={s.menuLabel}>Albums</Text>
           </View>
-          <Icon name="chevron-forward" size={20} color="#8e8e93" />
+          <Icon name="chevron-forward" size={20} color={colors.onSurfaceVariant} />
         </Pressable>
 
         <Pressable style={s.menuRow} onPress={() => setCurrentView('tracks')}>
           <View style={s.menuLeft}>
-            <Icon name="musical-note-outline" size={24} color="#ffffff" />
+            <Icon name="musical-note-outline" size={24} color={colors.onSurface} />
             <Text style={s.menuLabel}>Tracks</Text>
           </View>
-          <Icon name="chevron-forward" size={20} color="#8e8e93" />
+          <Icon name="chevron-forward" size={20} color={colors.onSurfaceVariant} />
                   </Pressable>
                 </View>
               </ScrollView>
@@ -122,7 +123,7 @@ export default function LibraryScreen() {
   const renderMixesView = () => (
     <View style={s.emptyContainer}>
       <View style={s.emptyCenter}>
-        <Icon name="radio-outline" size={80} color="#8e8e93" />
+        <Icon name="radio-outline" size={80} color={colors.onSurfaceVariant} />
         <Text style={s.emptyText}>
           No mixes or radio stations yet. Favorite a track and its radio station shows up here.
         </Text>
@@ -162,7 +163,7 @@ export default function LibraryScreen() {
       <ScrollView contentContainerStyle={[s.content, { paddingBottom: bottomBarClearance }]}>
         <View style={s.headerRow}>
           <Pressable style={s.whitePillBtn} onPress={() => setCreateModalVisible(true)}>
-            <Icon name="add" size={18} color="#000000" />
+            <Icon name="add" size={18} color={colors.background} />
             <Text style={s.whitePillText}>Create new playlist</Text>
           </Pressable>
         </View>
@@ -173,15 +174,19 @@ export default function LibraryScreen() {
               style={s.playlistRow}
               onPress={() => {
                 if (pl.tracks.length > 0) {
-                  audioService.playTrack(pl.tracks[0]);
-                  pl.tracks.slice(1).forEach((t: Track) => addToQueue(t));
-                } else {
-                  Alert.alert('Empty Playlist', 'Add tracks to this playlist first.');
-                }
-              }}
+                                useQueueStore.getState().playContext(pl.tracks, 0, {
+                                  type: 'playlist',
+                                  id: pl.id,
+                                  name: pl.name,
+                                });
+                                void audioService.playTrack(pl.tracks[0]);
+                              } else {
+                                Alert.alert('Empty Playlist', 'Add tracks to this playlist first.');
+                              }
+                            }}
             >
               <View style={s.playlistArt}>
-                <Icon name="musical-notes" size={24} color="#8e8e93" />
+                <Icon name="musical-notes" size={24} color={colors.onSurfaceVariant} />
               </View>
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text numberOfLines={1} style={s.playlistTitle}>{pl.name}</Text>
@@ -195,7 +200,7 @@ export default function LibraryScreen() {
                 hitSlop={8}
                 style={{ padding: 6 }}
               >
-                <Icon name="ellipsis-horizontal" size={20} color="#8e8e93" />
+                <Icon name="ellipsis-horizontal" size={20} color={colors.onSurfaceVariant} />
               </Pressable>
             </Pressable>
           ))}
@@ -206,28 +211,28 @@ export default function LibraryScreen() {
 
   // 4. Albums (Screenshot 6)
   const renderAlbumsView = () => (
-    <ScrollView contentContainerStyle={[s.content, { paddingBottom: bottomBarClearance }]} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[s.content, { paddingBottom: bottomBarClearance }, s.fillContent]} showsVerticalScrollIndicator={false}>
       {/* Search / Filter bar */}
       <View style={s.filterBar}>
-        <Icon name="search" size={18} color="#8e8e93" />
+        <Icon name="search" size={18} color={colors.onSurfaceVariant} />
         <TextInput
           style={s.filterInput}
           placeholder="Filter albums"
-          placeholderTextColor="#8e8e93"
+          placeholderTextColor={colors.onSurfaceVariant}
           value={albumFilter}
           onChangeText={setAlbumFilter}
         />
         {!!albumFilter && (
           <Pressable onPress={() => setAlbumFilter('')} hitSlop={8}>
-            <Icon name="close" size={18} color="#8e8e93" />
+            <Icon name="close" size={18} color={colors.onSurfaceVariant} />
           </Pressable>
         )}
       </View>
 
       {/* Albums Grid */}
             {filteredAlbums.length === 0 ? (
-              <View style={s.emptyCenter}>
-                <Icon name="albums-outline" size={64} color="#8e8e93" />
+                          <View style={s.emptyCenterFill}>
+                <Icon name="albums-outline" size={64} color={colors.onSurfaceVariant} />
                 <Text style={s.emptyText}>
                   {savedAlbums.length === 0
                     ? 'No saved albums yet. Favorite a track and the album it belongs to shows up here.'
@@ -257,7 +262,7 @@ export default function LibraryScreen() {
                       <Image source={{ uri: album.coverUrl }} style={s.albumCover} />
                     ) : (
                       <View style={[s.albumCover, s.albumCoverFallback]}>
-                        <Icon name="albums-outline" size={28} color="#8e8e93" />
+                        <Icon name="albums-outline" size={28} color={colors.onSurfaceVariant} />
                       </View>
                     )}
                     <View style={s.albumMeta}>
@@ -275,33 +280,33 @@ export default function LibraryScreen() {
 
   // 5. Tracks View
   const renderTracksView = () => (
-    <ScrollView contentContainerStyle={[s.content, { paddingBottom: bottomBarClearance }]} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[s.content, { paddingBottom: bottomBarClearance }, s.fillContent]} showsVerticalScrollIndicator={false}>
       {favorites.length === 0 ? (
-        <View style={s.emptyCenter}>
-          <Icon name="heart-outline" size={64} color="#8e8e93" />
+          <View style={s.emptyCenterFill}>
+          <Icon name="heart-outline" size={64} color={colors.onSurfaceVariant} />
           <Text style={s.emptyText}>No favorite tracks yet. Tap heart on any track to add it here.</Text>
         </View>
       ) : (
         <View style={{ gap: 8 }}>
-          {favorites.map((track) => (
+          {favorites.map((track, index) => (
             <Pressable
               key={track.id}
               style={s.trackRow}
-              onPress={() => audioService.playTrack(track)}
-            >
-              {track.coverUrl ? (
-                <Image source={{ uri: track.coverUrl }} style={s.trackArt} />
-              ) : (
-                <View style={[s.trackArt, { alignItems: 'center', justifyContent: 'center' }]}>
-                  <Icon name="musical-notes" size={20} color="#8e8e93" />
-                </View>
-              )}
+                        onPress={() => {
+                          useQueueStore.getState().playContext(favorites, index, {
+                            type: 'collection',
+                            name: 'Favorites',
+                          });
+                          void audioService.playTrack(track);
+                        }}
+                      >
+              <CoverThumb uri={track.coverUrl} size={48} borderRadius={4} />
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text numberOfLines={1} style={s.trackTitle}>{track.title}</Text>
                 <Text numberOfLines={1} style={s.trackArtist}>{track.artist}</Text>
               </View>
               <Pressable onPress={() => setOptionsTrack(track)} hitSlop={8} style={{ padding: 6 }}>
-                <Icon name="ellipsis-horizontal" size={18} color="#8e8e93" />
+                <Icon name="ellipsis-horizontal" size={18} color={colors.onSurfaceVariant} />
               </Pressable>
             </Pressable>
           ))}
@@ -323,21 +328,10 @@ export default function LibraryScreen() {
   return (
     <SafeAreaView style={s.container} edges={['top']}>
       <HeaderBar
-        showBack={currentView !== 'root'}
-        onBack={() => setCurrentView('root')}
-        title={getHeaderTitle()}
-        rightAction={
-          (currentView === 'albums' || currentView === 'playlists') ? (
-            <Pressable
-              style={s.circleBtn}
-              onPress={() => Alert.alert('Options', 'Sorting and layout options')}
-              hitSlop={8}
-            >
-              <Icon name="ellipsis-horizontal" size={18} color="#ffffff" />
-            </Pressable>
-          ) : undefined
-        }
-      />
+              showBack={currentView !== 'root'}
+              onBack={() => setCurrentView('root')}
+              title={getHeaderTitle()}
+            />
 
       {currentView === 'root' && renderRootView()}
       {currentView === 'mixes' && renderMixesView()}
@@ -361,9 +355,14 @@ export default function LibraryScreen() {
         playlist={selectedPlaylist}
         onPlay={() => {
           if (selectedPlaylist?.tracks?.length > 0) {
-            audioService.playTrack(selectedPlaylist.tracks[0]);
-          }
-        }}
+                    useQueueStore.getState().playContext(selectedPlaylist.tracks, 0, {
+                      type: 'playlist',
+                      id: selectedPlaylist.id,
+                      name: selectedPlaylist.name,
+                    });
+                    void audioService.playTrack(selectedPlaylist.tracks[0]);
+                  }
+                }}
         onDelete={() => {
           if (selectedPlaylist) {
             useLibraryStore.getState().deletePlaylist(selectedPlaylist.id);
@@ -386,16 +385,17 @@ export default function LibraryScreen() {
 const s = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: colors.background,
   },
   content: {
       paddingHorizontal: 16,
       gap: 16,
     },
   pageTitle: {
+    fontFamily: FONTS.display,
     fontSize: 32,
     fontWeight: '700',
-    color: '#ffffff',
+    color: colors.onSurface,
     letterSpacing: -0.5,
     marginBottom: 8,
   },
@@ -408,7 +408,7 @@ const s = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 18,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#1c1c1e',
+    borderBottomColor: colors.surfaceContainer,
   },
   menuLeft: {
     flexDirection: 'row',
@@ -416,9 +416,10 @@ const s = StyleSheet.create({
     gap: 16,
   },
   menuLabel: {
+    fontFamily: FONTS.display,
     fontSize: 18,
     fontWeight: '700',
-    color: '#ffffff',
+    color: colors.onSurface,
   },
   emptyContainer: {
     flex: 1,
@@ -431,14 +432,29 @@ const s = StyleSheet.create({
     gap: 16,
     maxWidth: 320,
   },
+    /** Lets a scroll view's empty state fill it so the message sits centered. */
+    fillContent: {
+      flexGrow: 1,
+    },
+    /** Centered empty state for views that scroll. */
+    emptyCenterFill: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 16,
+      maxWidth: 320,
+      alignSelf: 'center',
+      width: '100%',
+    },
   emptyTitle: {
+    fontFamily: FONTS.display,
     fontSize: 22,
     fontWeight: '700',
-    color: '#ffffff',
+    color: colors.onSurface,
   },
   emptyText: {
     fontSize: 14,
-    color: '#8e8e93',
+    color: colors.onSurfaceVariant,
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -450,7 +466,7 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   whitePillBtn: {
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.onSurface,
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 24,
@@ -461,10 +477,10 @@ const s = StyleSheet.create({
   whitePillText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#000000',
+    color: colors.background,
   },
   darkPillBtn: {
-    backgroundColor: '#262626',
+    backgroundColor: colors.surfaceContainerHigh,
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 24,
@@ -472,23 +488,23 @@ const s = StyleSheet.create({
   darkPillText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#ffffff',
+    color: colors.onSurface,
   },
   filterBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#161616',
+    backgroundColor: colors.surfaceContainerLow,
     borderRadius: 10,
     paddingHorizontal: 12,
     height: 44,
     gap: 10,
     marginTop: 8,
     borderWidth: 1,
-    borderColor: '#262626',
+    borderColor: colors.surfaceContainerHigh,
   },
   filterInput: {
     flex: 1,
-    color: '#ffffff',
+    color: colors.onSurface,
     fontSize: 15,
   },
   albumGrid: {
@@ -505,7 +521,7 @@ const s = StyleSheet.create({
     width: '100%',
     aspectRatio: 1,
     borderRadius: 6,
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surfaceContainer,
   },
   albumMeta: {
     gap: 2,
@@ -516,15 +532,16 @@ const s = StyleSheet.create({
     gap: 6,
   },
   albumTitle: {
+    fontFamily: FONTS.display,
     fontSize: 14,
     fontWeight: '700',
-    color: '#ffffff',
+    color: colors.onSurface,
     flexShrink: 1,
   },
   albumCoverFallback: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surfaceContainer,
   },
   explicitBadge: {
     backgroundColor: '#333333',
@@ -535,11 +552,11 @@ const s = StyleSheet.create({
   explicitText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#ffffff',
+    color: colors.onSurface,
   },
   albumArtist: {
     fontSize: 12,
-    color: '#8e8e93',
+    color: colors.onSurfaceVariant,
   },
   albumYear: {
     fontSize: 11,
@@ -549,7 +566,7 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#161616',
+    backgroundColor: colors.surfaceContainerLow,
     padding: 10,
     borderRadius: 8,
   },
@@ -557,18 +574,19 @@ const s = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 6,
-    backgroundColor: '#262626',
+    backgroundColor: colors.surfaceContainerHigh,
     alignItems: 'center',
     justifyContent: 'center',
   },
   playlistTitle: {
+    fontFamily: FONTS.display,
     fontSize: 15,
     fontWeight: '700',
-    color: '#ffffff',
+    color: colors.onSurface,
   },
   playlistCount: {
     fontSize: 12,
-    color: '#8e8e93',
+    color: colors.onSurfaceVariant,
     marginTop: 2,
   },
   trackRow: {
@@ -581,25 +599,18 @@ const s = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 4,
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surfaceContainer,
   },
   trackTitle: {
+    fontFamily: FONTS.display,
     fontSize: 15,
     fontWeight: '600',
-    color: '#ffffff',
+    color: colors.onSurface,
   },
   trackArtist: {
     fontSize: 13,
-    color: '#8e8e93',
+    color: colors.onSurfaceVariant,
     marginTop: 2,
-  },
-  circleBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#262626',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   headerRow: {
     flexDirection: 'row',

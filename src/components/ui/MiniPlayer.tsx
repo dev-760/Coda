@@ -5,10 +5,30 @@ import { usePlaybackStore } from '../../store/playbackStore';
 import { useQueueStore } from '../../store/queueStore';
 import { audioService } from '../../audio/AudioService';
 import Icon from './Icon';
+import { colors } from '../../theme/theme';
+
+/**
+ * Subscribes to playback position on its own so the tick-driven re-render stops
+ * at this leaf instead of walking the whole player.
+ */
+function MiniProgress({ durationMs }: { durationMs: number }) {
+  const positionMs = usePlaybackStore((state) => state.positionMs);
+  const progress = durationMs > 0 ? Math.min(1, positionMs / durationMs) : 0;
+
+  return (
+    <View style={s.progressTrack} pointerEvents="none">
+      <View style={[s.progressFill, { width: `${progress * 100}%` }]} />
+    </View>
+  );
+}
 
 export default function MiniPlayer() {
   const router = useRouter();
-  const { currentTrack, isPlaying, positionMs, durationMs } = usePlaybackStore();
+  const currentTrack = usePlaybackStore((state) => state.currentTrack);
+  const isPlaying = usePlaybackStore((state) => state.isPlaying);
+  const durationMs = usePlaybackStore((state) => state.durationMs);
+  // Only the progress bar reads these, and it lives in its own component. If
+  // this subscribed to them, the whole player would re-render on every tick.
   const hasNext = useQueueStore((state) => state.upcomingCount() > 0);
 
   const handleTogglePlay = async () => {
@@ -33,8 +53,6 @@ export default function MiniPlayer() {
     return null;
   }
 
-  const progress = durationMs > 0 ? Math.min(1, positionMs / durationMs) : 0;
-
   return (
     <View style={s.container}>
       <Pressable
@@ -49,7 +67,7 @@ export default function MiniPlayer() {
           <Image source={{ uri: currentTrack.coverUrl }} style={s.artwork} />
         ) : (
           <View style={[s.artwork, s.artPlaceholder]}>
-            <Icon name="musical-notes" size={20} color="#8e8e93" />
+            <Icon name="musical-notes" size={20} color={colors.onSurfaceVariant} />
           </View>
         )}
 
@@ -73,7 +91,7 @@ export default function MiniPlayer() {
           accessibilityRole="button"
           accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
         >
-          <Icon name={isPlaying ? 'pause' : 'play'} size={24} color="#ffffff" />
+          <Icon name={isPlaying ? 'pause' : 'play'} size={24} color={colors.onSurface} />
         </Pressable>
         <Pressable
           onPress={handleNext}
@@ -87,14 +105,12 @@ export default function MiniPlayer() {
           <Icon
             name="play-skip-forward"
             size={22}
-            color={hasNext ? '#ffffff' : '#5a5a5e'}
+            color={hasNext ? colors.onSurface : '#5a5a5e'}
           />
         </Pressable>
       </View>
 
-      <View style={s.progressTrack} pointerEvents="none">
-        <View style={[s.progressFill, { width: `${progress * 100}%` }]} />
-      </View>
+      <MiniProgress durationMs={durationMs} />
     </View>
   );
 }
@@ -102,9 +118,9 @@ export default function MiniPlayer() {
 const s = StyleSheet.create({
   container: {
     height: 60,
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surfaceContainer,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#2c2c2e',
+    borderTopColor: colors.surfaceContainerHighest,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
@@ -116,11 +132,11 @@ const s = StyleSheet.create({
     right: 0,
     bottom: 0,
     height: 2,
-    backgroundColor: '#2c2c2e',
+    backgroundColor: colors.surfaceContainerHighest,
   },
   progressFill: {
     height: 2,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.onSurface,
   },
   touchableArea: {
     flex: 1,
@@ -133,7 +149,7 @@ const s = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 4,
-    backgroundColor: '#262626',
+    backgroundColor: colors.surfaceContainerHigh,
   },
   artPlaceholder: {
     alignItems: 'center',
@@ -147,11 +163,11 @@ const s = StyleSheet.create({
   title: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#ffffff',
+    color: colors.onSurface,
   },
   artist: {
     fontSize: 12,
-    color: '#8e8e93',
+    color: colors.onSurfaceVariant,
     marginTop: 2,
   },
   controls: {

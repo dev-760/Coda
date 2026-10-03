@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { audioService } from '../../src/audio/AudioService';
 import HeaderBar from '../../src/components/ui/HeaderBar';
 import Icon from '../../src/components/ui/Icon';
+import CoverThumb from '../../src/components/ui/CoverThumb';
 import TrackOptionsMenu from '../../src/components/ui/TrackOptionsMenu';
 import { useResponsive } from '../../src/hooks/useResponsive';
 import { CatalogAlbum, CatalogArtist } from '../../src/providers/catalogTypes';
@@ -21,7 +22,7 @@ import { Track } from '../../src/providers/types';
 import { recommendationsService } from '../../src/services/recommendationsService';
 import { useLibraryStore } from '../../src/store/libraryStore';
 import { cacheTracks, useQueueStore } from '../../src/store/queueStore';
-import { COLORS, FONTS } from '../../src/theme/theme';
+import { COLORS, FONTS, colors } from '../../src/theme/theme';
 
 const GENRES = [
   'Hip-Hop',
@@ -100,15 +101,19 @@ export default function SearchScreen() {
       };
     }
 
+    const controller = new AbortController();
+
     const timer = setTimeout(async () => {
       setLoading(true);
       setError(null);
       try {
-        const data = await recommendationsService.searchMulti(term);
+        const data = await recommendationsService.searchMulti(term, controller.signal);
         if (!active) return;
         setResults(data);
       } catch {
-        if (active) {
+        // An aborted request was superseded by a newer term, so it must not
+        // surface as a failure to the user.
+        if (active && !controller.signal.aborted) {
           setResults(EMPTY_RESULTS);
           setError('Search failed. Check your connection and try again.');
         }
@@ -120,6 +125,9 @@ export default function SearchScreen() {
     return () => {
       active = false;
       clearTimeout(timer);
+      // Cancels the in-flight request so a fast typist does not keep every
+      // superseded term's responses alive on the connection.
+      controller.abort();
     };
   }, [query]);
 
@@ -447,7 +455,7 @@ export default function SearchScreen() {
           accessibilityRole="button"
           accessibilityLabel="Back to explore"
         >
-          <Icon name="chevron-back" size={20} color="#ffffff" />
+          <Icon name="chevron-back" size={20} color={colors.onSurface} />
         </Pressable>
         <View style={s.resultsInputBox}>
           <Icon name="search" size={18} color={COLORS.onSurfaceVariant} />
@@ -567,13 +575,12 @@ export default function SearchScreen() {
                     accessibilityRole="button"
                     accessibilityLabel={`Play ${track.title} by ${track.artist}`}
                   >
-                    {track.coverUrl ? (
-                      <Image source={{ uri: track.coverUrl }} style={s.resultArt} />
-                    ) : (
-                      <View style={[s.resultArt, s.artFallback]}>
-                        <Icon name="musical-note" size={19} color={COLORS.onSurfaceVariant} />
-                      </View>
-                    )}
+                    <CoverThumb
+                      uri={track.coverUrl}
+                      size={52}
+                      borderRadius={8}
+                      style={{ backgroundColor: COLORS.surfaceContainer }}
+                    />
                     <View style={s.resultMeta}>
                       <Text numberOfLines={1} style={s.resultTitle}>
                         {track.title}
@@ -698,8 +705,8 @@ const s = StyleSheet.create({
     gap: 20,
   },
   pageTitle: {
-    fontFamily: FONTS.display,
-    fontSize: 32,
+      fontFamily: FONTS.display,
+      fontSize: 32,
     fontWeight: '700',
     color: COLORS.onSurface,
     letterSpacing: -0.8,
@@ -725,7 +732,7 @@ const s = StyleSheet.create({
     gap: 4,
   },
   sectionTitle: {
-    fontFamily: FONTS.displayMedium,
+      fontFamily: FONTS.displayMedium,
     fontSize: 13,
     fontWeight: '600',
     color: COLORS.onSurfaceVariant,

@@ -2,6 +2,7 @@ import React from 'react';
 import { View, StyleSheet, Pressable, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import Icon from './Icon';
+import { colors } from '../../theme/theme';
 
 interface HeaderBarProps {
   showBack?: boolean;
@@ -38,7 +39,7 @@ export default function HeaderBar({
             accessibilityRole="button"
             accessibilityLabel="Back"
           >
-            <Icon name="chevron-back" size={20} color="#ffffff" />
+            <Icon name="chevron-back" size={20} color={colors.onSurface} />
           </Pressable>
         )}
       </View>
@@ -80,7 +81,7 @@ const s = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#ffffff',
+    color: colors.onSurface,
   },
   right: {
     flexDirection: 'row',
@@ -92,7 +93,7 @@ const s = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#262626',
+    backgroundColor: colors.surfaceContainerHigh,
     alignItems: 'center',
     justifyContent: 'center',
   },

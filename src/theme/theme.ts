@@ -1,26 +1,76 @@
-// theme.ts - Tidal / Luma Dark Theme Color Palette
+// theme.ts — Luma v2.0 palette.
+//
+// Values come from Design.md, which defines the committed visual world:
+// a near-black slate base ("never absolute zero black"), desaturated
+// steel-sage accents, and a warm matte accent for playback indicators.
+//
+// `outline` is the structural border colour from the spec, but at 4.4:1 it is
+// under the 4.5:1 floor for body text. `outlineText` is the accessible variant
+// used wherever muted copy is rendered; `outlineVariant` stays border-only.
+
 export const colors = {
-  surface: '#000000',
-  surfaceContainerLowest: '#0a0a0a',
-  surfaceContainerLow: '#121212',
-  surfaceContainer: '#1c1c1e',
-  surfaceContainerHigh: '#262626',
-  surfaceContainerHighest: '#333333',
-  surfaceVariant: '#1c1c1e',
-  surfaceBright: '#3a3a3c',
-  onSurface: '#ffffff',
-  onSurfaceVariant: '#8e8e93',
-  primary: '#ffffff',
-  onPrimary: '#000000',
-  primaryContainer: '#2c2c2e',
-  primaryFixed: '#ffffff',
-  secondary: '#8e8e93',
-  secondaryContainer: '#2c2c2e',
-  outline: '#38383a',
-  outlineVariant: '#262626',
-  error: '#ff453a',
-  background: '#000000',
-  accent: '#00e5bf', // Tidal signature teal
+  // Structural foundations
+  background: '#090B10',
+  surface: '#090B10',
+  surfaceContainerLowest: '#090B10',
+  surfaceContainerLow: '#0D1017',
+  surfaceContainer: '#11151D',
+  surfaceContainerHigh: '#1A1F29',
+  surfaceContainerHighest: '#252B37',
+  surfaceVariant: '#11151D',
+  surfaceBright: '#1A1F29',
+
+  // Line work
+  outline: '#737D8C',
+  outlineVariant: '#4A5463',
+  /** Muted text. 5.7:1 on the base, 5.4:1 on an elevated surface. */
+  outlineText: '#8791A0',
+
+  // Text
+  onSurface: '#F3F5F8',
+  onSurfaceVariant: '#AEB6C3',
+
+  // Primary actions / navigation use Luma Steel
+  primary: '#6F7E88',
+  onPrimary: '#F3F5F8',
+  primaryContainer: '#4A5463',
+  onPrimaryContainer: '#D8E4EB',
+  primaryFixed: '#6F7E88',
+  primaryFixedDim: '#5A6B75',
+  onPrimaryFixed: '#090B10',
+  onPrimaryFixedVariant: '#4A5463',
+
+  // Secondary accent, used with restraint for playback indicators
+  secondary: '#8D8170',
+  onSecondary: '#F3F5F8',
+  secondaryContainer: '#6B6152',
+  onSecondaryContainer: '#E0D8CC',
+  secondaryFixed: '#8D8170',
+  secondaryFixedDim: '#6B6152',
+  onSecondaryFixed: '#090B10',
+  onSecondaryFixedVariant: '#4A4235',
+
+  tertiary: '#5A6B75',
+  onTertiary: '#F3F5F8',
+  tertiaryContainer: '#3D4A52',
+  onTertiaryContainer: '#D8E4EB',
+  tertiaryFixed: '#5A6B75',
+  tertiaryFixedDim: '#3D4A52',
+  onTertiaryFixed: '#090B10',
+  onTertiaryFixedVariant: '#2C353B',
+
+  error: '#EF4444',
+  onError: '#FFFFFF',
+  errorContainer: '#DC2626',
+  onErrorContainer: '#FEE2E2',
+
+  inverseSurface: '#F3F5F8',
+  inverseOnSurface: '#090B10',
+  inversePrimary: '#5A6B75',
+
+  surfaceDim: '#090B10',
+  /** Playback indicator / active selector pin. Warm, never neon. */
+  accent: '#8D8170',
 } as const;
 
 export const sp = { xs: 4, sm: 8, md: 16, lg: 24, xl: 40, xxl: 64 } as const;
@@ -44,15 +94,19 @@ export const t = {
   monoSm:   { fontSize: 10, lineHeight: 14, fontWeight: '400' as const },
 } as const;
 
+/**
+ * Flattened aliases for screens that predate the token names. Kept so those
+ * screens inherit the Luma palette without a sweeping rewrite.
+ */
 export const COLORS = {
-  dark: colors.surface,
-  surface: colors.surface,
+  dark: colors.background,
+  surface: colors.background,
   elevated: colors.surfaceContainer,
   white: colors.onSurface,
   gray: colors.onSurfaceVariant,
-  muted: colors.outline,
+  muted: colors.outlineText,
   accent: colors.accent,
-  steel: colors.secondary,
+  steel: colors.primary,
   surfaceDim: colors.surfaceContainerLowest,
   surfaceBright: colors.surfaceBright,
   surfaceContainerLowest: colors.surfaceContainerLowest,
@@ -67,30 +121,36 @@ export const COLORS = {
   primary: colors.primary,
   onPrimary: colors.onPrimary,
   primaryContainer: colors.primaryContainer,
+  onPrimaryContainer: colors.onPrimaryContainer,
   secondary: colors.secondary,
-  onSecondary: colors.onSurface,
+  onSecondary: colors.onSecondary,
   secondaryContainer: colors.secondaryContainer,
-  onSecondaryContainer: colors.surface,
-  secondaryFixed: colors.primaryFixed,
-  secondaryFixedDim: colors.primaryContainer,
+  onSecondaryContainer: colors.onSecondaryContainer,
+  secondaryFixed: colors.secondaryFixed,
+  secondaryFixedDim: colors.secondaryFixedDim,
   onSecondaryVariant: colors.onSurfaceVariant,
-  tertiary: colors.accent,
-  onTertiary: colors.onSurface,
-  tertiaryContainer: colors.secondaryContainer,
+  tertiary: colors.tertiary,
+  onTertiary: colors.onTertiary,
+  tertiaryContainer: colors.tertiaryContainer,
+  onTertiaryContainer: colors.onTertiaryContainer,
   error: colors.error,
-  onError: colors.onSurface,
-  errorContainer: colors.secondaryContainer,
-  onErrorContainer: colors.surface,
-  inverseSurface: colors.onSurface,
-  inverseOnSurface: colors.surface,
+  onError: colors.onError,
+  errorContainer: colors.errorContainer,
+  onErrorContainer: colors.onErrorContainer,
+  inverseSurface: colors.inverseSurface,
+  inverseOnSurface: colors.inverseOnSurface,
+  inversePrimary: colors.inversePrimary,
   surfaceVariant: colors.surfaceVariant,
+  background: colors.background,
+  onBackground: colors.onSurface,
+  surfaceTint: colors.primary,
   vuGreen: colors.accent,
-  vuAmber: '#ff9500',
+  vuAmber: '#D9A441',
   vuRed: colors.error,
-  glassBackground: 'rgba(255,255,255,0.06)',
-  glassBorder: 'rgba(255,255,255,0.12)',
+  glassBackground: 'rgba(243, 245, 248, 0.06)',
+  glassBorder: 'rgba(243, 245, 248, 0.12)',
   gradientStart: colors.surfaceContainer,
-  gradientEnd: colors.surface,
+  gradientEnd: colors.background,
 };
 
 export const FONTS = {

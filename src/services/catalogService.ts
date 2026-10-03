@@ -69,17 +69,18 @@ async function searchKind(
   query: string,
   kind: 'tracks' | 'artists' | 'albums' | 'playlists',
   limit: number,
+  abortSignal?: AbortSignal,
 ): Promise<unknown[]> {
   const key = `search_${kind}_${query}_${limit}`;
   const cached = readCache<unknown[]>(key);
   if (cached) return cached;
 
   const raw = kind === 'tracks'
-    ? await hifiApiClient.searchTracks(query, limit, 0)
+    ? await hifiApiClient.searchTracks(query, limit, 0, abortSignal)
     : kind === 'artists'
-      ? await hifiApiClient.searchArtists(query, limit)
+      ? await hifiApiClient.searchArtists(query, limit, 0, abortSignal)
       : kind === 'albums'
-        ? await hifiApiClient.searchAlbums(query, limit)
+        ? await hifiApiClient.searchAlbums(query, limit, 0, abortSignal)
         : await hifiApiClient.searchPlaylists(query, limit);
 
   const items = readSearchBucket(raw, kind);
@@ -88,14 +89,18 @@ async function searchKind(
 }
 
 /** Searches tracks, artists and albums in parallel. Never throws. */
-export async function searchCatalog(query: string, limit = 20): Promise<CatalogSearchResults> {
+export async function searchCatalog(
+  query: string,
+  limit = 20,
+  abortSignal?: AbortSignal,
+): Promise<CatalogSearchResults> {
   const term = query.trim();
   if (!term) return { tracks: [], artists: [], albums: [] };
 
   const [tracksRaw, artistsRaw, albumsRaw] = await Promise.all([
-    searchKind(term, 'tracks', limit).catch(() => []),
-    searchKind(term, 'artists', limit).catch(() => []),
-    searchKind(term, 'albums', limit).catch(() => []),
+    searchKind(term, 'tracks', limit, abortSignal).catch(() => []),
+    searchKind(term, 'artists', limit, abortSignal).catch(() => []),
+    searchKind(term, 'albums', limit, abortSignal).catch(() => []),
   ]);
 
   return {
