@@ -8,7 +8,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   owner: 'wasler4j',
   version: packageJson.version,
   orientation: 'default',
-  icon: './icon.png',
+  icon: './assets/brand/icon-1024.png',
   scheme: 'luma',
   userInterfaceStyle: 'dark',
   backgroundColor: '#090B10', // App background
@@ -22,7 +22,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     package: 'com.luma.musicplayer',
     versionCode: 4,
     adaptiveIcon: {
-      foregroundImage: './icon.png',
+      // Split layers so the launcher can mask and tint them. The mark sits
+      // inside the adaptive safe zone, which a single squashed foreground
+      // would have clipped on circular and squircle masks.
+      foregroundImage: './assets/brand/adaptive-icon-foreground.png',
+      backgroundImage: './assets/brand/adaptive-icon-background.png',
       backgroundColor: '#090B10',
     },
     permissions: [
@@ -32,21 +36,25 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'android.permission.ACCESS_NETWORK_STATE'
     ],
     backgroundColor: '#090B10', // Android splash background
-  },
-  web: {
+  },  web: {
     output: 'static',
     backgroundColor: '#090B10', // Web background
   },
   plugins: [
     'expo-router',
     // Adds the Android media foreground service and the iOS audio background mode.
-    ['expo-audio', {}],
+    // enableBackgroundPlayback keeps the media session alive past Android's
+    // ~3 minute background limit, so the notification and lock screen controls
+    // survive once the app is backgrounded.
+    ['expo-audio', { enableBackgroundPlayback: true }],
     [
       'expo-splash-screen',
       {
         backgroundColor: '#090B10',
-        image: './splash.png',
-        imageWidth: 180,
+        image: './assets/brand/icon-1024.png',
+        // The 1024px mark is scaled down for the splash, and the wide width keeps
+        // it from filling the screen on tablets.
+        imageWidth: 160,
         resizeMode: 'contain',
       },
     ],
@@ -54,12 +62,14 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'expo-font',
       {
         fonts: [
-          'node_modules/@expo-google-fonts/space-grotesk/SpaceGrotesk_400Regular.ttf',
-          'node_modules/@expo-google-fonts/space-grotesk/SpaceGrotesk_500Medium.ttf',
-          'node_modules/@expo-google-fonts/space-grotesk/SpaceGrotesk_600SemiBold.ttf',
-          'node_modules/@expo-google-fonts/space-grotesk/SpaceGrotesk_700Bold.ttf',
-          'node_modules/@expo-google-fonts/courier-prime/CourierPrime_400Regular.ttf',
-          'node_modules/@expo-google-fonts/courier-prime/CourierPrime_700Bold.ttf'
+          'node_modules/@expo-google-fonts/geist/Geist_400Regular.ttf',
+          'node_modules/@expo-google-fonts/geist/Geist_500Medium.ttf',
+          'node_modules/@expo-google-fonts/geist/Geist_600SemiBold.ttf',
+          'node_modules/@expo-google-fonts/geist/Geist_700Bold.ttf',
+          'node_modules/@expo-google-fonts/inter/Inter_400Regular.ttf',
+          'node_modules/@expo-google-fonts/inter/Inter_500Medium.ttf',
+          'node_modules/@expo-google-fonts/inter/Inter_600SemiBold.ttf',
+          'node_modules/@expo-google-fonts/inter/Inter_700Bold.ttf'
         ]
       }
     ],

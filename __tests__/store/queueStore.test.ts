@@ -1,4 +1,9 @@
-import { useQueueStore, getCachedTrack, QueueEntry } from '../../src/store/queueStore';
+import {
+  useQueueStore,
+  getCachedTrack,
+  hydrateTrackCache,
+  QueueEntry,
+} from '../../src/store/queueStore';
 import { Track } from '../../src/providers/types';
 
 jest.mock('@react-native-async-storage/async-storage', () =>
@@ -299,6 +304,29 @@ describe('queueStore', () => {
       const entries: QueueEntry[] = useQueueStore.getState().entries;
       expect(entries[0]).toEqual({ entryId: expect.any(String), trackId: 'A', source: 'context' });
       expect(getCachedTrack('A')?.title).toBe('Track A');
+    });
+
+    it('serializes the cache so a restored queue can still resolve its tracks', () => {
+      seedContext(['A', 'B', 'C'], 0);
+      const persisted = useQueueStore.persist.getOptions().partialize!(
+        useQueueStore.getState(),
+      ) as { trackCache: Record<string, Track> };
+
+      // Entries alone are only ids. Without the cache in the persisted payload
+      // the queue cannot resolve a track after a reload, which is what made it
+      // stop partway through a session.
+      expect(persisted.trackCache.A.id).toBe('A');
+      expect(persisted.trackCache.A.title).toBe('Track A');
+    });
+
+    it('hydrates a cache written by a previous session', () => {
+      seedContext(['A'], 0);
+      const persisted = useQueueStore.persist.getOptions().partialize!(
+        useQueueStore.getState(),
+      ) as { trackCache: Record<string, Track> };
+
+      hydrateTrackCache(persisted.trackCache);
+      expect(getCachedTrack('A')?.artist).toBe('Artist');
     });
   });
 });

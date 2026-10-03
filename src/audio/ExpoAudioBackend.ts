@@ -3,7 +3,7 @@ import {
   setAudioModeAsync,
   setIsAudioActiveAsync,
 } from 'expo-audio';
-import type { AudioPlayer, AudioSource } from 'expo-audio';
+import type { AudioPlayer, AudioSource, AudioStatus } from 'expo-audio';
 import { AudioBackend, AudioBackendEvents } from './AudioBackend';
 import { StreamInfo, Track } from '../providers/types';
 import { logger } from '../logging/Logger';
@@ -24,13 +24,28 @@ export class ExpoAudioBackend implements AudioBackend {
     onProgress: null,
     onPauseRequested: null,
     onError: null,
+    onPlayingChanged: null,
   };
 
   private player: AudioPlayer | null = null;
   private progressTimer: ReturnType<typeof setInterval> | null = null;
+  private statusSubscription: { remove: () => void } | null = null;
   private currentTrack: Track | null = null;
   /** Guards the ended event so a track end cannot be handled twice. */
   private endReported = false;
+  /**
+   * Transport state as the player last reported it. Compared against each
+   * status event so only genuine changes reach the store, otherwise every
+   * position tick would re-render the whole player.
+   */
+  private lastReportedPlaying = false;
+  private sessionActive = false;
+  /**
+   * Final progress seen for the current track, kept so the end-of-track report
+   * can carry real values instead of zeros.
+   */
+  private lastKnownPositionMs = 0;
+  private lastKnownDurationMs = 0;
   private volume = 1;
   private playbackRate = 1;
 
@@ -44,10 +59,34 @@ export class ExpoAudioBackend implements AudioBackend {
       allowsRecording: false,
     });
     await setIsAudioActiveAsync(true);
-    this.player = createAudioPlayer(null);
+    this.player = createAudioPlayer(null, { updateInterval: 250 });
     this.player.volume = this.volume;
     this.player.setPlaybackRate(this.playbackRate);
+    this.subscribeToStatus();
     logger.info('ExpoAudioBackend', 'Audio engine ready');
+  }
+
+  /**
+   * Lock screen and headset buttons act on the native player directly, so the
+   * player is the authority on whether audio is actually playing. Without this
+   * the app UI would keep showing "playing" after the user paused from the lock
+   * screen, and would ignore play pressed from there.
+   */
+  private subscribeToStatus(): void {
+    const player = this.player;
+    if (!player) return;
+
+    this.statusSubscription = player.addListener('playbackStatusUpdate', (status: AudioStatus) => {
+      if (status.didJustFinish) {
+        this.reportEnd();
+        return;
+      }
+
+      if (status.playing !== this.lastReportedPlaying) {
+        this.lastReportedPlaying = status.playing;
+        this.events.onPlayingChanged?.(status.playing);
+      }
+    });
   }
 
   private requirePlayer(): AudioPlayer {
@@ -61,10 +100,15 @@ export class ExpoAudioBackend implements AudioBackend {
     const player = this.requirePlayer();
     this.endReported = false;
     this.currentTrack = track;
+    this.lastKnownPositionMs = 0;
+    this.lastKnownDurationMs = track.durationMs ?? 0;
 
     player.replace(toSource(stream));
-    this.publishMetadata(track);
+    // Bound before play so the media session is live by the time audio starts,
+    // otherwise the first moments of every track are not on the lock screen.
+    this.activateMediaSession(track);
     player.play();
+    this.lastReportedPlaying = true;
     this.startProgressTimer();
   }
 
@@ -83,6 +127,41 @@ export class ExpoAudioBackend implements AudioBackend {
     this.publishMetadata(track);
   }
 
+  activateMediaSession(track: Track | null): void {
+    const player = this.player;
+    if (!player) return;
+
+    // A stream with no known duration gets treated as live so the OS hides the
+    // scrub bar and seek buttons rather than offering controls that cannot work.
+    const isLiveStream = !track?.durationMs || track.durationMs <= 0;
+
+    player.setActiveForLockScreen(
+      true,
+      track
+        ? {
+            title: track.title,
+            artist: track.artist,
+            albumTitle: track.album,
+            artworkUrl: track.coverUrl ?? track.artwork,
+          }
+        : undefined,
+      {
+        showSeekForward: !isLiveStream,
+        showSeekBackward: !isLiveStream,
+        isLiveStream,
+      },
+    );
+    this.sessionActive = true;
+    logger.info('ExpoAudioBackend', 'Media session active for the OS');
+  }
+
+  deactivateMediaSession(): void {
+    if (!this.player || !this.sessionActive) return;
+    this.player.clearLockScreenControls();
+    this.sessionActive = false;
+    logger.info('ExpoAudioBackend', 'Media session released');
+  }
+
   private startProgressTimer(): void {
     this.stopProgressTimer();
     this.progressTimer = setInterval(() => {
@@ -91,6 +170,8 @@ export class ExpoAudioBackend implements AudioBackend {
 
       const positionMs = player.currentTime * 1000;
       const durationMs = player.duration * 1000;
+      this.lastKnownPositionMs = positionMs;
+      this.lastKnownDurationMs = durationMs;
 
       // Some stream formats never report a duration. When playback has stopped
       // near the end of a known duration, treat it as complete.
@@ -111,8 +192,13 @@ export class ExpoAudioBackend implements AudioBackend {
   private reportEnd(): void {
     if (this.endReported) return;
     this.endReported = true;
+    this.lastReportedPlaying = false;
     this.stopProgressTimer();
-    this.events.onProgress?.(0, 0);
+    // Progress is reported before the end callback on purpose. Zeroing the
+    // position first would make every finished track look like it played for
+    // zero milliseconds, which the listening store counts as a skip, so the
+    // suggestion engine would learn that every song is a track to skip past.
+    this.events.onProgress?.(this.lastKnownPositionMs, this.lastKnownDurationMs);
     this.events.onTrackEnded?.();
   }
 
@@ -125,12 +211,17 @@ export class ExpoAudioBackend implements AudioBackend {
 
   async pause(): Promise<void> {
     this.requirePlayer().pause();
+    this.lastReportedPlaying = false;
     this.stopProgressTimer();
   }
 
   async resume(): Promise<void> {
     const player = this.requirePlayer();
+    // Restoring the session covers the case where playback was started from
+    // the lock screen, where the player had been detached by the OS.
+    if (!this.sessionActive) this.activateMediaSession(this.currentTrack);
     player.play();
+    this.lastReportedPlaying = true;
     this.startProgressTimer();
   }
 
@@ -139,6 +230,8 @@ export class ExpoAudioBackend implements AudioBackend {
     this.stopProgressTimer();
     player.pause();
     player.replace(null);
+    this.lastReportedPlaying = false;
+    this.deactivateMediaSession();
   }
 
   async seekTo(positionMs: number): Promise<void> {
@@ -179,6 +272,9 @@ export class ExpoAudioBackend implements AudioBackend {
 
   async dispose(): Promise<void> {
     this.stopProgressTimer();
+    this.statusSubscription?.remove();
+    this.statusSubscription = null;
+    this.deactivateMediaSession();
     this.player?.remove();
     this.player = null;
     await setIsAudioActiveAsync(false);

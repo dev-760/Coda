@@ -6,6 +6,8 @@ import { logger } from '../logging/Logger';
 import { Track, StreamInfo } from '../providers/types';
 import { getActiveProvider } from '../providers/registry';
 import { useDownloadStore } from '../downloads/downloadStore';
+import { recordCompletedPlay } from '../store/listeningStore';
+import { useLibraryStore } from '../store/libraryStore';
 
 const SEEK_STEP_MS = 5000;
 const PREVIOUS_RESTART_MS = 3000;
@@ -38,6 +40,19 @@ class AudioService {
       logger.info('AudioService', `Paused by system: ${reason}`);
       usePlaybackStore.getState().setPlaying(false);
     };
+    this.backend.events.onPlayingChanged = (isPlaying) => {
+      // The OS media session changed the transport behind our back (lock
+      // screen, headset button, notification shade). Follow it, and mirror it
+      // into the sleep timer so it does not fire during an OS-initiated pause.
+      const store = usePlaybackStore.getState();
+      if (store.isPlaying === isPlaying) return;
+      store.setPlaying(isPlaying);
+      if (isPlaying) {
+        this.startSleepTimer();
+      } else {
+        this.cancelSleepTimer();
+      }
+    };
     this.backend.events.onError = (message) => {
       usePlaybackStore.getState().setError(message);
       usePlaybackStore.getState().setPlaying(false);
@@ -66,6 +81,10 @@ class AudioService {
       store.setError('Audio engine is not ready');
       return;
     }
+
+    // Anything playing at this point was abandoned rather than finished, so
+    // its play is settled before the new one is credited.
+    this.commitListen(usePlaybackStore.getState().currentTrack, usePlaybackStore.getState().positionMs);
 
     store.setLoading(true);
     store.setError(null);
@@ -142,6 +161,26 @@ class AudioService {
   }
 
   /**
+   * Credits a play to the listening store and to recently played.
+   *
+   * This is the only writer of listening history, and it has to run on both the
+   * natural-end and abandon paths. Without it nothing ever reaches the
+   * listening store, which is why the suggestion engine scored every candidate
+   * at zero and Made for You stayed empty however much was played.
+   *
+   * Track is passed in rather than read from the store because callers settle
+   * a track after the store has already moved on to the next one.
+   */
+  private commitListen(track: Track | null, positionMs: number): void {
+    if (!track) return;
+
+    recordCompletedPlay(track, positionMs);
+    void useLibraryStore.getState().addToRecentlyPlayed(track).catch((error) => {
+      logger.warn('AudioService', 'Could not update recently played', error);
+    });
+  }
+
+  /**
    * The queue is the only source of truth for what plays next, so a natural
    * end and a manual Next both go through the same commit.
    */
@@ -149,9 +188,20 @@ class AudioService {
     const store = usePlaybackStore.getState();
     store.setPlaying(false);
 
+    const finishedTrack = store.currentTrack;
+    const playedMs = store.positionMs;
+
     const queue = useQueueStore.getState();
     const next = queue.advanceForTrackEnd();
-    if (!next) return;
+    if (!next) {
+      // Nothing queued behind it, so this is the one play that still has to be
+      // recorded, otherwise finishing the last track is silently dropped.
+      this.commitListen(finishedTrack, playedMs);
+      await this.backend.stop();
+      return;
+    }
+
+    this.commitListen(finishedTrack, playedMs);
     this.consecutiveSkips = 0;
     await this.playTrack(next);
   }

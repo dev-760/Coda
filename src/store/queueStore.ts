@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Track } from '../providers/types';
+import { useLibraryStore } from './libraryStore';
+import { useDownloadStore } from '../downloads/downloadStore';
 
 export type RepeatMode = 'off' | 'all' | 'one';
 
@@ -76,6 +78,50 @@ export function cacheTracks(tracks: Track[]): void {
 }
 export function getCachedTrack(trackId: string): Track | undefined {
   return trackCache.get(trackId);
+}
+
+/**
+ * Snapshot of the cache, for persisting alongside the entries.
+ *
+ * The queue stores only ids, so without this the metadata is lost on reload and
+ * every lookup after it resolves to nothing. That is what made the queue work
+ * for the first few tracks and then stop, and why it appeared to work on some
+ * songs and not others.
+ */
+function serializeTrackCache(): Record<string, Track> {
+  return Object.fromEntries(trackCache);
+}
+
+/** Restores the metadata cache after a reload. */
+export function hydrateTrackCache(tracks: Record<string, Track> | undefined): void {
+  if (!tracks) return;
+  for (const [trackId, track] of Object.entries(tracks)) {
+    if (track && typeof track.id === 'string') trackCache.set(trackId, track);
+  }
+}
+
+/**
+ * Last resort for an entry whose metadata is missing: looks the id up in the
+ * places a track is durably stored, so a queue saved by an older version still
+ * plays instead of silently stalling on an unresolvable id.
+ */
+function findKnownTrack(trackId: string): Track | undefined {
+  const library = useLibraryStore.getState();
+  const fromLibrary =
+    library.favorites.find((track) => track.id === trackId) ??
+    library.recentlyPlayed.find((track) => track.id === trackId);
+  if (fromLibrary) return fromLibrary;
+
+  for (const playlist of library.playlists) {
+    const match = playlist.tracks.find((track) => track.id === trackId);
+    if (match) return match as Track;
+  }
+
+  for (const item of useDownloadStore.getState().downloads) {
+    if (item.track?.id === trackId) return item.track;
+  }
+
+  return undefined;
 }
 
 function isContextSource(source: EntrySource): boolean {
@@ -381,15 +427,21 @@ export const useQueueStore = create<QueueState>()(
         currentIndex: state.currentIndex,
         repeat: state.repeat,
         context: state.context,
+        // Persisted so a restored queue can still resolve its tracks. Entries
+        // alone are only ids, and losing the metadata stops playback entirely.
+        trackCache: serializeTrackCache(),
         // A shuffled order cannot survive a reload, so it is never persisted.
         shuffle: false,
       }),
       migrate: (persisted) => {
         const legacy = (persisted ?? {}) as {
           tracks?: Track[];
+          entries?: QueueEntry[];
           currentIndex?: number;
           repeat?: string;
+          context?: QueueContext | null;
           sourceContext?: QueueContext | null;
+          trackCache?: Record<string, Track>;
         };
         if (Array.isArray(legacy.tracks)) {
           // v2 stored full tracks in a single tier. Rebuild the entry model so
@@ -405,15 +457,31 @@ export const useQueueStore = create<QueueState>()(
             history: [],
           };
         }
+
+        // A queue saved by an earlier version has no cache, but the library and
+        // downloads can still supply metadata for it, so it is restored below
+        // rather than being left permanently unplayable.
+        hydrateTrackCache(legacy.trackCache);
+
         return {
-          entries: [],
-          currentIndex: 0,
-          repeat: 'off',
-          context: null,
+          entries: Array.isArray(legacy.entries) ? legacy.entries : [],
+          currentIndex: typeof legacy.currentIndex === 'number' ? legacy.currentIndex : 0,
+          repeat: legacy.repeat === 'all' || legacy.repeat === 'one' ? legacy.repeat : 'off',
+          context: legacy.context ?? null,
           shuffle: false,
           originalOrder: null,
           history: [],
         };
+      },
+      onRehydrateStorage: () => (state) => {
+        // Re-seeding from the library covers entries cached before this version
+        // and any track the cache is missing after a migration.
+        if (!state) return;
+        for (const entry of state.entries) {
+          if (trackCache.has(entry.trackId)) continue;
+          const known = findKnownTrack(entry.trackId);
+          if (known) trackCache.set(entry.trackId, known);
+        }
       },
     }
   )

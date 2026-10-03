@@ -9,6 +9,12 @@ export interface AudioBackendEvents {
   onPauseRequested: ((reason: string) => void) | null;
   /** Playback failed after starting. */
   onError: ((message: string) => void) | null;
+  /**
+   * The transport state changed outside our own calls, e.g. the user pressed
+   * play or pause on the lock screen. The native player is the source of truth
+   * for those, so the store has to follow it rather than assume it is right.
+   */
+  onPlayingChanged: ((isPlaying: boolean) => void) | null;
 }
 
 export interface AudioBackend {
@@ -25,6 +31,14 @@ export interface AudioBackend {
   setPlaybackRate(rate: number): Promise<void>;
   /** Update lock screen now-playing metadata for the active track. */
   updateMetadata(track: Track): void;
+  /**
+   * Registers this player as the OS media session so the lock screen, shade and
+   * headphone buttons drive it. Called on playback, not at init: binding it for
+   * the whole app lifetime would put an idle player in the media session.
+   */
+  activateMediaSession(track: Track | null): void;
+  /** Detaches from the OS media session and clears now-playing info. */
+  deactivateMediaSession(): void;
   /** Warm the native decoder so the next track starts without delay. */
   preload(stream: StreamInfo): Promise<void>;
   dispose(): Promise<void>;
