@@ -17,6 +17,7 @@ import Icon from '../../src/components/ui/Icon';
 import CoverThumb from '../../src/components/ui/CoverThumb';
 import TrackOptionsMenu from '../../src/components/ui/TrackOptionsMenu';
 import { useLibraryStore } from '../../src/store/libraryStore';
+import { useDownloadStore } from '../../src/downloads/downloadStore';
 import { useQueueStore } from '../../src/store/queueStore';
 import { audioService } from '../../src/audio/AudioService';
 import { Track } from '../../src/providers/types';
@@ -24,7 +25,7 @@ import { CreatePlaylistModal } from '../../src/components/playlist/CreatePlaylis
 import { PlaylistActionsModal } from '../../src/components/playlist/PlaylistActionsModal';
 import { colors, FONTS } from '../../src/theme/theme';
 
-type SubView = 'root' | 'mixes' | 'playlists' | 'albums' | 'tracks';
+type SubView = 'root' | 'playlists' | 'albums' | 'tracks' | 'downloads';
 
 export default function LibraryScreen() {
   const router = useRouter();
@@ -37,6 +38,11 @@ export default function LibraryScreen() {
   const [optionsTrack, setOptionsTrack] = useState<Track | null>(null);
 
   const { playlists, favorites, createPlaylist } = useLibraryStore();
+  const downloads = useDownloadStore((state) => state.downloads);
+  const completedDownloads = useMemo(
+    () => downloads.filter((item) => item.status === 'completed'),
+    [downloads],
+  );
 
   // Albums are derived from tracks the user actually saved, so the grid only
     // ever shows real, reachable albums rather than a hardcoded sample.
@@ -84,12 +90,17 @@ export default function LibraryScreen() {
       <Text style={s.pageTitle}>Collection</Text>
 
       <View style={s.menuList}>
-        <Pressable style={s.menuRow} onPress={() => setCurrentView('mixes')}>
+        <Pressable style={s.menuRow} onPress={() => router.push('/downloads' as any)}>
           <View style={s.menuLeft}>
-            <Icon name="radio-outline" size={24} color={colors.onSurface} />
-            <Text style={s.menuLabel}>Mixes & Radio</Text>
+            <Icon name="arrow-down-circle-outline" size={24} color={colors.onSurface} />
+            <Text style={s.menuLabel}>On this device</Text>
           </View>
-          <Icon name="chevron-forward" size={20} color={colors.onSurfaceVariant} />
+          <View style={s.menuRight}>
+            {completedDownloads.length > 0 && (
+              <Text style={s.menuCount}>{completedDownloads.length}</Text>
+            )}
+            <Icon name="chevron-forward" size={20} color={colors.onSurfaceVariant} />
+          </View>
         </Pressable>
 
         <Pressable style={s.menuRow} onPress={() => setCurrentView('playlists')}>
@@ -119,27 +130,7 @@ export default function LibraryScreen() {
               </ScrollView>
             );
 
-  // 2. Mixes and radio
-  const renderMixesView = () => (
-    <View style={s.emptyContainer}>
-      <View style={s.emptyCenter}>
-        <Icon name="radio-outline" size={80} color={colors.onSurfaceVariant} />
-        <Text style={s.emptyText}>
-          No mixes or radio stations yet. Favorite a track and its radio station shows up here.
-        </Text>
-        <Pressable
-          style={s.darkPillBtn}
-          onPress={() => router.push('/(tabs)/search' as any)}
-          accessibilityRole="button"
-          accessibilityLabel="Go to Explore"
-        >
-          <Text style={s.darkPillText}>Find music</Text>
-        </Pressable>
-      </View>
-    </View>
-  );
-
-  // 3. Playlists (Screenshot 7)
+  // 2. Playlists (Screenshot 7)
   const renderPlaylistsView = () => {
     if (playlists.length === 0) {
       return (
@@ -319,7 +310,6 @@ export default function LibraryScreen() {
     switch (currentView) {
       case 'albums': return 'Albums';
       case 'playlists': return 'Playlists';
-      case 'mixes': return '';
       case 'tracks': return 'Tracks';
             default: return undefined;
     }
@@ -334,7 +324,6 @@ export default function LibraryScreen() {
             />
 
       {currentView === 'root' && renderRootView()}
-      {currentView === 'mixes' && renderMixesView()}
       {currentView === 'playlists' && renderPlaylistsView()}
       {currentView === 'albums' && renderAlbumsView()}
       {currentView === 'tracks' && renderTracksView()}
@@ -414,6 +403,16 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
+  },
+  menuRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  menuCount: {
+    fontFamily: FONTS.mono,
+    fontSize: 12,
+    color: colors.outlineText,
   },
   menuLabel: {
     fontFamily: FONTS.display,

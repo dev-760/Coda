@@ -400,7 +400,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   emptyTitle: {
-    fontFamily: FONTS.display,
     ...t.h3,
     color: colors.onSurface,
   },
@@ -490,7 +489,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   trackTitle: {
-    fontFamily: FONTS.display,
     ...t.titleMd,
     color: colors.onSurface,
   },

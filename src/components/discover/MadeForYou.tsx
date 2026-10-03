@@ -1,13 +1,14 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, Pressable, Image, StyleSheet, ScrollView } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Icon from '../ui/Icon';
+import { SectionHeader } from '../ui/primitives';
 import { getSuggestions, Suggestion } from '../../services/suggestionEngine';
 import { useListeningStore } from '../../store/listeningStore';
 import { isOnline } from '../../services/connectivity';
 import { audioService } from '../../audio/AudioService';
 import { useQueueStore, cacheTracks } from '../../store/queueStore';
 import { useDownloadStore } from '../../downloads/downloadStore';
-import { colors, FONTS } from '../../theme/theme';
+import { colors, FONTS, r, t } from '../../theme/theme';
 
 type LoadState = 'idle' | 'loading' | 'ready' | 'empty' | 'error';
 
@@ -21,49 +22,55 @@ export default function MadeForYou({
   seed?: { id: string; title: string; artist: string } | null;
 }) {
   const [items, setItems] = useState<Suggestion[]>([]);
-    const [state, setState] = useState<LoadState>('loading');
+  const [state, setState] = useState<LoadState>('loading');
   const hasHistory = useListeningStore((store) => store.hasHistory());
-  const isDownloaded = useDownloadStore((state) => state.isTrackDownloaded);
+  const isDownloaded = useDownloadStore((store) => store.isTrackDownloaded);
+  // Suggestions are derived from listening history, so a finished track has to
+  // invalidate the list. Subscribing to the record count is enough and avoids
+  // re-ranking on every position tick.
+  const playedCount = useListeningStore((store) => Object.keys(store.stats).length);
+  const [historyVersion, setHistoryVersion] = useState(0);
 
-  const load = useCallback(async () => {
+  useEffect(() => {
+    setHistoryVersion((version) => version + 1);
+  }, [playedCount]);
+
+  const fetchSuggestions = useCallback(async () => {
+    const results = await getSuggestions(
+      seed ? { id: seed.id, title: seed.title, artist: seed.artist } : null,
+      12,
+    );
+    setItems(results);
+    setState(results.length === 0 ? 'empty' : 'ready');
+  }, [seed]);
+
+  useEffect(() => {
+    let active = true;
+    setState('loading');
+    void (async () => {
       try {
         const results = await getSuggestions(
           seed ? { id: seed.id, title: seed.title, artist: seed.artist } : null,
           12,
         );
+        if (!active) return;
         setItems(results);
         setState(results.length === 0 ? 'empty' : 'ready');
       } catch {
-        setState('error');
+        if (active) setState('error');
       }
-    }, [seed]);
-
-    useEffect(() => {
-      let active = true;
-      void (async () => {
-        try {
-          const results = await getSuggestions(
-            seed ? { id: seed.id, title: seed.title, artist: seed.artist } : null,
-            12,
-          );
-          if (!active) return;
-          setItems(results);
-          setState(results.length === 0 ? 'empty' : 'ready');
-        } catch {
-          if (active) setState('error');
-        }
-      })();
-      return () => {
-        active = false;
-      };
-    }, [seed]);
+    })();
+    return () => {
+      active = false;
+    };
+  }, [seed, historyVersion]);
 
   const playAll = async () => {
     if (items.length === 0) return;
     const tracks = items.map((item) => item.track);
     cacheTracks(tracks);
     useQueueStore.getState().playContext(tracks, 0, {
-      type: seed ? 'collection' : 'radio',
+      type: 'collection',
       name: seed ? seed.title : 'Made for you',
     });
     await audioService.playTrack(tracks[0]);
@@ -73,36 +80,36 @@ export default function MadeForYou({
     const tracks = items.map((item) => item.track);
     cacheTracks(tracks);
     useQueueStore.getState().playContext(tracks, index, {
-      type: seed ? 'collection' : 'radio',
+      type: 'collection',
       name: seed ? seed.title : 'Made for you',
     });
     await audioService.playTrack(tracks[index]);
   };
 
-  if (state === 'loading') {
+  if (state === 'error') {
     return (
       <View style={s.container}>
-        <Text style={s.headerTitle}>Made for you</Text>
-        <Text style={s.loadingText}>Reading your listening history.</Text>
+        <SectionHeader title="Made for you" />
+        <Text style={s.emptyBody}>Suggestions could not be built. Try again in a moment.</Text>
+        <Pressable
+          onPress={() => {
+            setState('loading');
+            void fetchSuggestions().catch(() => setState('error'));
+          }}
+          style={({ pressed }) => [s.retryButton, pressed && s.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Try again"
+        >
+          <Text style={s.retryText}>Try again</Text>
+        </Pressable>
       </View>
     );
   }
 
-  if (state === 'error') {
+  if (state === 'loading') {
     return (
       <View style={s.container}>
-        <Text style={s.headerTitle}>Made for you</Text>
-        <Text style={s.emptyBody}>
-          Suggestions could not be built. Try again in a moment.
-        </Text>
-        <Pressable
-          onPress={() => void load()}
-          style={s.actionButton}
-          accessibilityRole="button"
-          accessibilityLabel="Try again"
-        >
-          <Text style={s.actionText}>Try again</Text>
-        </Pressable>
+        <SectionHeader title="Made for you" eyebrow="Reading your history" />
       </View>
     );
   }
@@ -110,13 +117,13 @@ export default function MadeForYou({
   if (state === 'empty') {
     return (
       <View style={s.container}>
-        <Text style={s.headerTitle}>Made for you</Text>
+        <SectionHeader title="Made for you" />
         <Text style={s.emptyBody}>
-          {hasHistory
-            ? 'Nothing scored high enough yet. Play a few more tracks and this fills in.'
-            : `Play or favorite a few tracks and this section learns from what you listen to.${
-                isOnline() ? '' : ' You are offline, so only downloaded music is used.'
-              }`}
+          {isOnline()
+            ? hasHistory
+              ? 'Nothing scored high enough yet. Play a few more tracks and this fills in.'
+              : 'Play or favorite a few tracks and this section learns from what you listen to.'
+            : 'You are offline, so this fills in from downloaded music and your collection. Reconnect for fresh picks.'}
         </Text>
       </View>
     );
@@ -124,47 +131,39 @@ export default function MadeForYou({
 
   return (
     <View style={s.container}>
-      <View style={s.headerRow}>
-        <Text style={s.headerTitle}>Made for you</Text>
-        <Pressable
-          onPress={() => void playAll()}
-          style={s.playAllButton}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel="Play all suggestions"
-        >
-          <Text style={s.playAllText}>Play all</Text>
-        </Pressable>
-      </View>
+      <SectionHeader
+        title="Made for you"
+        eyebrow={`${items.length} picks`}
+        actionLabel="Play all"
+        onAction={() => void playAll()}
+      />
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.rail}>
         {items.map((item, index) => (
           <Pressable
             key={item.track.id}
-            style={s.card}
+            style={({ pressed }) => [s.card, pressed && s.pressed]}
             onPress={() => void playOne(index)}
             accessibilityRole="button"
             accessibilityLabel={`${item.track.title} by ${item.track.artist}. ${item.reason}`}
           >
-            {item.track.coverUrl ? (
-              <Image source={{ uri: item.track.coverUrl }} style={s.artwork} />
-            ) : (
-              <View style={[s.artwork, s.artworkPlaceholder]}>
-                <Icon name="musical-notes" size={22} color={colors.onSurfaceVariant} />
-              </View>
-            )}
-            <Text numberOfLines={2} style={s.cardTitle}>{item.track.title}</Text>
-            <Text numberOfLines={1} style={s.cardArtist}>{item.track.artist}</Text>
-            <View style={s.reasonRow}>
-              <Icon name="information-circle-outline" size={12} color={colors.onSurfaceVariant} />
-              <Text numberOfLines={1} style={s.cardReason}>{item.reason}</Text>
+            <View style={s.cardArtWrap}>
+              {item.track.coverUrl ? (
+                <Image source={{ uri: item.track.coverUrl }} style={s.cardArt} />
+              ) : (
+                <View style={[s.cardArt, s.cardArtFallback]}>
+                  <Icon name="musical-notes" size={20} color={colors.outlineText} />
+                </View>
+              )}
+              {isDownloaded(item.track.id) && (
+                <View style={s.downloadedBadge}>
+                  <Icon name="arrow-down-circle" size={13} color={colors.onSurface} />
+                </View>
+              )}
             </View>
-            {isDownloaded(item.track.id) && (
-              <View style={s.downloadedTag}>
-                <Icon name="checkmark-circle" size={12} color={colors.accent} />
-                <Text style={s.downloadedText}>On device</Text>
-              </View>
-            )}
+            <Text numberOfLines={1} style={s.cardTitle}>{item.track.title}</Text>
+            <Text numberOfLines={1} style={s.cardArtist}>{item.track.artist}</Text>
+            <Text numberOfLines={1} style={s.cardReason}>{item.reason}</Text>
           </Pressable>
         ))}
       </ScrollView>
@@ -174,108 +173,77 @@ export default function MadeForYou({
 
 const s = StyleSheet.create({
   container: {
-    marginTop: 28,
+    gap: 12,
   },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    marginBottom: 12,
-  },
-  headerTitle: {
-    fontFamily: FONTS.display,
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.onSurface,
-    paddingHorizontal: 20,
-  },
-  playAllButton: {
-    minHeight: 44,
-    justifyContent: 'center',
-  },
-  playAllText: {
-    fontSize: 14,
-    color: colors.accent,
-    fontWeight: '600',
-  },
-  loadingText: {
-    fontSize: 14,
-    color: colors.onSurfaceVariant,
-    paddingHorizontal: 20,
-    marginTop: 8,
-  },
-  emptyBody: {
-    fontSize: 14,
-    color: colors.onSurfaceVariant,
-    lineHeight: 20,
-    paddingHorizontal: 20,
-    marginTop: 8,
-  },
-  actionButton: {
-    marginTop: 12,
-    marginHorizontal: 20,
-    paddingHorizontal: 20,
-    minHeight: 44,
-    justifyContent: 'center',
-    alignSelf: 'flex-start',
-    borderRadius: 22,
-    backgroundColor: colors.surfaceContainerHighest,
-  },
-  actionText: {
-    fontSize: 14,
-    color: colors.onSurface,
-    fontWeight: '600',
+  pressed: {
+    opacity: 0.7,
   },
   rail: {
-    paddingHorizontal: 20,
-    gap: 14,
+    gap: 12,
+    paddingRight: 16,
   },
   card: {
-    width: 148,
+    width: 144,
+    gap: 4,
   },
-  artwork: {
-    width: 148,
-    height: 148,
-    borderRadius: 8,
+  cardArtWrap: {
+    position: 'relative',
+    width: 144,
+    height: 144,
+    borderRadius: r.md,
+    overflow: 'hidden',
     backgroundColor: colors.surfaceContainer,
-    marginBottom: 10,
+    marginBottom: 4,
   },
-  artworkPlaceholder: {
+  cardArt: {
+    width: '100%',
+    height: '100%',
+  },
+  cardArtFallback: {
     alignItems: 'center',
     justifyContent: 'center',
   },
+  downloadedBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 24,
+    height: 24,
+    borderRadius: r.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(19, 19, 22, 0.85)',
+  },
   cardTitle: {
-    fontFamily: FONTS.display,
+    fontFamily: FONTS.contentSemiBold,
     fontSize: 14,
+    lineHeight: 20,
     fontWeight: '600',
     color: colors.onSurface,
-    lineHeight: 18,
   },
   cardArtist: {
-    fontSize: 13,
-    color: colors.onSurfaceVariant,
-    marginTop: 2,
-  },
-  reasonRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 6,
+    ...t.bodySm,
+    color: colors.outlineText,
   },
   cardReason: {
-    flex: 1,
-    fontSize: 11,
-    color: colors.onSurfaceVariant,
+    ...t.micro,
+    color: colors.outlineText,
   },
-  downloadedTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 6,
+  emptyBody: {
+    ...t.bodyMd,
+    color: colors.outlineText,
+    lineHeight: 18,
   },
-  downloadedText: {
-    fontSize: 11,
-    color: colors.accent,
+  retryButton: {
+    alignSelf: 'flex-start',
+    height: 36,
+    paddingHorizontal: 16,
+    justifyContent: 'center',
+    borderRadius: r.pill,
+    backgroundColor: colors.surfaceContainer,
+  },
+  retryText: {
+    ...t.labelMd,
+    color: colors.onSurface,
   },
 });
