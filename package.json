@@ -20,6 +20,8 @@
   },
   "dependencies": {
     "@expo-google-fonts/courier-prime": "^0.2.3",
+    "@expo-google-fonts/geist": "^0.4.2",
+    "@expo-google-fonts/inter": "^0.4.2",
     "@expo-google-fonts/space-grotesk": "^0.2.3",
     "@expo/metro-runtime": "~57.0.15",
     "@expo/vector-icons": "^15.0.2",
@@ -80,6 +82,8 @@
   "allowScripts": {
     "luma-music-player": true,
     "expo-audio": true,
-    "expo-network": true
+    "expo-network": true,
+    "@expo-google-fonts/geist": true,
+    "@expo-google-fonts/inter": true
   }
 }

@@ -1,16 +1,18 @@
 import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { useFonts } from 'expo-font';
-import { 
-  SpaceGrotesk_400Regular,
-  SpaceGrotesk_500Medium,
-  SpaceGrotesk_600SemiBold,
-  SpaceGrotesk_700Bold
-} from '@expo-google-fonts/space-grotesk';
 import {
-  CourierPrime_400Regular,
-  CourierPrime_700Bold
-} from '@expo-google-fonts/courier-prime';
+  Geist_400Regular,
+  Geist_500Medium,
+  Geist_600SemiBold,
+  Geist_700Bold,
+} from '@expo-google-fonts/geist';
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from '@expo-google-fonts/inter';
 import * as SplashScreen from 'expo-splash-screen';
 import { COLORS } from '../src/theme/theme';
 import { audioService } from '../src/audio/AudioService';
@@ -24,12 +26,15 @@ import { useListeningStore } from '../src/store/listeningStore';
 SplashScreen.preventAutoHideAsync();
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
-    SpaceGrotesk_400Regular,
-    SpaceGrotesk_500Medium,
-    SpaceGrotesk_600SemiBold,
-    SpaceGrotesk_700Bold,
-    CourierPrime_400Regular,
-    CourierPrime_700Bold,
+    // Geist sets UI chrome, Inter sets catalog content. See src/theme/theme.ts.
+    Geist_400Regular,
+    Geist_500Medium,
+    Geist_600SemiBold,
+    Geist_700Bold,
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
   });
   const initializeSettings = useSettingsStore(state => state.initialize);
   const initializeLibrary = useLibraryStore(state => state.initialize);
