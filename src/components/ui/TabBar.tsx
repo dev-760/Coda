@@ -1,32 +1,34 @@
 import React from 'react';
-import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, usePathname } from 'expo-router';
 import Icon from './Icon';
 import { resolveTabBarInset, TAB_BAR_HEIGHT } from '../../hooks/useResponsive';
-import { colors } from '../../theme/theme';
+import { colors, t } from '../../theme/theme';
 
 /**
- * Bottom navigation with a Settings action.
+ * Bottom navigation.
  *
- * Settings is a modal route outside the tab navigator, so it appears here as a
- * button rather than a tab. That keeps it reachable from every screen without
- * a per-screen header affordance.
+ * Four equal tabs, each an icon with its label beneath it. Settings is a tab
+ * here rather than a header affordance, so it is reachable from every screen
+ * without each one repeating it.
  */
 
-const INACTIVE = colors.onSurfaceVariant;
+const INACTIVE = colors.outlineText;
 const ACTIVE = colors.onSurface;
 
 interface TabItem {
   href: string;
   label: string;
   icon: string;
+  activeIcon: string;
 }
 
 const TABS: TabItem[] = [
-  { href: '/', label: 'Home', icon: 'musical-note' },
-  { href: '/library', label: 'Collection', icon: 'albums-outline' },
-  { href: '/search', label: 'Explore', icon: 'search' },
+  { href: '/', label: 'Home', icon: 'grid-outline', activeIcon: 'grid' },
+  { href: '/search', label: 'Explore', icon: 'compass-outline', activeIcon: 'compass' },
+  { href: '/library', label: 'Collection', icon: 'albums-outline', activeIcon: 'albums' },
+  { href: '/settings', label: 'Settings', icon: 'options-outline', activeIcon: 'options' },
 ];
 
 function isActivePath(pathname: string, href: string): boolean {
@@ -52,24 +54,17 @@ export default function TabBar() {
             accessibilityState={{ selected: focused }}
             accessibilityLabel={tab.label}
           >
-            <View style={s.iconWrapper}>
-                          {focused && <View style={s.activeIndicator} />}
-                          <Icon name={tab.icon} size={22} color={focused ? ACTIVE : INACTIVE} />
-                        </View>
+            <Icon
+              name={focused ? tab.activeIcon : tab.icon}
+              size={22}
+              color={focused ? ACTIVE : INACTIVE}
+            />
+            <Text style={[s.label, focused && s.labelActive]} numberOfLines={1}>
+              {tab.label}
+            </Text>
           </Pressable>
         );
       })}
-
-      <Pressable
-        style={s.tab}
-        onPress={() => router.push('/settings' as any)}
-        accessibilityRole="button"
-        accessibilityLabel="Settings"
-      >
-        <View style={s.iconWrapper}>
-          <Icon name="settings-outline" size={22} color={INACTIVE} />
-        </View>
-      </Pressable>
     </View>
   );
 }
@@ -81,31 +76,20 @@ const s = StyleSheet.create({
     backgroundColor: colors.background,
     borderTopColor: colors.surfaceContainer,
     borderTopWidth: StyleSheet.hairlineWidth,
-    paddingTop: 8,
+    paddingTop: 10,
   },
   tab: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 4,
     minHeight: 44,
   },
-  /**
-     * Active state is a rule above the icon rather than a capsule behind it. A
-     * filled pill behind every standard action is the category default Design.md
-     * rejects, and the indicator also survives at a glance while scrolling.
-     */
-    iconWrapper: {
-      paddingHorizontal: 18,
-      paddingVertical: 6,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    activeIndicator: {
-      position: 'absolute',
-      top: -8,
-      height: 2,
-      width: 22,
-      borderRadius: 1,
-      backgroundColor: colors.accent,
-    },
-  });
+  label: {
+    ...t.micro,
+    color: INACTIVE,
+  },
+  labelActive: {
+    color: ACTIVE,
+  },
+});

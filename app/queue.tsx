@@ -1,320 +1,266 @@
-import React, { memo, useState } from 'react';
-import {
-  View,
-  Text,
-  Pressable,
-  ScrollView,
-    StyleSheet,
-  } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import React, { useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Icon from '../src/components/ui/Icon';
 import CoverThumb from '../src/components/ui/CoverThumb';
 import TrackOptionsMenu from '../src/components/ui/TrackOptionsMenu';
-import { useQueueStore, getCachedTrack, QueueEntry } from '../src/store/queueStore';
+import PlayerTabBar, { PlayerTab } from '../src/components/ui/PlayerTabBar';
+import { useQueueStore, getCachedTrack, cacheTracks, QueueEntry } from '../src/store/queueStore';
 import { usePlaybackStore } from '../src/store/playbackStore';
+import { useDownloadStore } from '../src/downloads/downloadStore';
+import { useSettingsStore } from '../src/store/settingsStore';
 import { audioService } from '../src/audio/AudioService';
 import { Track } from '../src/providers/types';
-import { colors, FONTS } from '../src/theme/theme';
+import { colors, FONTS, r, t } from '../src/theme/theme';
 
-interface QueueRow {
-  entry: QueueEntry;
-  track: Track;
-  index: number;
+const formatMs = (ms: number) => {
+  if (!Number.isFinite(ms) || ms <= 0) return '--:--';
+  const total = Math.floor(ms / 1000);
+  const m = Math.floor(total / 60);
+  const s = (total % 60).toString().padStart(2, '0');
+  return `${m}:${s}`;
+};
+
+/** Total runtime of a list, e.g. "1H 48M". */
+function totalRuntime(tracks: Track[]): string {
+  const ms = tracks.reduce((sum, track) => sum + (track.durationMs ?? 0), 0);
+  if (ms <= 0) return '';
+  const minutes = Math.floor(ms / 60_000);
+  const hours = Math.floor(minutes / 60);
+  if (hours === 0) return `${minutes}M`;
+  const rest = minutes % 60;
+  return rest === 0 ? `${hours}H` : `${hours}H ${rest}M`;
 }
 
-function QueueRowItemComponent({
-  row,
-  isCurrent,
-  onPlay,
-  onRemove,
-  onOptions,
-}: {
-  row: QueueRow;
-  isCurrent: boolean;
-  onPlay: () => void;
-  onRemove: () => void;
-  onOptions: () => void;
-}) {
-  const { track } = row;
-  return (
-    <Pressable
-      style={({ pressed }) => [s.trackRow, pressed && s.trackRowPressed]}
-      onPress={onPlay}
-      accessibilityRole="button"
-      accessibilityLabel={`${track.title} by ${track.artist}`}
-    >
-      <CoverThumb uri={track.coverUrl} size={44} borderRadius={4} />
-      <View style={s.trackMeta}>
-        <Text
-          numberOfLines={1}
-          style={[s.trackTitle, isCurrent && s.trackTitleCurrent]}
-        >
-          {track.title}
-        </Text>
-        <Text numberOfLines={1} style={s.trackArtist}>
-          {track.artist}
-        </Text>
-      </View>
-      <Pressable
-        style={s.rowAction}
-        onPress={onOptions}
-        hitSlop={8}
-        accessibilityRole="button"
-        accessibilityLabel={`Options for ${track.title}`}
-      >
-        <Icon name="ellipsis-horizontal" size={18} color={colors.onSurfaceVariant} />
-      </Pressable>
-      {!isCurrent && (
-        <Pressable
-          style={s.rowAction}
-          onPress={onRemove}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel={`Remove ${track.title} from queue`}
-        >
-          <Icon name="close" size={20} color={colors.onSurfaceVariant} />
-        </Pressable>
-      )}
-    </Pressable>
-  );
-}
-
-      /**
-       * Rows get fresh closures each render, so the default shallow compare would
-       * always fail. What actually changes is the entry it points at, so that is the
-       * only thing compared.
-       */
-      const QueueRowItem = memo(QueueRowItemComponent, (prev, next) => {
-        return (
-          prev.row.entry.entryId === next.row.entry.entryId &&
-          prev.row.index === next.row.index &&
-          prev.isCurrent === next.isCurrent
-        );
-      });
-
-      export default function QueueScreen() {
-        const router = useRouter();
-  const insets = useSafeAreaInsets();
+export default function QueueScreen() {
+  const router = useRouter();
   const entries = useQueueStore((state) => state.entries);
   const currentIndex = useQueueStore((state) => state.currentIndex);
-  const context = useQueueStore((state) => state.context);
-  const shuffle = useQueueStore((state) => state.shuffle);
-  const repeat = useQueueStore((state) => state.repeat);
-  const { removeAt, clearQueue, toggleShuffle, setRepeat } = useQueueStore();
-  const { currentTrack, isPlaying } = usePlaybackStore();
+  const removeAt = useQueueStore((state) => state.removeAt);
+  const clearQueue = useQueueStore((state) => state.clearQueue);
+  const isPlaying = usePlaybackStore((state) => state.isPlaying);
+  const positionMs = usePlaybackStore((state) => state.positionMs);
+  const currentTrack = usePlaybackStore((state) => state.currentTrack);
+  const isDownloaded = useDownloadStore((state) => state.isTrackDownloaded);
+  const hifiQuality = useSettingsStore((state) => state.audio.hifiAudioQuality);
 
   const [optionsTrack, setOptionsTrack] = useState<Track | null>(null);
 
-  const toRows = (from: number, to: number): QueueRow[] =>
-    entries
-      .slice(from, to)
-      .map((entry, i) => ({ entry, track: getCachedTrack(entry.trackId), index: from + i }))
-      .filter((row): row is QueueRow => row.track !== undefined);
+  /** Upcoming entries resolved to tracks; unresolved ids are dropped. */
+  const upcoming = useMemo(
+    () =>
+      entries
+        .slice(currentIndex + 1)
+        .map((entry: QueueEntry) => getCachedTrack(entry.trackId))
+        .filter((track): track is Track => Boolean(track)),
+    [entries, currentIndex],
+  );
 
-  const historyRows = toRows(0, currentIndex);
-  const currentRow = toRows(currentIndex, currentIndex + 1)[0] ?? null;
-  const upcomingRows = toRows(currentIndex + 1, entries.length);
+  const allTracks = useMemo(() => {
+    const resolved = entries
+      .map((entry) => getCachedTrack(entry.trackId))
+      .filter((track): track is Track => Boolean(track));
+    cacheTracks(resolved);
+    return resolved;
+  }, [entries]);
 
-  const userTier = upcomingRows.filter((row) => row.entry.source === 'user');
-  const contextTier = upcomingRows.filter((row) => row.entry.source !== 'user');
+  const currentPosition = currentTrack?.durationMs
+    ? formatMs(positionMs)
+    : '--:--';
 
-  const playEntry = async (row: QueueRow) => {
-    await audioService.playTrack(row.track);
+  const goToPlayerTab = (tab: PlayerTab) => {
+    router.push(`/${tab}` as any);
   };
 
-  const handleTogglePlay = async () => {
-    if (isPlaying) {
-      await audioService.pause();
-    } else {
-      await audioService.resume();
+  const playUpcoming = (index: number) => {
+    // Jump the playhead onto the tapped entry, then let playback take over.
+    let target = currentIndex + 1 + index;
+    while (target < entries.length) {
+      const track = getCachedTrack(entries[target].trackId);
+      if (track) {
+        useQueueStore.setState({ currentIndex: target });
+        void audioService.playTrack(track);
+        return;
+      }
+      target += 1;
     }
   };
 
-  const handleRepeatToggle = () => {
-    if (repeat === 'off') setRepeat('all');
-    else if (repeat === 'all') setRepeat('one');
-    else setRepeat('off');
+  const handleRemove = (index: number) => {
+    removeAt(currentIndex + 1 + index);
   };
 
-  const repeatLabel =
-    repeat === 'off' ? 'Repeat off' : repeat === 'all' ? 'Repeat all' : 'Repeat this track';
-
-  const isEmpty = entries.length === 0;
-
   return (
-    <SafeAreaView style={s.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={s.container} edges={['top']}>
       <View style={s.header}>
-        <Text style={s.headerTitle}>Queue</Text>
-        {!isEmpty && (
-          <Pressable
-            onPress={clearQueue}
-            hitSlop={8}
-            style={s.headerAction}
-            accessibilityRole="button"
-            accessibilityLabel="Clear upcoming queue"
-          >
-            <Text style={s.clearText}>Clear queue</Text>
-          </Pressable>
-        )}
-      </View>
-
-      {isEmpty ? (
-        <View style={s.emptyState}>
-          <Text style={s.emptyTitle}>Your queue is empty</Text>
-          <Text style={s.emptyBody}>
-            Play an album or playlist and the tracks you add will show up here.
-          </Text>
-          <Pressable
-            onPress={() => router.back()}
-            style={s.emptyButton}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-          >
-            <Text style={s.emptyButtonText}>Go back</Text>
-          </Pressable>
-        </View>
-      ) : (
-        <ScrollView
-          contentContainerStyle={s.scrollContent}
-          showsVerticalScrollIndicator={false}
+        <Pressable
+          onPress={() => router.push('/now-playing' as any)}
+          hitSlop={10}
+          style={({ pressed }) => [s.headerButton, pressed && s.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Back to now playing"
         >
-          {historyRows.length > 0 && (
-            <View style={s.section}>
-              <Text style={s.sectionHeader}>History</Text>
-              {historyRows.map((row) => (
-                <QueueRowItem
-                  key={row.entry.entryId}
-                  row={row}
-                  isCurrent={false}
-                  onPlay={() => playEntry(row)}
-                  onRemove={() => removeAt(row.index)}
-                  onOptions={() => setOptionsTrack(row.track)}
-                />
-              ))}
-            </View>
-          )}
-
-          {currentRow && (
-            <View style={s.section}>
-              <Text style={s.sectionHeader}>
-                Now playing{context ? ` from ${context.name}` : ''}
-              </Text>
-              <QueueRowItem
-                row={currentRow}
-                isCurrent
-                onPlay={() => router.push('/now-playing' as any)}
-                onRemove={() => removeAt(currentRow.index)}
-                onOptions={() => setOptionsTrack(currentRow.track)}
-              />
-            </View>
-          )}
-
-          {userTier.length > 0 && (
-            <View style={s.section}>
-              <Text style={s.sectionHeader}>
-                Next in queue ({userTier.length})
-              </Text>
-              {userTier.map((row) => (
-                <QueueRowItem
-                  key={row.entry.entryId}
-                  row={row}
-                  isCurrent={false}
-                  onPlay={() => playEntry(row)}
-                  onRemove={() => removeAt(row.index)}
-                  onOptions={() => setOptionsTrack(row.track)}
-                />
-              ))}
-            </View>
-          )}
-
-          {contextTier.length > 0 && (
-            <View style={s.section}>
-              <Text style={s.sectionHeader}>
-                {context ? `Next from ${context.name}` : 'Next up'} ({contextTier.length})
-              </Text>
-              {contextTier.map((row) => (
-                <QueueRowItem
-                  key={row.entry.entryId}
-                  row={row}
-                  isCurrent={false}
-                  onPlay={() => playEntry(row)}
-                  onRemove={() => removeAt(row.index)}
-                  onOptions={() => setOptionsTrack(row.track)}
-                />
-              ))}
-            </View>
-          )}
-
-          {upcomingRows.length === 0 && (
-            <View style={s.section}>
-              <Text style={s.endOfQueue}>
-                Nothing queued after this track. Add tracks from any menu, or turn on
-                auto-queue in Settings to keep it going.
-              </Text>
-            </View>
-          )}
-        </ScrollView>
-      )}
-
-      <View style={[s.bottomBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-        <View style={s.transportRow}>
-          <Pressable
-            onPress={toggleShuffle}
-            hitSlop={8}
-            style={s.transportBtn}
-            accessibilityRole="switch"
-            accessibilityLabel="Shuffle"
-            accessibilityState={{ checked: shuffle }}
-          >
-            <Icon name="shuffle" size={20} color={shuffle ? colors.accent : colors.onSurface} />
-          </Pressable>
-          <Pressable
-            onPress={() => audioService.playPrevious()}
-            hitSlop={8}
-            style={s.transportBtn}
-            accessibilityRole="button"
-            accessibilityLabel="Previous track"
-          >
-            <Icon name="play-skip-back" size={24} color={colors.onSurface} />
-          </Pressable>
-          <Pressable
-            onPress={handleTogglePlay}
-            hitSlop={8}
-            style={s.transportBtn}
-            disabled={!currentTrack}
-            accessibilityRole="button"
-            accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
-            accessibilityState={{ disabled: !currentTrack }}
-          >
-            <Icon name={isPlaying ? 'pause' : 'play'} size={32} color={colors.onSurface} />
-          </Pressable>
-          <Pressable
-            onPress={() => audioService.playNextInQueue()}
-            hitSlop={8}
-            style={s.transportBtn}
-            disabled={upcomingRows.length === 0}
-            accessibilityRole="button"
-            accessibilityLabel="Next track"
-            accessibilityState={{ disabled: upcomingRows.length === 0 }}
-          >
-            <Icon
-              name="play-skip-forward"
-              size={24}
-              color={upcomingRows.length === 0 ? '#5a5a5e' : colors.onSurface}
-            />
-          </Pressable>
-          <Pressable
-            onPress={handleRepeatToggle}
-            hitSlop={8}
-            style={s.transportBtn}
-            accessibilityRole="button"
-            accessibilityLabel={repeatLabel}
-          >
-            <Icon name="repeat" size={20} color={repeat !== 'off' ? colors.accent : colors.onSurface} />
-          </Pressable>
-        </View>
+          <Icon name="chevron-down" size={22} color={colors.onSurface} />
+        </Pressable>
+        <Text style={s.headerTitle}>QUEUE</Text>
+        <Pressable
+          onPress={() => currentTrack && setOptionsTrack(currentTrack)}
+          hitSlop={10}
+          style={({ pressed }) => [s.headerButton, pressed && s.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Queue options"
+        >
+          <Icon name="ellipsis-horizontal" size={20} color={colors.onSurface} />
+        </Pressable>
       </View>
+
+      <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+        {/* Session totals */}
+        <Text style={s.totals}>
+          {allTracks.length} {allTracks.length === 1 ? 'TRACK' : 'TRACKS'}
+          {totalRuntime(allTracks) ? ` • ${totalRuntime(allTracks)}` : ''}
+        </Text>
+
+        {/* Current frequency */}
+        <View style={s.currentBlock}>
+          <View style={s.blockHeader}>
+            <Text style={s.blockTitle}>CURRENT FREQUENCY</Text>
+            {isPlaying && (
+              <View style={s.onAir}>
+                <Text style={s.onAirText}>ON AIR</Text>
+              </View>
+            )}
+          </View>
+
+          <View style={s.currentCard}>
+            <CoverThumb
+              uri={currentTrack?.coverUrl}
+              size={64}
+              borderRadius={r.sm}
+              style={s.currentArt}
+            />
+            <View style={s.currentMeta}>
+              <Text style={s.currentTitle} numberOfLines={1}>
+                {currentTrack?.title ?? 'Nothing playing'}
+              </Text>
+              <Text style={s.currentArtist} numberOfLines={1}>
+                {currentTrack?.artist ?? '—'}
+              </Text>
+              <View style={s.currentBadgeRow}>
+                <View style={s.formatBadge}>
+                  <Text style={s.formatText}>{(hifiQuality ?? 'LOSSLESS').toUpperCase()}</Text>
+                </View>
+                <Text style={s.currentTime}>
+                  {currentPosition} / {formatMs(currentTrack?.durationMs ?? 0)}
+                </Text>
+              </View>
+            </View>
+            <Pressable
+              onPress={() => (isPlaying ? audioService.pause() : audioService.resume())}
+              hitSlop={8}
+              style={({ pressed }) => [s.currentPlay, pressed && s.pressed]}
+              accessibilityRole="button"
+              accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
+            >
+              <Icon
+                name={isPlaying ? 'pause' : 'play'}
+                size={18}
+                color={colors.onPrimary}
+              />
+            </Pressable>
+          </View>
+        </View>
+
+        {/* Up next */}
+        <View style={s.currentBlock}>
+          <View style={s.blockHeader}>
+            <Text style={s.blockTitle}>
+              UP NEXT{' '}
+              <Text style={s.blockCount}>
+                • {upcoming.length} {upcoming.length === 1 ? 'Sequential' : 'Sequential'}
+              </Text>
+            </Text>
+            <Text style={s.selectLabel}>SELECT</Text>
+          </View>
+
+          {upcoming.length === 0 ? (
+            <Text style={s.emptyText}>
+              Nothing queued. Add tracks from your collection or search.
+            </Text>
+          ) : (
+            <View style={s.upNextList}>
+              {upcoming.map((track, index) => (
+                <View key={`${track.id}-${index}`} style={s.upNextRow}>
+                  <Icon name="reorder-two" size={18} color={colors.outlineText} />
+                  <Pressable
+                    onPress={() => playUpcoming(index)}
+                    style={({ pressed }) => [s.upNextMain, pressed && s.pressed]}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Play ${track.title} by ${track.artist}`}
+                  >
+                    <CoverThumb
+                      uri={track.coverUrl}
+                      size={44}
+                      borderRadius={r.sm}
+                      style={s.upNextArt}
+                    />
+                    <View style={s.upNextMeta}>
+                      <Text style={s.upNextTitle} numberOfLines={1}>{track.title}</Text>
+                      <View style={s.upNextSubRow}>
+                        <Text style={s.upNextArtist} numberOfLines={1}>{track.artist}</Text>
+                        {isDownloaded(track.id) && (
+                          <View style={s.cachedBadge}>
+                            <Text style={s.cachedText}>CACHED</Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                    <Text style={s.upNextDuration}>{formatMs(track.durationMs ?? 0)}</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => setOptionsTrack(track)}
+                    hitSlop={8}
+                    style={({ pressed }) => [s.rowMore, pressed && s.pressed]}
+                    accessibilityRole="button"
+                    accessibilityLabel={`More options for ${track.title}`}
+                  >
+                    <Icon name="ellipsis-vertical" size={16} color={colors.outlineText} />
+                  </Pressable>
+                  <Pressable
+                    onPress={() => handleRemove(index)}
+                    hitSlop={8}
+                    style={({ pressed }) => [s.rowMore, pressed && s.pressed]}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Remove ${track.title} from queue`}
+                  >
+                    <Icon name="close" size={16} color={colors.outlineText} />
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+
+        {/* Continuity actions */}
+        <View style={s.actionsCard}>
+          <Text style={s.actionsTitle}>Save queue</Text>
+          <Text style={s.actionsBody}>Keep this queue for your next session</Text>
+          <View style={s.actionsRow}>
+            <Pressable
+              onPress={clearQueue}
+              style={({ pressed }) => [s.actionButton, pressed && s.pressed]}
+              accessibilityRole="button"
+              accessibilityLabel="Clear the queue"
+            >
+              <Icon name="trash-outline" size={14} color={colors.onSurface} />
+              <Text style={s.actionText}>CLEAR ALL</Text>
+            </Pressable>
+          </View>
+        </View>
+      </ScrollView>
+
+      <PlayerTabBar active="queue" onSelect={goToPlayerTab} />
 
       <TrackOptionsMenu
         visible={!!optionsTrack}
@@ -328,143 +274,240 @@ function QueueRowItemComponent({
 const s = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.surfaceDeep,
   },
+  pressed: {
+    opacity: 0.7,
+  },
+  content: {
+    paddingHorizontal: 16,
+    paddingBottom: 24,
+    gap: 28,
+  },
+
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.onSurface,
-  },
-  headerAction: {
-    minHeight: 44,
-    justifyContent: 'center',
-    paddingHorizontal: 8,
-  },
-  clearText: {
-    fontSize: 15,
-    color: colors.accent,
-    fontWeight: '600',
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 24,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionHeader: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.onSurfaceVariant,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 8,
-  },
-  endOfQueue: {
-    fontSize: 14,
-    color: colors.onSurfaceVariant,
-    lineHeight: 20,
-  },
-  trackRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    minHeight: 60,
-    paddingVertical: 8,
-    gap: 12,
-  },
-  trackRowPressed: {
-    opacity: 0.6,
-  },
-  trackArt: {
-    width: 44,
-    height: 44,
-    borderRadius: 4,
-    backgroundColor: colors.surfaceContainer,
-  },
-  trackArtPlaceholder: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  trackMeta: {
-    flex: 1,
-    minWidth: 0,
-  },
-  trackTitle: {
-    fontFamily: FONTS.display,
-    fontSize: 15,
-    color: colors.onSurface,
-    fontWeight: '500',
-  },
-  trackTitleCurrent: {
-    color: colors.accent,
-  },
-  trackArtist: {
-    fontSize: 13,
-    color: colors.onSurfaceVariant,
-    marginTop: 2,
-  },
-  rowAction: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyState: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 32,
-    gap: 12,
-  },
-  emptyTitle: {
-    fontFamily: FONTS.display,
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.onSurface,
-  },
-  emptyBody: {
-    fontSize: 15,
-    color: colors.onSurfaceVariant,
-    textAlign: 'center',
-    lineHeight: 21,
-  },
-  emptyButton: {
-    marginTop: 12,
     paddingHorizontal: 24,
     paddingVertical: 12,
-    minHeight: 44,
-    justifyContent: 'center',
-    borderRadius: 22,
-    backgroundColor: colors.surfaceContainerHighest,
   },
-  emptyButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
+  headerButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    ...t.titleMd,
     color: colors.onSurface,
   },
-  bottomBar: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.surfaceContainerHighest,
-    paddingTop: 12,
-    paddingHorizontal: 20,
-    backgroundColor: colors.background,
+
+  totals: {
+    ...t.labelMd,
+    color: colors.onSurfaceVariant,
+    textAlign: 'right',
   },
-  transportRow: {
+
+  currentBlock: {
+    gap: 12,
+  },
+  blockHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  transportBtn: {
-    minWidth: 44,
-    minHeight: 44,
+  blockTitle: {
+    ...t.labelMd,
+    color: colors.onSurfaceVariant,
+  },
+  blockCount: {
+    ...t.labelMd,
+    color: colors.outlineText,
+  },
+  selectLabel: {
+    ...t.labelMd,
+    color: colors.onSurface,
+  },
+
+  onAir: {
+    paddingHorizontal: 10,
+    height: 24,
+    justifyContent: 'center',
+    borderRadius: r.sm,
+    backgroundColor: colors.surfaceContainerHigh,
+  },
+  onAirText: {
+    ...t.micro,
+    color: colors.onSurface,
+  },
+
+  currentCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 12,
+    borderRadius: r.lg,
+    backgroundColor: colors.surfaceVariant,
+  },
+  currentArt: {
+    backgroundColor: colors.surfaceContainer,
+  },
+  currentMeta: {
+    flex: 1,
+    minWidth: 0,
+    gap: 3,
+  },
+  currentTitle: {
+    fontFamily: FONTS.contentSemiBold,
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: '600',
+    color: colors.onSurface,
+  },
+  currentArtist: {
+    ...t.bodyMd,
+    color: colors.outlineText,
+  },
+  currentBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
+  },
+  formatBadge: {
+    paddingHorizontal: 8,
+    height: 18,
+    justifyContent: 'center',
+    borderRadius: r.sm,
+    backgroundColor: colors.surfaceContainerHighest,
+  },
+  formatText: {
+    ...t.micro,
+    fontSize: 9,
+    color: colors.onSurfaceVariant,
+  },
+  currentTime: {
+    ...t.mono,
+    fontSize: 10,
+    color: colors.outlineText,
+  },
+  currentPlay: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.surfaceContainerHighest,
+  },
+
+  upNextList: {
+    gap: 8,
+  },
+  upNextRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingLeft: 4,
+    borderRadius: r.lg,
+    backgroundColor: colors.surfaceVariant,
+    paddingRight: 4,
+    paddingVertical: 8,
+  },
+  upNextMain: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    minWidth: 0,
+    paddingVertical: 4,
+  },
+  upNextArt: {
+    backgroundColor: colors.surfaceContainer,
+  },
+  upNextMeta: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  upNextTitle: {
+    fontFamily: FONTS.contentSemiBold,
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: '600',
+    color: colors.onSurface,
+  },
+  upNextSubRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  upNextArtist: {
+    ...t.bodyMd,
+    flexShrink: 1,
+    color: colors.outlineText,
+  },
+  cachedBadge: {
+    paddingHorizontal: 8,
+    height: 16,
+    justifyContent: 'center',
+    borderRadius: r.sm,
+    backgroundColor: colors.surfaceContainerHighest,
+  },
+  cachedText: {
+    fontSize: 9,
+    letterSpacing: 0.4,
+    color: colors.onSurfaceVariant,
+  },
+  upNextDuration: {
+    ...t.mono,
+    color: colors.outlineVariant,
+  },
+  rowMore: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  actionsCard: {
+    padding: 16,
+    gap: 4,
+    borderRadius: r.lg,
+    backgroundColor: colors.surfaceVariant,
+  },
+  actionsTitle: {
+    ...t.titleMd,
+    color: colors.onSurface,
+  },
+  actionsBody: {
+    ...t.bodyMd,
+    color: colors.outlineText,
+    marginBottom: 12,
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  actionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 44,
+    borderRadius: r.pill,
+    backgroundColor: colors.surfaceContainerLow,
+  },
+  actionText: {
+    ...t.labelMd,
+    color: colors.onSurface,
+  },
+
+  emptyText: {
+    ...t.bodyMd,
+    color: colors.outlineText,
+    paddingVertical: 24,
+    textAlign: 'center',
   },
 });
