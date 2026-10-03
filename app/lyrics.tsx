@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { StyleSheet, View, Text, ScrollView, Pressable, Image, Dimensions, Alert } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from '../src/components/ui/Icon';
@@ -9,6 +9,7 @@ import { hifiApiClient } from '../src/services/hifiApiClient';
 import { useQueueStore } from '../src/store/queueStore';
 import { useRouter } from 'expo-router';
 import { useLibraryStore } from '../src/store/libraryStore';
+import { parseLyricsPayload, LyricLineItem } from '../src/services/lyricsParser';
 
 const formatTime = (seconds: number) => {
   if (isNaN(seconds) || seconds === 0) return '0:00';
@@ -23,7 +24,10 @@ export default function LyricsScreen() {
   const queue = useQueueStore();
   const position = positionMs / 1000;
   const duration = durationMs / 1000;
-  const [lyricsLines, setLyricsLines] = useState<string[]>([]);
+  const [lyricsItems, setLyricsItems] = useState<LyricLineItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSyncLocked, setIsSyncLocked] = useState(true);
+  const scrollRef = useRef<ScrollView>(null);
   const insets = useSafeAreaInsets();
   const { addFavorite, removeFavorite, isFavorite } = useLibraryStore();
   const [liked, setLiked] = useState(false);
@@ -34,6 +38,7 @@ export default function LyricsScreen() {
 
     const likedNow = isFavorite(trackId);
     let active = true;
+    setIsLoading(true);
 
     // Deferring the derived state keeps it out of the effect body.
     const timer = setTimeout(() => {
@@ -44,18 +49,23 @@ export default function LyricsScreen() {
       .getLyrics(trackId)
       .then((data) => {
         if (!active) return;
-        const text = data?.lyrics ?? data?.text ?? (typeof data === 'string' ? data : null);
-        setLyricsLines(
-          text
-            ? text.split('\n').filter(Boolean)
-            : ['No lyrics available for this track.'],
-        );
+        const parsed = parseLyricsPayload(data);
+        if (parsed.length > 0) {
+          setLyricsItems(parsed);
+        } else {
+          setLyricsItems([{ id: 'empty', text: 'No lyrics available for this track.' }]);
+        }
       })
       .catch((error) => {
-        console.error('Failed to fetch lyrics:', error);
+        console.warn('Failed to fetch lyrics:', error);
         if (active) {
-          setLyricsLines(['Lyrics could not be loaded. Check your connection and try again.']);
+          setLyricsItems([
+            { id: 'error', text: 'Lyrics could not be loaded. Tap to retry or check your connection.' }
+          ]);
         }
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
       });
 
     return () => {
@@ -63,6 +73,34 @@ export default function LyricsScreen() {
       clearTimeout(timer);
     };
   }, [currentTrack?.id, isFavorite]);
+
+  const activeIndex = useMemo(() => {
+    if (!lyricsItems.length || lyricsItems[0].timeMs === undefined) return -1;
+    let active = -1;
+    for (let i = 0; i < lyricsItems.length; i++) {
+      if (lyricsItems[i].timeMs! <= positionMs) {
+        active = i;
+      } else {
+        break;
+      }
+    }
+    return active;
+  }, [lyricsItems, positionMs]);
+
+  useEffect(() => {
+    if (isSyncLocked && activeIndex >= 0 && scrollRef.current) {
+      scrollRef.current.scrollTo({
+        y: Math.max(0, activeIndex * 58 - 140),
+        animated: true,
+      });
+    }
+  }, [activeIndex, isSyncLocked]);
+
+  const handleLinePress = (item: LyricLineItem) => {
+    if (item.timeMs !== undefined) {
+      audioService.seekTo(item.timeMs);
+    }
+  };
 
   const handleDismiss = () => {
     router.back();
@@ -198,6 +236,7 @@ export default function LyricsScreen() {
 
       {/* Synchronized Interactive Lyrics Feed */}
       <ScrollView 
+        ref={scrollRef}
         style={styles.lyricsScroll} 
         contentContainerStyle={styles.lyricsScrollContent}
         showsVerticalScrollIndicator={false}
@@ -205,29 +244,45 @@ export default function LyricsScreen() {
         <View style={styles.fadeMaskTop} />
         
         <View style={styles.lyricsContainer}>
-          {lyricsLines.length === 0 ? (
-            <Text style={styles.placeholderText}>Loading lyrics...</Text>
+          {isLoading ? (
+            <View style={styles.loadingContainer}>
+              <Icon name="musical-notes" size={32} color={colors.primary} />
+              <Text style={styles.placeholderText}>Loading synchronized lyrics...</Text>
+            </View>
+          ) : lyricsItems.length === 0 ? (
+            <Text style={styles.placeholderText}>No lyrics available for this track.</Text>
           ) : (
-            lyricsLines.map((line, index) => {
-              // Mocking the active line for UI demonstration purposes
-              const isActive = index === 3;
-              const isPast = index < 3;
+            lyricsItems.map((item, index) => {
+              const isActive = index === activeIndex;
+              const isPast = activeIndex >= 0 && index < activeIndex;
               
               if (isActive) {
                 return (
-                  <View key={index} style={styles.activeLyricLineContainer}>
+                  <Pressable 
+                    key={item.id} 
+                    style={({ pressed }) => [styles.activeLyricLineContainer, pressed && styles.pressed]}
+                    onPress={() => handleLinePress(item)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Active lyric: ${item.text}. Tap to replay.`}
+                  >
                     <View style={styles.activeLyricIndicator} />
                     <View style={styles.activeLyricTextContainer}>
-                      <Text style={styles.activeLyricText}>{line}</Text>
+                      <Text style={styles.activeLyricText}>{item.text}</Text>
                     </View>
-                  </View>
+                  </Pressable>
                 );
               }
 
               return (
-                <Pressable key={index} style={styles.lyricLine}>
+                <Pressable 
+                  key={item.id} 
+                  style={({ pressed }) => [styles.lyricLine, pressed && styles.pressed]}
+                  onPress={() => handleLinePress(item)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Lyric line: ${item.text}. Tap to jump to this point.`}
+                >
                   <Text style={[styles.lyricText, isPast ? styles.pastLyricText : undefined]}>
-                    {line}
+                    {item.text}
                   </Text>
                 </Pressable>
               );
@@ -257,8 +312,21 @@ export default function LyricsScreen() {
             <Icon name="share-outline" size={16} color={colors.primary} />
             <Text style={styles.shareCardText}>Share Card</Text>
           </Pressable>
-          <Pressable style={({pressed}) => [styles.syncToggleButton, pressed && styles.pressed]} onPress={() => Alert.alert('Sync Lyrics', 'Sync lyrics feature coming soon!')}>
-            <Icon name="sync" size={18} color={colors.primary} />
+          <Pressable 
+            style={({pressed}) => [
+              styles.syncToggleButton, 
+              pressed && styles.pressed,
+              isSyncLocked && styles.syncToggleActive
+            ]} 
+            onPress={() => setIsSyncLocked(prev => !prev)}
+            accessibilityRole="button"
+            accessibilityLabel={isSyncLocked ? "Disable auto-scroll synchronization" : "Enable auto-scroll synchronization"}
+          >
+            <Icon 
+              name="sync" 
+              size={18} 
+              color={isSyncLocked ? colors.onPrimary : colors.onSurfaceVariant} 
+            />
           </Pressable>
         </View>
 
@@ -453,6 +521,12 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     gap: sp.lg,
   },
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: sp.md,
+    marginTop: sp.xxl,
+  },
   placeholderText: {
     ...t.bodyMd,
     color: colors.onSurfaceVariant,
@@ -560,6 +634,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.surfaceContainerHigh,
+  },
+  syncToggleActive: {
+    backgroundColor: colors.primary,
   },
   progressContainer: {
     width: '100%',

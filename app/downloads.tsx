@@ -27,6 +27,24 @@ const FILTERS: { value: Filter; label: string }[] = [
   { value: 'failed', label: 'Needs attention' },
 ];
 
+function cleanErrorMessage(msg?: string): string {
+  if (!msg) return 'Download failed';
+  const lower = msg.toLowerCase();
+  if (lower.includes('expected url scheme') || lower.includes('manifest cannot be downloaded')) {
+    return 'Stream requires assembly';
+  }
+  if (lower.includes('enospc') || lower.includes('space')) {
+    return 'Storage full';
+  }
+  if (lower.includes('abort') || lower.includes('cancel')) {
+    return 'Cancelled';
+  }
+  if (lower.includes('network') || lower.includes('failed to fetch') || lower.includes('connection')) {
+    return 'Connection dropped';
+  }
+  return msg.length > 32 ? `${msg.slice(0, 32)}…` : msg;
+}
+
 export default function DownloadsScreen() {
   const router = useRouter();
   const downloads = useDownloadStore((state) => state.downloads);
@@ -109,7 +127,7 @@ export default function DownloadsScreen() {
           accessibilityRole="button"
           accessibilityLabel={`${track.title} by ${track.artist}`}
         >
-          <CoverThumb uri={track.coverUrl} size={48} borderRadius={4} />
+          <CoverThumb uri={track.coverUrl} size={48} borderRadius={6} />
 
           <View style={s.meta}>
             <Text numberOfLines={1} style={s.title}>{track.title}</Text>
@@ -125,23 +143,32 @@ export default function DownloadsScreen() {
                     ? 'Paused'
                     : item.status === 'pending'
                       ? 'Waiting to start'
-                      : `${item.progress}%`}
+                      : `Downloading · ${item.progress}%`}
+                </Text>
+              </View>
+            ) : item.status === 'completed' ? (
+              <View style={s.completedRow}>
+                <View style={s.completedDot} />
+                <Text style={s.completedText}>
+                  {formatBytes(item.downloadedBytes)} · {item.quality}
                 </Text>
               </View>
             ) : (
-              <Text style={s.statusText}>
-                {item.status === 'completed'
-                  ? `${formatBytes(item.downloadedBytes)} · ${item.quality}`
-                  : item.errorMessage ?? 'Download failed'}
-              </Text>
+              <View style={s.errorBadge}>
+                <Icon name="alert-circle" size={13} color="#F43F5E" />
+                <Text numberOfLines={1} style={s.errorText}>
+                  {cleanErrorMessage(item.errorMessage)}
+                </Text>
+              </View>
             )}
           </View>
         </Pressable>
 
         {inProgress ? (
           <Pressable
-            style={s.action}
+            style={({ pressed }) => [s.action, pressed && s.actionPressed]}
             onPress={() => void cancelDownload(item.trackId)}
+            hitSlop={12}
             accessibilityRole="button"
             accessibilityLabel={`Cancel download of ${track.title}`}
           >
@@ -149,18 +176,20 @@ export default function DownloadsScreen() {
           </Pressable>
         ) : item.status === 'failed' ? (
           <Pressable
-            style={s.action}
+            style={({ pressed }) => [s.action, pressed && s.actionPressed]}
             onPress={() => void retryDownload(item.trackId)}
+            hitSlop={12}
             accessibilityRole="button"
             accessibilityLabel={`Retry download of ${track.title}`}
           >
-            <Icon name="refresh" size={20} color={colors.onSurface} />
+            <Icon name="refresh" size={20} color={colors.primary} />
           </Pressable>
         ) : null}
 
         <Pressable
-          style={s.action}
+          style={({ pressed }) => [s.action, pressed && s.actionPressed]}
           onPress={() => confirmDelete(item)}
+          hitSlop={12}
           accessibilityRole="button"
           accessibilityLabel={`Delete ${track.title}`}
         >
@@ -409,6 +438,39 @@ const s = StyleSheet.create({
     color: colors.onSurfaceVariant,
     marginTop: 4,
   },
+  completedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4,
+  },
+  completedDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#10B981',
+  },
+  completedText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: colors.onSurfaceVariant,
+  },
+  errorBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    backgroundColor: 'rgba(244, 63, 94, 0.12)',
+    alignSelf: 'flex-start',
+  },
+  errorText: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#F43F5E',
+  },
   progressBlock: {
     marginTop: 6,
   },
@@ -427,6 +489,11 @@ const s = StyleSheet.create({
     height: 44,
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: 22,
+  },
+  actionPressed: {
+    opacity: 0.6,
+    transform: [{ scale: 0.92 }],
   },
   emptyState: {
     paddingTop: 60,

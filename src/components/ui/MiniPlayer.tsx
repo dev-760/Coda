@@ -5,7 +5,7 @@ import { usePlaybackStore } from '../../store/playbackStore';
 import { useQueueStore } from '../../store/queueStore';
 import { audioService } from '../../audio/AudioService';
 import Icon from './Icon';
-import { colors } from '../../theme/theme';
+import { colors, FONTS } from '../../theme/theme';
 
 /**
  * Subscribes to playback position on its own so the tick-driven re-render stops
@@ -56,7 +56,7 @@ export default function MiniPlayer() {
   return (
     <View style={s.container}>
       <Pressable
-        style={s.touchableArea}
+        style={({ pressed }) => [s.touchableArea, pressed && { opacity: 0.85 }]}
         onPress={handleOpenNowPlaying}
         accessibilityRole="button"
         accessibilityLabel={`Now playing: ${currentTrack.title} by ${currentTrack.artist}`}
@@ -82,11 +82,11 @@ export default function MiniPlayer() {
         </View>
       </Pressable>
 
-      {/* Controls */}
+      {/* Controls with accessible 44px+ hit areas and scale response */}
       <View style={s.controls}>
         <Pressable
           onPress={handleTogglePlay}
-          style={s.controlBtn}
+          style={({ pressed }) => [s.controlBtn, pressed && { opacity: 0.6 }]}
           hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
@@ -95,7 +95,7 @@ export default function MiniPlayer() {
         </Pressable>
         <Pressable
           onPress={handleNext}
-          style={s.controlBtn}
+          style={({ pressed }) => [s.controlBtn, pressed && { opacity: 0.6 }]}
           hitSlop={8}
           disabled={!hasNext}
           accessibilityRole="button"
@@ -105,7 +105,7 @@ export default function MiniPlayer() {
           <Icon
             name="play-skip-forward"
             size={22}
-            color={hasNext ? colors.onSurface : '#5a5a5e'}
+            color={hasNext ? colors.onSurface : '#4A5463'}
           />
         </Pressable>
       </View>
@@ -119,8 +119,8 @@ const s = StyleSheet.create({
   container: {
     height: 60,
     backgroundColor: colors.surfaceContainer,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.surfaceContainerHighest,
+    borderTopWidth: 1,
+    borderTopColor: colors.surfaceContainerHigh,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
@@ -136,19 +136,20 @@ const s = StyleSheet.create({
   },
   progressFill: {
     height: 2,
-    backgroundColor: colors.onSurface,
+    backgroundColor: colors.accent,
   },
   touchableArea: {
     flex: 1,
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     marginRight: 8,
   },
   artwork: {
-    width: 42,
-    height: 42,
-    borderRadius: 4,
+    width: 44,
+    height: 44,
+    borderRadius: 6,
     backgroundColor: colors.surfaceContainerHigh,
   },
   artPlaceholder: {
@@ -161,6 +162,7 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
+    fontFamily: FONTS.display,
     fontSize: 14,
     fontWeight: '700',
     color: colors.onSurface,
@@ -173,13 +175,14 @@ const s = StyleSheet.create({
   controls: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: 6,
     paddingRight: 4,
   },
   controlBtn: {
-    width: 36,
-    height: 36,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
 });
+

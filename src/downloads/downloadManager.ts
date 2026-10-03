@@ -11,6 +11,7 @@ import { getActiveProvider } from '../providers/registry';
 import { useSettingsStore } from '../store/settingsStore';
 import { logger } from '../logging/Logger';
 import { Track } from '../providers/types';
+import { isDashManifestUrl, downloadDashStream } from './dashDownloader';
 
 const DEFAULT_CONFIG: DownloadManagerConfig = {
   maxConcurrentDownloads: 2,
@@ -171,30 +172,53 @@ class DownloadManager {
       const temporary = downloadStorage.fileFor(trackId, 'part');
 
       let lastPersist = 0;
-      const result = await File.downloadFileAsync(url, temporary, {
-        headers,
-        idempotent: true,
-        signal: controller.signal,
-        onProgress: ({ bytesWritten, totalBytes }) => {
-          const total = totalBytes > 0 ? totalBytes : entry.totalBytes;
-          const progress = total > 0
-            ? Math.min(100, Math.round((bytesWritten / total) * 100))
-            : 0;
+      let written = 0;
+      let extension = entry.format || 'm4a';
 
-          this.emit({ trackId, progress, downloadedBytes: bytesWritten, totalBytes: total, status: 'downloading' });
+      if (isDashManifestUrl(url)) {
+        extension = 'm4a';
+        const result = await downloadDashStream(url, temporary, {
+          signal: controller.signal,
+          onProgress: (bytesWritten, totalBytes) => {
+            const total = totalBytes > 0 ? totalBytes : entry.totalBytes;
+            const progress = total > 0
+              ? Math.min(100, Math.round((bytesWritten / total) * 100))
+              : 0;
 
-          // Persisting on every callback would thrash AsyncStorage.
-          const now = Date.now();
-          if (now - lastPersist > 1000 || progress >= 100) {
-            lastPersist = now;
-            void downloadStorage.updateProgress(trackId, bytesWritten, total);
-          }
-        },
-      });
+            this.emit({ trackId, progress, downloadedBytes: bytesWritten, totalBytes: total, status: 'downloading' });
 
-      const written = result.size ?? 0;
-      const contentType = guessExtensionFromUrl(url);
-      const extension = contentType ?? entry.format;
+            const now = Date.now();
+            if (now - lastPersist > 1000 || progress >= 100) {
+              lastPersist = now;
+              void downloadStorage.updateProgress(trackId, bytesWritten, total);
+            }
+          },
+        });
+        written = result.size;
+      } else {
+        const result = await File.downloadFileAsync(url, temporary, {
+          headers,
+          idempotent: true,
+          signal: controller.signal,
+          onProgress: ({ bytesWritten, totalBytes }) => {
+            const total = totalBytes > 0 ? totalBytes : entry.totalBytes;
+            const progress = total > 0
+              ? Math.min(100, Math.round((bytesWritten / total) * 100))
+              : 0;
+
+            this.emit({ trackId, progress, downloadedBytes: bytesWritten, totalBytes: total, status: 'downloading' });
+
+            const now = Date.now();
+            if (now - lastPersist > 1000 || progress >= 100) {
+              lastPersist = now;
+              void downloadStorage.updateProgress(trackId, bytesWritten, total);
+            }
+          },
+        });
+        written = result.size ?? 0;
+        const contentType = guessExtensionFromUrl(url);
+        extension = contentType ?? entry.format;
+      }
 
       const finalFile = downloadStorage.fileFor(trackId, extension);
       if (finalFile.exists) finalFile.delete();
@@ -212,11 +236,21 @@ class DownloadManager {
       this.emit({ trackId, progress: 100, downloadedBytes: written, totalBytes: written, status: 'completed' });
     } catch (error) {
       const aborted = error instanceof Error && error.name === 'AbortError';
-      const message = aborted
-        ? 'Download cancelled.'
-        : error instanceof Error
-          ? error.message
-          : 'Download failed.';
+      let message = 'Download failed.';
+      if (aborted) {
+        message = 'Download cancelled.';
+      } else if (error instanceof Error) {
+        const raw = error.message;
+        if (raw.includes('Expected URL scheme') || raw.includes('file')) {
+          message = 'Format error: stream manifest cannot be downloaded directly.';
+        } else if (raw.includes('ENOSPC') || raw.includes('space')) {
+          message = 'Device storage full.';
+        } else if (raw.includes('Network') || raw.includes('Failed to fetch')) {
+          message = 'Connection dropped. Tap to retry.';
+        } else {
+          message = raw;
+        }
+      }
 
       await downloadStorage.updateStatus(trackId, aborted ? 'paused' : 'failed', {
         errorMessage: message,

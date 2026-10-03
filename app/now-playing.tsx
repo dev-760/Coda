@@ -14,6 +14,7 @@ import { usePlaybackStore } from '../src/store/playbackStore';
 import { audioService } from '../src/audio/AudioService';
 import { useQueueStore } from '../src/store/queueStore';
 import { useLibraryStore } from '../src/store/libraryStore';
+import { useDownloadStore } from '../src/downloads/downloadStore';
 import { useResponsive } from '../src/hooks/useResponsive';
 import { colors, FONTS } from '../src/theme/theme';
 
@@ -23,6 +24,12 @@ export default function NowPlayingScreen() {
   const artSize = artworkSize(340);
   const { currentTrack, isPlaying, positionMs, durationMs, error, isLoading } = usePlaybackStore();
   const { addFavorite, removeFavorite, isFavorite } = useLibraryStore();
+  const isDownloaded = useDownloadStore((state) =>
+    currentTrack ? state.isTrackDownloaded(currentTrack.id) : false,
+  );
+  const downloadInfo = useDownloadStore((state) =>
+    currentTrack ? state.getDownloadStatus(currentTrack.id) : null,
+  );
   const { shuffle, toggleShuffle, repeat, setRepeat } = useQueueStore();
   const hasNext = useQueueStore((state) => state.upcomingCount() > 0);
   const hasPrevious = useQueueStore((state) => state.currentIndex > 0);
@@ -105,21 +112,30 @@ export default function NowPlayingScreen() {
     );
   }
 
+  const audioQualityLabel = isDownloaded
+    ? `${downloadInfo?.format ? downloadInfo.format.toUpperCase() : 'FLAC'} • OFFLINE`
+    : 'LOSSLESS • HI-RES';
+
   return (
     <SafeAreaView style={s.container} edges={['top', 'bottom']}>
       {/* Top Header with Chevron Down */}
       <View style={s.topHeader}>
-        <View style={{ width: 40 }} />
-        <Pressable onPress={() => router.back()} style={s.chevronBtn} hitSlop={12}
-          accessibilityRole="button" accessibilityLabel="Close player">
+        <View style={{ width: 44 }} />
+        <Pressable
+          onPress={() => router.back()}
+          style={({ pressed }) => [s.chevronBtn, pressed && { opacity: 0.6 }]}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="Close player"
+        >
           <Icon name="chevron-down" size={26} color={colors.onSurface} />
         </Pressable>
-        <View style={{ width: 40 }} />
+        <View style={{ width: 44 }} />
       </View>
 
       {/* Main Content Area */}
       <View style={[s.content, { paddingHorizontal: gutter }]}>
-        {/* Large Artwork matching Screenshot 13 */}
+        {/* Large Artwork */}
         <View style={[s.artworkWrap, { width: artSize, height: artSize }]}>
           {track.coverUrl ? (
             <Image source={{ uri: track.coverUrl }} style={s.artwork} />
@@ -130,21 +146,26 @@ export default function NowPlayingScreen() {
           )}
         </View>
 
-        {/* Title, Subtitle and Heart Row */}
+        {/* Title, Subtitle, Quality Pill and Heart Row */}
         <View style={s.metaRow}>
           <View style={s.titleCol}>
             <Text numberOfLines={1} style={s.trackTitle}>{track.title}</Text>
             <Text numberOfLines={1} style={s.trackArtist}>{track.artist}</Text>
+            <View style={s.techBadgeRow}>
+              <View style={s.qualityPill}>
+                <Text style={s.qualityPillText}>{audioQualityLabel}</Text>
+              </View>
+            </View>
           </View>
           <Pressable
             onPress={handleToggleFavorite}
-            style={s.heartBtn}
+            style={({ pressed }) => [s.heartBtn, pressed && { opacity: 0.6 }]}
             hitSlop={10}
             accessibilityRole="button"
             accessibilityLabel={liked ? 'Remove from favorites' : 'Add to favorites'}
             accessibilityState={{ selected: liked }}
           >
-            <Icon name={liked ? 'heart' : 'heart-outline'} size={26} color={colors.onSurface} />
+            <Icon name={liked ? 'heart' : 'heart-outline'} size={26} color={liked ? colors.accent : colors.onSurface} />
           </Pressable>
         </View>
 
@@ -175,7 +196,7 @@ export default function NowPlayingScreen() {
         <View style={s.controlsRow}>
           <Pressable
             onPress={toggleShuffle}
-            style={s.ctrlBtn}
+            style={({ pressed }) => [s.ctrlBtn, pressed && { opacity: 0.6 }]}
             hitSlop={10}
             accessibilityRole="switch"
             accessibilityLabel="Shuffle"
@@ -186,7 +207,7 @@ export default function NowPlayingScreen() {
 
           <Pressable
             onPress={handlePrev}
-            style={s.ctrlBtn}
+            style={({ pressed }) => [s.ctrlBtn, pressed && { opacity: 0.6 }]}
             hitSlop={10}
             disabled={!hasPrevious}
             accessibilityRole="button"
@@ -196,13 +217,13 @@ export default function NowPlayingScreen() {
             <Icon
               name="play-skip-back"
               size={28}
-              color={hasPrevious ? colors.onSurface : '#5a5a5e'}
+              color={hasPrevious ? colors.onSurface : '#4A5463'}
             />
           </Pressable>
 
           <Pressable
             onPress={handleTogglePlay}
-            style={s.playPauseBtn}
+            style={({ pressed }) => [s.playPauseBtn, pressed && { opacity: 0.7 }]}
             hitSlop={8}
             disabled={isLoading}
             accessibilityRole="button"
@@ -220,7 +241,7 @@ export default function NowPlayingScreen() {
 
           <Pressable
             onPress={handleNext}
-            style={s.ctrlBtn}
+            style={({ pressed }) => [s.ctrlBtn, pressed && { opacity: 0.6 }]}
             hitSlop={10}
             disabled={!hasNext}
             accessibilityRole="button"
@@ -230,13 +251,13 @@ export default function NowPlayingScreen() {
             <Icon
               name="play-skip-forward"
               size={28}
-              color={hasNext ? colors.onSurface : '#5a5a5e'}
+              color={hasNext ? colors.onSurface : '#4A5463'}
             />
           </Pressable>
 
           <Pressable
             onPress={handleRepeatToggle}
-            style={s.ctrlBtn}
+            style={({ pressed }) => [s.ctrlBtn, pressed && { opacity: 0.6 }]}
             hitSlop={10}
             accessibilityRole="button"
             accessibilityLabel={`Repeat: ${repeat === 'off' ? 'off' : repeat === 'all' ? 'all tracks' : 'this track'}`}
@@ -245,12 +266,12 @@ export default function NowPlayingScreen() {
           </Pressable>
         </View>
 
-        {/* Bottom Actions Row (Queue and Options) */}
+        {/* Bottom Actions Row (Lyrics, Queue, and Options) */}
         <View style={s.bottomRow}>
           <Pressable
-            style={s.bottomCircleBtn}
+            style={({ pressed }) => [s.bottomCircleBtn, pressed && { opacity: 0.7 }]}
             onPress={() => router.push('/lyrics' as any)}
-            hitSlop={8}
+            hitSlop={10}
             accessibilityRole="button"
             accessibilityLabel="Show lyrics"
           >
@@ -259,9 +280,9 @@ export default function NowPlayingScreen() {
 
           <View style={s.bottomRightGroup}>
             <Pressable
-              style={s.bottomCircleBtn}
+              style={({ pressed }) => [s.bottomCircleBtn, pressed && { opacity: 0.7 }]}
               onPress={() => router.push('/queue' as any)}
-              hitSlop={8}
+              hitSlop={10}
               accessibilityRole="button"
               accessibilityLabel="Open queue"
             >
@@ -269,9 +290,9 @@ export default function NowPlayingScreen() {
             </Pressable>
 
             <Pressable
-              style={s.bottomCircleBtn}
+              style={({ pressed }) => [s.bottomCircleBtn, pressed && { opacity: 0.7 }]}
               onPress={() => setOptionsVisible(true)}
-              hitSlop={8}
+              hitSlop={10}
               accessibilityRole="button"
               accessibilityLabel="More options"
             >
@@ -314,7 +335,6 @@ const s = StyleSheet.create({
   emptyButton: {
     marginTop: 12,
     paddingHorizontal: 24,
-    paddingVertical: 12,
     minHeight: 44,
     justifyContent: 'center',
     borderRadius: 22,
@@ -340,24 +360,29 @@ const s = StyleSheet.create({
     height: 48,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 20,
   },
   chevronBtn: {
-    padding: 8,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },
   content: {
     flex: 1,
     paddingBottom: 20,
-    paddingTop: 10,
+    paddingTop: 8,
+    justifyContent: 'space-between',
   },
   artworkWrap: {
     alignSelf: 'center',
-    borderRadius: 4,
+    borderRadius: 8,
     overflow: 'hidden',
     backgroundColor: colors.surfaceContainer,
+    borderWidth: 1,
+    borderColor: colors.surfaceContainerHigh,
   },
   artwork: {
     width: '100%',
@@ -371,7 +396,7 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 20,
+    marginTop: 16,
     gap: 16,
   },
   titleCol: {
@@ -379,83 +404,90 @@ const s = StyleSheet.create({
     minWidth: 0,
     gap: 4,
   },
-  titleWithBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
   trackTitle: {
     fontFamily: FONTS.display,
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
     color: colors.onSurface,
-    flexShrink: 1,
-  },
-  explicitBadge: {
-    backgroundColor: '#333333',
-    paddingHorizontal: 4,
-    paddingVertical: 1,
-    borderRadius: 2,
-  },
-  explicitText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.onSurface,
+    letterSpacing: -0.3,
   },
   trackArtist: {
-    fontSize: 14,
+    fontSize: 15,
     color: colors.onSurfaceVariant,
   },
+  techBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  qualityPill: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    backgroundColor: colors.surfaceContainerHigh,
+    borderWidth: 1,
+    borderColor: colors.surfaceContainerHighest,
+  },
+  qualityPillText: {
+    fontFamily: FONTS.mono,
+    fontSize: 10,
+    color: colors.outlineText,
+    letterSpacing: 0.5,
+  },
   heartBtn: {
-    padding: 4,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   scrubberContainer: {
-    marginTop: 16,
+    marginTop: 12,
     gap: 6,
   },
   scrubTouchArea: {
-    height: 20,
+    height: 32,
     justifyContent: 'center',
   },
   scrubTrack: {
-    height: 3,
-    backgroundColor: '#333333',
-    borderRadius: 1.5,
+    height: 4,
+    backgroundColor: colors.surfaceContainerHighest,
+    borderRadius: 2,
     overflow: 'hidden',
   },
   scrubFill: {
     height: '100%',
-    backgroundColor: colors.onSurface,
+    backgroundColor: colors.accent,
   },
   timeRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  // Monospace so the readout does not reflow as digits change during scrubbing.
   timeText: {
-      fontFamily: FONTS.mono,
-      fontSize: 12,
-      lineHeight: 16,
-      letterSpacing: 0.3,
-      color: colors.onSurfaceVariant,
-    },
+    fontFamily: FONTS.mono,
+    fontSize: 12,
+    lineHeight: 16,
+    letterSpacing: 0.3,
+    color: colors.outlineText,
+    fontVariant: ['tabular-nums'],
+  },
   controlsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 8,
-    marginTop: 10,
+    marginTop: 8,
   },
   ctrlBtn: {
-    width: 44,
-    height: 44,
+    width: 48,
+    height: 48,
     alignItems: 'center',
     justifyContent: 'center',
   },
   playPauseBtn: {
-    width: 56,
-    height: 56,
+    width: 60,
+    height: 60,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -475,9 +507,8 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: 12,
   },
-  /** Keeps the secondary actions together on the trailing edge. */
   bottomRightGroup: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -492,3 +523,4 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
 });
+

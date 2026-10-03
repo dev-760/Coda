@@ -867,9 +867,9 @@ const s = StyleSheet.create({
     marginTop: 4,
   },
   circleBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: COLORS.surfaceContainerHigh,
     alignItems: 'center',
     justifyContent: 'center',
@@ -889,6 +889,7 @@ const s = StyleSheet.create({
     paddingVertical: 4,
   },
   filterPill: {
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 7,

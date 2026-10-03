@@ -7,7 +7,7 @@ import { isOnline } from '../../services/connectivity';
 import { audioService } from '../../audio/AudioService';
 import { useQueueStore, cacheTracks } from '../../store/queueStore';
 import { useDownloadStore } from '../../downloads/downloadStore';
-import { colors } from '../../theme/theme';
+import { colors, FONTS } from '../../theme/theme';
 
 type LoadState = 'idle' | 'loading' | 'ready' | 'empty' | 'error';
 
@@ -184,6 +184,7 @@ const s = StyleSheet.create({
     marginBottom: 12,
   },
   headerTitle: {
+    fontFamily: FONTS.display,
     fontSize: 20,
     fontWeight: '700',
     color: colors.onSurface,
@@ -245,6 +246,7 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   cardTitle: {
+    fontFamily: FONTS.display,
     fontSize: 14,
     fontWeight: '600',
     color: colors.onSurface,
