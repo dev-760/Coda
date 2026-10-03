@@ -10,6 +10,7 @@ import {
   SUGGESTION_WEIGHTS,
 } from './suggestionWeights';
 import { getActiveProvider } from '../providers/registry';
+import { getTrackRecommendations } from './catalogService';
 import * as Network from 'expo-network';
 
 export interface Suggestion {
@@ -82,6 +83,41 @@ function localCandidates(): Track[] {
   return [...candidates.values()];
 }
 
+/** Recently played tracks, newest first, that still carry streamable metadata. */
+function recentCandidates(limit: number): Track[] {
+  return useLibraryStore
+    .getState()
+    .recentlyPlayed.slice(0, limit)
+    .filter((track) => Boolean(track?.id));
+}
+
+/**
+ * Artists the user has actually spent time with, most recent first. These are
+ * the queries that give the discovery pool something real to search on.
+ */
+function affinityArtists(limit: number): string[] {
+  const now = Date.now();
+  const scores = new Map<string, number>();
+
+  for (const entry of Object.values(useListeningStore.getState().stats)) {
+    if (!entry.artist || entry.completedPlays <= 0) continue;
+    const ageDays = (now - entry.lastPlayedAt) / 86_400_000;
+    const multiplier = Math.max(
+      SUGGESTION_WEIGHTS.minRecencyMultiplier,
+      Math.pow(0.5, ageDays / SUGGESTION_WEIGHTS.recencyHalfLifeDays),
+    );
+    scores.set(
+      entry.artist,
+      (scores.get(entry.artist) ?? 0) + entry.completedPlays * multiplier,
+    );
+  }
+
+  return [...scores.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([artist]) => artist);
+}
+
 async function apiCandidates(seed: Track | null, limit: number): Promise<Track[]> {
   if (!(await isOnline())) return [];
 
@@ -91,10 +127,34 @@ async function apiCandidates(seed: Track | null, limit: number): Promise<Track[]
 
   try {
     const provider = getActiveProvider();
-    const tracks = seed
-      ? await provider.search(`${seed.title} ${seed.artist}`)
-      : await provider.search('');
-    writeCache(key, tracks);
+    // An empty search term returns nothing, so a seedless pool has to be built
+    // from real queries: similar tracks for recently played ones, and a search
+    // for the artists the user actually completes.
+    const requests: Promise<Track[]>[] = [];
+
+    if (seed) {
+      requests.push(
+        provider.search(`${seed.title} ${seed.artist}`),
+        getTrackRecommendations(seed.id, 20),
+      );
+    } else {
+      for (const recent of recentCandidates(SUGGESTION_WEIGHTS.maxSimilarSeeds)) {
+        requests.push(getTrackRecommendations(recent.id, 20));
+      }
+      for (const artist of affinityArtists(SUGGESTION_WEIGHTS.maxSeedArtists)) {
+        requests.push(provider.search(artist));
+      }
+    }
+
+    const settled = await Promise.allSettled(requests);
+    const merged = new Map<string, Track>();
+    for (const result of settled) {
+      if (result.status !== 'fulfilled') continue;
+      for (const track of result.value) merged.set(track.id, track);
+    }
+
+    const tracks = [...merged.values()];
+    if (tracks.length > 0) writeCache(key, tracks);
     return tracks.slice(0, limit);
   } catch {
     // Offline or the API is down. The local pool still works.
@@ -111,7 +171,14 @@ function recencyMultiplier(lastPlayedAt: number): number {
   );
 }
 
-function scoreTrack(track: Track, recentIds: Set<string>, favorites: Set<string>): {
+function scoreTrack(
+  track: Track,
+  recentIds: Set<string>,
+  favorites: Set<string>,
+  /** True when the track came from a real lookup rather than the local library. */
+  discovered: boolean,
+  seed?: Track | null,
+): {
   score: number;
   reason: string;
 } {
@@ -121,8 +188,12 @@ function scoreTrack(track: Track, recentIds: Set<string>, favorites: Set<string>
   const artist = listening.artistAffinity(track.artist);
   const album = track.album ? listening.albumAffinity(track.album) : { score: 0, lastPlayedAt: 0 };
 
-  let score = 0;
-  let reason = 'From your library';
+  // A candidate found through a real lookup is worth showing even with no
+  // direct affinity, otherwise the section only ever renders library echoes.
+  // Library items keep the stricter rule: a download or a playlist entry on its
+  // own is not evidence of interest, so it needs actual affinity to qualify.
+  let score = discovered ? SUGGESTION_WEIGHTS.discoveryBaseline : 0;
+  let reason = seed ? `Sounds like ${seed.title}` : 'New for you';
 
   if (favorites.has(track.id)) {
     score += SUGGESTION_WEIGHTS.favoriteBoost;
@@ -141,6 +212,11 @@ function scoreTrack(track: Track, recentIds: Set<string>, favorites: Set<string>
 
   if (album.score > 0) {
     score += album.score * SUGGESTION_WEIGHTS.albumAffinity * recencyMultiplier(album.lastPlayedAt);
+  }
+
+  if (seed && track.artist === seed.artist) {
+    score += SUGGESTION_WEIGHTS.seedArtistBoost;
+    reason = `More from ${track.artist}`;
   }
 
   if (stats && stats.skips > 0) {
@@ -195,13 +271,29 @@ export async function getSuggestions(
 
   const pool = new Map<string, Track>();
   for (const track of localCandidates()) pool.set(track.id, track);
-  for (const track of await apiCandidates(seed, limit * 2)) pool.set(track.id, track);
+  for (const track of recentCandidates(SUGGESTION_WEIGHTS.maxSimilarSeeds)) {
+    pool.set(track.id, track);
+  }
+
+  // Provenance is tracked so a real lookup keeps its baseline even when the same
+  // track is also in the library, where a bare download would not qualify.
+  const discoveredIds = new Set<string>();
+  for (const track of await apiCandidates(seed, limit * 4)) {
+    pool.set(track.id, track);
+    discoveredIds.add(track.id);
+  }
 
   const scored: Suggestion[] = [];
   for (const track of pool.values()) {
     // Never suggest what is playing, and never repeat something just played.
     if (track.id === seedId || recentIds.has(track.id)) continue;
-    const { score, reason } = scoreTrack(track, recentIds, favorites);
+    const { score, reason } = scoreTrack(
+      track,
+      recentIds,
+      favorites,
+      discoveredIds.has(track.id),
+      seed,
+    );
     if (score <= 0) continue;
     scored.push({ track, score, reason });
   }

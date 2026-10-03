@@ -31,6 +31,23 @@ export const SUGGESTION_WEIGHTS = {
 
   /** Hard floor for the recency multiplier, so old plays never reach zero. */
   minRecencyMultiplier: 0.1,
+
+  /**
+   * Baseline for a track reached through a real source (a similar-track lookup
+   * or a search on an artist the user plays) but with no direct affinity of its
+   * own. Without it every candidate scored 0 and was discarded, so the section
+   * stayed empty however much the user played.
+   */
+  discoveryBaseline: 1.0,
+
+  /** Bonus when the candidate comes from the artist of the seed track. */
+  seedArtistBoost: 2.5,
+
+  /** How many distinct artists are searched when building a discovery pool. */
+  maxSeedArtists: 3,
+
+  /** How many recent tracks are asked for similar-track recommendations. */
+  maxSimilarSeeds: 3,
 } as const;
 
 export const AUTO_QUEUE_MIN_REMAINING = 3;

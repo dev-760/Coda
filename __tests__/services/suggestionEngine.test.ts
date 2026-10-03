@@ -3,6 +3,8 @@ import { useListeningStore, SKIP_THRESHOLD_MS } from '../../src/store/listeningS
 import { useLibraryStore } from '../../src/store/libraryStore';
 import { useDownloadStore } from '../../src/downloads/downloadStore';
 import { getSuggestions, clearSuggestionCache } from '../../src/services/suggestionEngine';
+import * as catalogService from '../../src/services/catalogService';
+import * as registry from '../../src/providers/registry';
 import { Track } from '../../src/providers/types';
 
 jest.mock('@react-native-async-storage/async-storage', () =>
@@ -18,11 +20,19 @@ jest.mock('expo-network', () => ({
 }));
 
 jest.mock('../../src/providers/registry', () => ({
-  getActiveProvider: () => ({
+  getActiveProvider: jest.fn(() => ({
     search: jest.fn(async () => []),
     getStreamInfo: jest.fn(),
-  }),
+  })),
 }));
+
+const setOnline = (online: boolean) => {
+  const network = jest.requireMock('expo-network');
+  network.getNetworkStateAsync.mockResolvedValueOnce({
+    isInternetReachable: online,
+    type: online ? 'WIFI' : 'NONE',
+  });
+};
 
 const track = (id: string, artist: string, album?: string): Track => ({
   id,
@@ -67,6 +77,56 @@ describe('suggestionEngine', () => {
 
     it('reports that there is no history', () => {
       expect(useListeningStore.getState().hasHistory()).toBe(false);
+    });
+  });
+
+  describe('discovery from listening history', () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('suggests similar tracks once the user has played something', async () => {
+      const played = track('played', 'Alpha');
+      listen([played]);
+      useLibraryStore.setState({ recentlyPlayed: [played] });
+
+      jest
+        .spyOn(catalogService, 'getTrackRecommendations')
+        .mockResolvedValue([track('similar-1', 'Beta'), track('similar-2', 'Gamma')]);
+
+      setOnline(true);
+      const results = await getSuggestions(null, 10);
+
+      expect(results.map((r) => r.track.id)).toEqual(
+        expect.arrayContaining(['similar-1', 'similar-2']),
+      );
+      expect(catalogService.getTrackRecommendations).toHaveBeenCalledWith('played', 20);
+    });
+
+    it('searches an artist the user actually completed instead of an empty term', async () => {
+      const played = track('played', 'Alpha');
+      listen([played]);
+      useLibraryStore.setState({ recentlyPlayed: [played] });
+
+      const search = jest.fn(async () => [track('found', 'Delta')]);
+      (registry.getActiveProvider as jest.Mock).mockReturnValueOnce({
+        search,
+        getStreamInfo: jest.fn(),
+      });
+      jest.spyOn(catalogService, 'getTrackRecommendations').mockResolvedValue([]);
+
+      setOnline(true);
+      const results = await getSuggestions(null, 10);
+
+      expect(search).toHaveBeenCalledWith('Alpha');
+      expect(search).not.toHaveBeenCalledWith('');
+      expect(results.map((r) => r.track.id)).toContain('found');
+    });
+
+    it('still returns nothing with no history and no library', async () => {
+      jest.spyOn(catalogService, 'getTrackRecommendations').mockResolvedValue([]);
+      setOnline(true);
+      expect(await getSuggestions(null)).toEqual([]);
     });
   });
 
