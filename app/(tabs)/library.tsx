@@ -193,11 +193,11 @@ export default function LibraryScreen() {
         {/* Offline mode */}
         <View style={s.offlineRow}>
           <View style={s.offlineIcon}>
-            <Icon name="checkmark" size={18} color={colors.onSurface} />
+            <Icon name="cloud-offline-outline" size={18} color={colors.onSurface} />
           </View>
           <View style={s.offlineMeta}>
             <Text style={s.offlineTitle}>Offline Mode</Text>
-            <Text style={s.offlineBody}>Downloaded &amp; ready without data</Text>
+            <Text style={s.offlineBody}>Only play downloaded music</Text>
           </View>
           <Toggle
             value={offlineOnly}
@@ -209,9 +209,9 @@ export default function LibraryScreen() {
         {/* Curations */}
         <View style={s.block}>
           <View style={s.blockHeader}>
-            <Text style={s.blockTitle}>Curations</Text>
+            <Text style={s.blockTitle}>Playlists</Text>
             <Text style={s.blockCount}>
-              {playlists.length} {playlists.length === 1 ? 'PINNED' : 'PINNED'} / RECENT
+              {playlists.length} {playlists.length === 1 ? 'playlist' : 'playlists'}
             </Text>
           </View>
 
@@ -270,23 +270,21 @@ export default function LibraryScreen() {
           )}
         </View>
 
-        {/* Recent tracks */}
+        {/* Favorite tracks */}
         <View style={s.block}>
           <View style={s.blockHeader}>
-            <View style={s.blockHeaderText}>
-              <Text style={s.blockTitle}>Recent Tracks</Text>
-              <View style={s.offlineDot} />
-              <Text style={s.blockLabel}>OFFLINE CACHED</Text>
-            </View>
-            <Pressable
-              onPress={() => setView('tracks')}
-              hitSlop={10}
-              style={({ pressed }) => [s.blockAction, pressed && s.pressed]}
-              accessibilityRole="button"
-              accessibilityLabel="View all favorite tracks"
-            >
-              <Text style={s.blockCount}>VIEW ALL</Text>
-            </Pressable>
+            <Text style={s.blockTitle}>Favorite Tracks</Text>
+            {favorites.length > 0 && (
+              <Pressable
+                onPress={() => setView('tracks')}
+                hitSlop={10}
+                style={({ pressed }) => [s.blockAction, pressed && s.pressed]}
+                accessibilityRole="button"
+                accessibilityLabel="View all favorite tracks"
+              >
+                <Text style={s.blockCount}>VIEW ALL</Text>
+              </Pressable>
+            )}
           </View>
 
           {favorites.length === 0 ? (

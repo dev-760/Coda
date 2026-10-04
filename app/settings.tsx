@@ -1,23 +1,19 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import Icon from '../src/components/ui/Icon';
 import { Toggle } from '../src/components/ui/primitives';
 import { useSettingsStore, DownloadQuality } from '../src/store/settingsStore';
 import { useListeningStore } from '../src/store/listeningStore';
 import { useDownloadStore } from '../src/downloads/downloadStore';
+import { downloadStorage } from '../src/downloads/downloadStorage';
 import { autoQueueService } from '../src/services/autoQueueService';
 import { audioService } from '../src/audio/AudioService';
+import { useResponsive } from '../src/hooks/useResponsive';
 import { formatBytes } from '../src/utils/formatting';
 import { colors, r, t } from '../src/theme/theme';
 import { APP_VERSION } from '../src/version';
-
-/**
- * Settings, grouped into numbered sections.
- *
- * The numbering in each section header (01 // SYS, 02 // CACHE) is a reading
- * aid rather than decoration: it makes the sections skimmable in a long list
- * and keeps the order stable as options are added.
- */
 
 /** Streaming quality options, keyed by what the API expects. */
 const STREAM_QUALITIES = [
@@ -45,9 +41,25 @@ const SLEEP_OPTIONS: { value: number | 'end'; label: string }[] = [
 const SPEED_OPTIONS = [0.75, 1, 1.25, 1.5, 2] as const;
 
 export default function SettingsScreen() {
+  const router = useRouter();
+  const { bottomBarClearance } = useResponsive();
   const settings = useSettingsStore();
   const downloads = useDownloadStore((state) => state.downloads);
   const deleteAllDownloads = useDownloadStore((state) => state.deleteAllDownloads);
+
+  const [freeStorageBytes, setFreeStorageBytes] = useState<number | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    void downloadStorage.getFreeStorageBytes().then((bytes) => {
+      if (active && bytes > 0) {
+        setFreeStorageBytes(bytes);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const totalBytes = useMemo(
     () => downloads.reduce((sum, item) => sum + (item.downloadedBytes || 0), 0),
@@ -62,37 +74,52 @@ export default function SettingsScreen() {
     [downloads],
   );
 
-  /** Storage is reported against a fixed ceiling; the OS total is not exposed. */
-  const STORAGE_CEILING_GB = 54;
   const usedGb = totalBytes / 1_000_000_000;
-  const usedPercent = Math.min(1, usedGb / STORAGE_CEILING_GB);
-  const freeGb = Math.max(0, STORAGE_CEILING_GB - usedGb);
+  const freeGb = freeStorageBytes !== null ? freeStorageBytes / 1_000_000_000 : null;
+  const totalCapacityGb = freeStorageBytes !== null ? (totalBytes + freeStorageBytes) / 1_000_000_000 : null;
+  const usedPercent = totalCapacityGb && totalCapacityGb > 0
+    ? Math.min(1, usedGb / totalCapacityGb)
+    : 0;
 
   const setSleep = (value: number | 'end') => {
     settings.setSleepTimerEnabled(true);
     settings.setSleepTimerDuration(value);
   };
 
-    /** Persists the rate and applies it to the running player. */
-    const setSpeed = async (value: number) => {
-      try {
-        await audioService.setPlaybackSpeed(value);
-      } catch (error) {
-        console.warn('Could not apply playback speed', error);
-      }
-    };
+  const setSpeed = async (value: number) => {
+    try {
+      await audioService.setPlaybackSpeed(value);
+    } catch (error) {
+      console.warn('Could not apply playback speed', error);
+    }
+  };
 
   return (
     <SafeAreaView style={s.container} edges={['top']}>
-      <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
-        {/* 1. Playback and audio */}
+      {/* Top Header with Back button for safe navigation */}
+      <View style={s.header}>
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={12}
+          style={({ pressed }) => [s.headerButton, pressed && s.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+        >
+          <Icon name="chevron-back" size={24} color={colors.onSurface} />
+        </Pressable>
+        <Text style={s.headerTitle}>Settings</Text>
+        <View style={s.headerPlaceholder} />
+      </View>
+
+      <ScrollView contentContainerStyle={[s.content, { paddingBottom: bottomBarClearance }]} showsVerticalScrollIndicator={false}>
+        {/* Playback and audio */}
         <View style={s.sectionHeader}>
           <Text style={s.sectionTitle}>PLAYBACK &amp; AUDIO</Text>
         </View>
 
         <View style={s.card}>
-          <Text style={s.cardLabel}>Audio Quality</Text>
-          <Text style={s.cardHint}>Select fidelity for cellular and broadband listening.</Text>
+          <Text style={s.cardLabel}>Streaming Quality</Text>
+          <Text style={s.cardHint}>Select fidelity for streaming audio.</Text>
           <View style={s.segmentRow}>
             {STREAM_QUALITIES.map((option) => {
               const selected = settings.audio.hifiAudioQuality === option.value;
@@ -126,7 +153,7 @@ export default function SettingsScreen() {
         <View style={s.rowBlock}>
           <View style={s.rowText}>
             <Text style={s.rowLabel}>Auto-Queue</Text>
-            <Text style={s.rowHint}>Keep playing similar tracks when music ends</Text>
+            <Text style={s.rowHint}>Keep playing similar tracks when queue ends</Text>
           </View>
           <Toggle
             value={useListeningStore.getState().autoQueueEnabled}
@@ -143,7 +170,7 @@ export default function SettingsScreen() {
         <View style={s.rowBlock}>
           <View style={s.rowText}>
             <Text style={s.rowLabel}>Sleep Timer</Text>
-            <Text style={s.rowHint}>Fade out playback gently</Text>
+            <Text style={s.rowHint}>Fade out playback automatically</Text>
           </View>
           <View style={s.sleepRow}>
             {SLEEP_OPTIONS.map((option) => {
@@ -154,6 +181,7 @@ export default function SettingsScreen() {
                 <Pressable
                   key={String(option.value)}
                   onPress={() => setSleep(option.value)}
+                  hitSlop={4}
                   style={({ pressed }) => [
                     s.sleepPill,
                     selected && s.sleepPillActive,
@@ -172,46 +200,47 @@ export default function SettingsScreen() {
 
         <View style={s.divider} />
 
-                <View style={s.rowBlock}>
-                  <View style={s.rowText}>
-                    <Text style={s.rowLabel}>Playback Speed</Text>
-                    <Text style={s.rowHint}>Pitch is corrected to the original key</Text>
-        </View>
-                  <View style={s.sleepRow}>
-                    {SPEED_OPTIONS.map((speed) => {
-                      const selected = settings.audio.playbackSpeed === speed;
-                      return (
-                        <Pressable
-                          key={speed}
-                          onPress={() => setSpeed(speed)}
-                          style={({ pressed }) => [
-                            s.sleepPill,
-                            selected && s.sleepPillActive,
-                            pressed && !selected && s.pressed,
-                          ]}
-                          accessibilityRole="radio"
+        <View style={s.rowBlock}>
+          <View style={s.rowText}>
+            <Text style={s.rowLabel}>Playback Speed</Text>
+            <Text style={s.rowHint}>Pitch is corrected to the original key</Text>
+          </View>
+          <View style={s.sleepRow}>
+            {SPEED_OPTIONS.map((speed) => {
+              const selected = settings.audio.playbackSpeed === speed;
+              return (
+                <Pressable
+                  key={speed}
+                  onPress={() => setSpeed(speed)}
+                  hitSlop={4}
+                  style={({ pressed }) => [
+                    s.sleepPill,
+                    selected && s.sleepPillActive,
+                    pressed && !selected && s.pressed,
+                  ]}
+                  accessibilityRole="radio"
                   accessibilityState={{ checked: selected }}
-                          accessibilityLabel={`Playback speed ${speed} times`}
-                        >
-                          <Text style={[s.sleepText, selected && s.sleepTextActive]}>
-                            {speed}×
-                          </Text>
-                        </Pressable>
-                      );
-                    })}
+                  accessibilityLabel={`Playback speed ${speed} times`}
+                >
+                  <Text style={[s.sleepText, selected && s.sleepTextActive]}>
+                    {speed}×
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
         </View>
-                </View>
 
-                <View style={s.divider} />
+        <View style={s.divider} />
 
-                {/* 2. Downloads and offline */}
+        {/* Downloads and offline */}
         <View style={s.sectionHeader}>
           <Text style={s.sectionTitle}>DOWNLOADS &amp; OFFLINE</Text>
         </View>
 
         <View style={s.card}>
           <Text style={s.cardLabel}>Download Quality</Text>
-          <Text style={s.cardHint}>Hi-Res formats consume significantly more memory.</Text>
+          <Text style={s.cardHint}>Higher fidelity requires more storage space.</Text>
           <View style={s.radioGroup}>
             {DOWNLOAD_QUALITY_OPTIONS.map((quality) => {
               const selected = settings.downloadQuality === quality;
@@ -232,10 +261,10 @@ export default function SettingsScreen() {
                   <View style={s.radioText}>
                     <Text style={s.radioName}>{meta.name}</Text>
                     <Text style={s.radioDetail}>{meta.detail}</Text>
-        </View>
+                  </View>
                   <View style={[s.radioDot, selected && s.radioDotActive]}>
                     {selected && <View style={s.radioInner} />}
-        </View>
+                  </View>
                 </Pressable>
               );
             })}
@@ -246,7 +275,7 @@ export default function SettingsScreen() {
           <View style={s.rowBlock}>
             <View style={s.rowText}>
               <Text style={s.rowLabel}>Download over Wi-Fi only</Text>
-              <Text style={s.rowHint}>Preserve cellular bandwidth while archiving</Text>
+              <Text style={s.rowHint}>Conserve cellular data while downloading</Text>
             </View>
             <Toggle
               value={settings.downloadWifiOnly}
@@ -256,7 +285,7 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* 3. Storage */}
+        {/* Storage */}
         <View style={s.sectionHeader}>
           <Text style={s.sectionTitle}>STORAGE</Text>
         </View>
@@ -266,34 +295,38 @@ export default function SettingsScreen() {
             <View style={s.rowText}>
               <Text style={s.rowLabel}>Storage Used</Text>
               <Text style={s.rowHint}>
-                {usedGb.toFixed(1)} GB TOTAL DETECTED
+                {formatBytes(totalBytes)} music stored
                 {failedCount > 0 ? ` • ${failedCount} failed` : ''}
               </Text>
             </View>
             <Text style={s.storageValue}>
-              {usedGb.toFixed(1)} <Text style={s.storageUnit}>/ {STORAGE_CEILING_GB} GB</Text>
+              {usedGb < 0.1 ? `${(totalBytes / 1_000_000).toFixed(0)} MB` : `${usedGb.toFixed(1)} GB`}
+              {totalCapacityGb !== null && (
+                <Text style={s.storageUnit}> / {totalCapacityGb.toFixed(0)} GB</Text>
+              )}
             </Text>
           </View>
 
-          <View style={s.meterTrack}>
-            <View style={[s.meterFill, { width: `${usedPercent * 100}%` }]} />
-          </View>
+          {totalCapacityGb !== null && (
+            <View style={s.meterTrack}>
+              <View style={[s.meterFill, { width: `${Math.max(1, usedPercent * 100)}%` }]} />
+            </View>
+          )}
 
           <View style={s.statRow}>
             <View style={s.statCell}>
-              <View style={s.statDot} />
               <Text style={s.statLabel}>AUDIO</Text>
-              <Text style={s.statValue}>{usedGb.toFixed(1)} GB</Text>
+              <Text style={s.statValue}>{formatBytes(totalBytes)}</Text>
             </View>
             <View style={s.statCell}>
-              <View style={s.statDot} />
               <Text style={s.statLabel}>TRACKS</Text>
               <Text style={s.statValue}>{completedCount}</Text>
             </View>
             <View style={s.statCell}>
-              <View style={[s.statDot, s.statDotMuted]} />
               <Text style={s.statLabel}>FREE SPACE</Text>
-              <Text style={s.statValue}>{freeGb.toFixed(1)} GB</Text>
+              <Text style={s.statValue}>
+                {freeGb !== null ? `${freeGb.toFixed(1)} GB` : 'Available'}
+              </Text>
             </View>
           </View>
 
@@ -301,14 +334,15 @@ export default function SettingsScreen() {
 
           <View style={s.rowBlock}>
             <View style={s.rowText}>
-              <Text style={s.rowLabel}>Offline Temp Cache</Text>
-              <Text style={s.rowHint}>Artwork, waveforms &amp; pre-buffers</Text>
+              <Text style={s.rowLabel}>Downloads &amp; Temp Cache</Text>
+              <Text style={s.rowHint}>Downloaded audio files and artwork cache</Text>
             </View>
             <Pressable
               onPress={deleteAllDownloads}
+              hitSlop={8}
               style={({ pressed }) => [s.cacheButton, pressed && s.pressed]}
               accessibilityRole="button"
-              accessibilityLabel="Clear cache"
+              accessibilityLabel="Clear downloaded files"
             >
               <Text style={s.cacheText}>Clear{'\n'}Cache</Text>
               <Text style={s.cacheSize}>{formatBytes(totalBytes)}</Text>
@@ -331,23 +365,43 @@ const s = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  headerButton: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    ...t.title,
+    color: colors.onSurface,
+  },
+  headerPlaceholder: {
+    width: 44,
+  },
   pressed: {
     opacity: 0.7,
   },
   content: {
     paddingHorizontal: 16,
     paddingTop: 8,
-    paddingBottom: 144,
     gap: 16,
   },
 
   sectionHeader: {
-      marginTop: 8,
-    },
-    sectionTitle: {
-      ...t.title,
-      color: colors.onSurface,
-    },
+    marginTop: 8,
+  },
+  sectionTitle: {
+    ...t.labelSm,
+    color: colors.outlineText,
+    letterSpacing: 0.8,
+  },
 
   card: {
     padding: 14,
@@ -362,7 +416,7 @@ const s = StyleSheet.create({
   cardHint: {
     ...t.bodySm,
     color: colors.outlineText,
-    marginTop: -6,
+    marginTop: -4,
   },
 
   segmentRow: {
@@ -375,7 +429,9 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 2,
-    paddingVertical: 10,
+    minHeight: 44,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
     borderRadius: r.md,
     backgroundColor: colors.surfaceContainerLow,
   },
@@ -407,7 +463,8 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingVertical: 10,
+    paddingVertical: 8,
+    minHeight: 44,
   },
   rowText: {
     flex: 1,
@@ -429,7 +486,7 @@ const s = StyleSheet.create({
   },
   sleepPill: {
     paddingHorizontal: 12,
-    height: 32,
+    minHeight: 36,
     justifyContent: 'center',
     borderRadius: r.pill,
     backgroundColor: colors.surfaceContainerLow,
@@ -453,6 +510,7 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    minHeight: 48,
     padding: 12,
     borderRadius: r.md,
     backgroundColor: colors.surfaceContainer,
@@ -523,15 +581,6 @@ const s = StyleSheet.create({
     borderRadius: r.md,
     backgroundColor: colors.surfaceContainer,
   },
-  statDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.onSurface,
-  },
-  statDotMuted: {
-    backgroundColor: colors.surfaceContainerHighest,
-  },
   statLabel: {
     ...t.micro,
     color: colors.outlineText,
@@ -546,7 +595,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     paddingHorizontal: 14,
-    paddingVertical: 8,
+    minHeight: 44,
     borderRadius: r.pill,
     backgroundColor: colors.surfaceContainerHigh,
   },
