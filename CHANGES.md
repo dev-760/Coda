@@ -185,3 +185,5 @@ npm test            # 12 test suites passed, 137 / 137 tests passed
 - [x] **Now Playing & Scrubber:** Open Now Playing. When idle, verify timecode shows `0:00 / 0:00`. Start playback, tap anywhere on the scrubber bar to seek to that position.
 - [x] **Queue Reordering & Tiers:** Add tracks to queue. Verify user-added tracks sit in "Up Next" above the album/playlist context tracks. Remove a track and verify feedback.
 - [x] **Settings & Back Button:** Open Settings. Verify real detected storage numbers. Verify Back button returns to the previous screen. Toggle audio quality and verify selection persists.
+- [x] **Android Media Playback & Controls:** Background audio enabled via `expo-audio` config plugin (`enableBackgroundPlayback: true`) with `FOREGROUND_SERVICE_MEDIA_PLAYBACK` permission and `interruptionMode: 'doNotMix'`.
+- [x] **Android System UI & Gestures:** Status bar themed to `#131316` via `androidStatusBar` and `<StatusBar backgroundColor={colors.surface} />`. Predictive back gesture enabled (`predictiveBackGestureEnabled: true`) with `onRequestClose` listeners on all modals. `versionCode` bumped to `42`.
