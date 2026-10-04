@@ -42,10 +42,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     backgroundColor: '#131316', // Android splash background
     predictiveBackGestureEnabled: true,
   },
-  androidStatusBar: {
-    barStyle: 'light-content',
-    backgroundColor: '#131316',
-  },
   web: {
     output: 'static',
     backgroundColor: '#131316', // Web background
@@ -72,16 +68,16 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'expo-font',
       {
         fonts: [
-          'node_modules/@expo-google-fonts/geist/Geist_400Regular.ttf',
-          'node_modules/@expo-google-fonts/geist/Geist_500Medium.ttf',
-          'node_modules/@expo-google-fonts/geist/Geist_600SemiBold.ttf',
-          'node_modules/@expo-google-fonts/geist/Geist_700Bold.ttf',
-          'node_modules/@expo-google-fonts/inter/Inter_400Regular.ttf',
-          'node_modules/@expo-google-fonts/inter/Inter_500Medium.ttf',
-          'node_modules/@expo-google-fonts/inter/Inter_600SemiBold.ttf',
-          'node_modules/@expo-google-fonts/inter/Inter_700Bold.ttf'
-        ]
-      }
+          'node_modules/@expo-google-fonts/geist/400Regular/Geist_400Regular.ttf',
+          'node_modules/@expo-google-fonts/geist/500Medium/Geist_500Medium.ttf',
+          'node_modules/@expo-google-fonts/geist/600SemiBold/Geist_600SemiBold.ttf',
+          'node_modules/@expo-google-fonts/geist/700Bold/Geist_700Bold.ttf',
+          'node_modules/@expo-google-fonts/inter/400Regular/Inter_400Regular.ttf',
+          'node_modules/@expo-google-fonts/inter/500Medium/Inter_500Medium.ttf',
+          'node_modules/@expo-google-fonts/inter/600SemiBold/Inter_600SemiBold.ttf',
+          'node_modules/@expo-google-fonts/inter/700Bold/Inter_700Bold.ttf',
+        ],
+      },
     ],
     [
       'expo-build-properties',
