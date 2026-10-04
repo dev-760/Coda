@@ -23,59 +23,45 @@ import { useLibraryStore } from '../../src/store/libraryStore';
 import { cacheTracks, useQueueStore } from '../../src/store/queueStore';
 import { colors, FONTS, r, t } from '../../src/theme/theme';
 
-/**
- * Explore is three surfaces: a browse landing page, live suggestions while the
- * user types, and committed results.
- *
- * Browsing and searching are kept visually distinct so the landing page reads
- * as a front door to curation rather than a search box with buttons under it.
- */
-
-/** Curated editions shown on the landing page. */
-
-/**
- * Genre tiles for the taxonomy grid. Each carries the small taxonomy label set
- * above its name, and the sector number it is filed under.
- */
-const GENRES = [
-  { sector: '01', tag: 'RHYTHM', name: 'ELECTRONIC & CLUB' },
-  { sector: '02', tag: 'SPACE', name: 'DARK AMBIENT & DRONE' },
-  { sector: '03', tag: 'ACOUSTIC', name: 'MODERN CLASSICAL' },
-  { sector: '04', tag: 'RAW', name: 'POST-PUNK & INDUSTRIAL' },
-  { sector: '05', tag: 'ECHO', name: 'DUB TECHNO' },
-  { sector: '06', tag: 'DESTRUCT', name: 'EXPERIMENTAL & GLITCH' },
-  { sector: '07', tag: 'ORGANIC', name: 'FIELD RECORDINGS' },
-  { sector: '08', tag: 'SHADOW', name: 'JAZZ NOIR' },
+/** Genuine genre categories that map directly to search queries. */
+const BROWSE_GENRES = [
+  { name: 'Electronic', query: 'Electronic' },
+  { name: 'Ambient & Drone', query: 'Ambient' },
+  { name: 'Classical', query: 'Classical' },
+  { name: 'Jazz & Noir', query: 'Jazz' },
+  { name: 'Rock & Alternative', query: 'Rock' },
+  { name: 'Hip-Hop & Rap', query: 'Hip-Hop' },
+  { name: 'Post-Punk & Industrial', query: 'Post-Punk' },
+  { name: 'Folk & Acoustic', query: 'Folk' },
+  { name: 'Metal & Heavy', query: 'Metal' },
+  { name: 'Soundtracks & Score', query: 'Soundtrack' },
 ] as const;
 
-/** Curated editorial entries. */
-const CURATIONS = [
+/** Honest curated style seeds without fictional runtimes or track counts. */
+const EXPLORE_STYLES = [
   {
-    id: 'spatial-states',
-    code: 'ARCH.01',
-    title: 'Late Night Architecture',
-    blurb: 'Skeletal sub-bass textures & cold reverbs designed for empty steel...',
-    count: '18 Tracks',
-    runtime: '1h 42m',
-    seed: 'Late Night Architecture',
+    id: 'ambient-drone',
+    title: 'Ambient & Deep Drone',
+    blurb: 'Atmospheric textures, modular soundscapes and slow synth beds',
+    query: 'Ambient Drone',
   },
   {
-    id: 'transit',
-    code: 'TRANSIT.09',
-    title: 'Cold Winter Corridor',
-    blurb: 'Glacial drones, rhythmic pulses and muted sub-zero fields.',
-    count: '24 Tracks',
-    runtime: '2h 11m',
-    seed: 'Cold Winter Corridor',
+    id: 'lofi-downtempo',
+    title: 'Lo-Fi & Downtempo',
+    blurb: 'Tape-warm beats, gentle Rhodes chords and relaxed rhythms',
+    query: 'Lo-Fi Downtempo',
   },
   {
-    id: 'descent',
-    code: 'DESC.14',
-    title: 'Descent Into Static',
-    blurb: 'Slow-burn noise, bowed metal and degraded tape loops.',
-    count: '12 Tracks',
-    runtime: '58m',
-    seed: 'Descent Into Static',
+    id: 'modern-classical',
+    title: 'Modern Classical',
+    blurb: 'Acoustic piano, chamber strings and contemporary minimalism',
+    query: 'Modern Classical',
+  },
+  {
+    id: 'techno-dub',
+    title: 'Dub Techno & Club',
+    blurb: 'Echoed chords, filtered percussion and late-night movement',
+    query: 'Dub Techno',
   },
 ] as const;
 
@@ -97,7 +83,6 @@ function formatDuration(durationMs: number): string {
   return `${minutes}:${seconds}`;
 }
 
-/** Per-tab counts, shown on the filter pills so an empty tab is explained. */
 function countLabel(tab: SearchTab, results: Results): string {
   switch (tab) {
     case 'Tracks':
@@ -115,7 +100,7 @@ export default function SearchScreen() {
   const router = useRouter();
   const { bottomBarClearance } = useResponsive();
   const inputRef = useRef<TextInput>(null);
-  const { searchHistory, addToSearchHistory } = useLibraryStore();
+  const { searchHistory, addToSearchHistory, clearSearchHistory } = useLibraryStore();
 
   const [query, setQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
@@ -131,7 +116,6 @@ export default function SearchScreen() {
     let active = true;
 
     if (!term) {
-      // Deferred so this is not a synchronous setState in the effect body.
       const timer = setTimeout(() => {
         if (!active) return;
         setResults(EMPTY_RESULTS);
@@ -154,8 +138,6 @@ export default function SearchScreen() {
         if (!active) return;
         setResults(data);
       } catch {
-        // An aborted request was superseded by a newer term, so it must not
-        // surface as a failure to the user.
         if (active && !controller.signal.aborted) {
           setResults(EMPTY_RESULTS);
           setError('Search failed. Check your connection and try again.');
@@ -168,8 +150,6 @@ export default function SearchScreen() {
     return () => {
       active = false;
       clearTimeout(timer);
-      // Cancels the in-flight request so a fast typist does not keep every
-      // superseded term's responses alive on the connection.
       controller.abort();
     };
   }, [query]);
@@ -177,8 +157,10 @@ export default function SearchScreen() {
   const handleSubmitSearch = (searchTerm?: string) => {
     const term = (searchTerm || query).trim();
     if (term) {
-      addToSearchHistory(term);
+      void addToSearchHistory(term);
       setHasSubmitted(true);
+      setIsSearching(false);
+      inputRef.current?.blur();
     }
   };
 
@@ -189,10 +171,6 @@ export default function SearchScreen() {
     inputRef.current?.blur();
   };
 
-  /**
-   * Re-runs the current query. The debounce keys off `query`, so the term is
-   * nudged through an empty value to restart it, then restored.
-   */
   const handleRetry = () => {
     const term = query.trim();
     if (!term) return;
@@ -200,12 +178,11 @@ export default function SearchScreen() {
     setTimeout(() => setQuery(term), 0);
   };
 
-  /** Runs a term straight from the browse page, skipping the type-then-submit. */
   const runSearch = (term: string) => {
     setQuery(term);
     setIsSearching(false);
     setHasSubmitted(true);
-    addToSearchHistory(term);
+    void addToSearchHistory(term);
   };
 
   const playOne = (track: Track) => {
@@ -254,7 +231,6 @@ export default function SearchScreen() {
     results.tracks.length > 0 || results.artists.length > 0 || results.albums.length > 0;
   const hasLiveResults = hasAnyResults && query.trim().length > 0;
 
-  /** Explains why a tab that has no rows is on screen. */
   const emptyTabCopy: Record<SearchTab, string> = {
     Top: 'No results for this search. Try another spelling or a different term.',
     Tracks: 'No matching tracks.',
@@ -262,40 +238,48 @@ export default function SearchScreen() {
     Albums: 'No matching albums.',
   };
 
-  /** Browse landing page. */
   const renderLanding = () => (
     <ScrollView
       contentContainerStyle={[s.content, { paddingBottom: bottomBarClearance }]}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={s.pageTitle}>Explore</Text>
+      {searchHistory.length > 0 && (
+        <View style={s.block}>
+          <View style={s.blockHeader}>
+            <Text style={s.blockTitle}>Recent Searches</Text>
+            <Pressable
+              onPress={() => void clearSearchHistory()}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel="Clear recent searches"
+            >
+              <Text style={s.clearText}>Clear</Text>
+            </Pressable>
+          </View>
+          <View style={s.tagWrap}>
+            {searchHistory.map((item) => (
+              <Pressable
+                key={item}
+                onPress={() => runSearch(item)}
+                style={({ pressed }) => [s.tag, pressed && s.pressed]}
+                accessibilityRole="button"
+                accessibilityLabel={`Search ${item}`}
+              >
+                <Text style={s.tagText}>{item}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      )}
 
-      <Pressable
-        style={s.searchBar}
-        onPress={() => {
-          setIsSearching(true);
-          setTimeout(() => inputRef.current?.focus(), 50);
-        }}
-        accessibilityRole="search"
-        accessibilityLabel={SEARCH_PLACEHOLDER}
-      >
-        <Icon name="search" size={18} color={colors.outlineText} />
-        <Text style={s.searchPlaceholder} numberOfLines={1}>
-          {SEARCH_PLACEHOLDER}
-        </Text>
-      </Pressable>
-
-      {/* Curated editions */}
+      {/* Curated style seeds */}
       <View style={s.block}>
         <View style={s.blockHeader}>
           <View style={s.blockHeaderText}>
-            <Text style={s.blockLabel}>CURATED EDITIONS</Text>
-            <Text style={s.blockTitle}>Spatial States</Text>
+            <Text style={s.blockLabel}>EXPLORE STYLES</Text>
+            <Text style={s.blockTitle}>Curated Aesthetics</Text>
           </View>
-          <Text style={s.blockCount}>
-            {String(CURATIONS.length).padStart(2, '0')} Curations
-          </Text>
         </View>
 
         <ScrollView
@@ -303,62 +287,49 @@ export default function SearchScreen() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={s.rail}
         >
-          {CURATIONS.map((item) => (
+          {EXPLORE_STYLES.map((item) => (
             <Pressable
               key={item.id}
-              onPress={() => runSearch(item.seed)}
-              style={({ pressed }) => [s.curationCard, pressed && s.pressed]}
+              onPress={() => runSearch(item.query)}
+              style={({ pressed }) => [s.styleCard, pressed && s.pressed]}
               accessibilityRole="button"
-              accessibilityLabel={`${item.title}, ${item.count}`}
+              accessibilityLabel={`${item.title}. Search style.`}
             >
-              <View style={s.curationArtWrap}>
-                <View style={s.curationArtFallback}>
-                  <Text style={s.curationCode}>{item.code}</Text>
-                </View>
-                <View style={s.curationCodeBadge}>
-                  <Text style={s.curationCodeBadgeText}>{item.code}</Text>
+              <View style={s.styleCardHeader}>
+                <Text style={s.styleCardTitle}>{item.title}</Text>
+                <View style={s.styleSearchBadge}>
+                  <Icon name="search" size={13} color={colors.onSurface} />
                 </View>
               </View>
-              <Text style={s.curationTitle} numberOfLines={2}>{item.title}</Text>
-              <Text style={s.curationBlurb} numberOfLines={2}>{item.blurb}</Text>
-              <View style={s.curationFooter}>
-                <Text style={s.curationMeta}>
-                  {item.count} • {item.runtime}
-                </Text>
-                <View style={s.curationPlay}>
-                  <Icon name="play" size={12} color={colors.onPrimary} />
-                </View>
+              <Text style={s.styleCardBlurb} numberOfLines={2}>{item.blurb}</Text>
+              <View style={s.styleCardFooter}>
+                <Text style={s.styleCardSeed}>Search: {item.query}</Text>
               </View>
             </Pressable>
           ))}
         </ScrollView>
       </View>
 
-      {/* Genre taxonomy grid */}
+      {/* Genre grid */}
       <View style={s.block}>
         <View style={s.blockHeader}>
           <View style={s.blockHeaderText}>
-            <Text style={s.blockLabel}>ACOUSTIC TAXONOMY</Text>
-            <Text style={s.blockTitle}>Browse Genres</Text>
+            <Text style={s.blockLabel}>GENRES</Text>
+            <Text style={s.blockTitle}>Browse Catalog</Text>
           </View>
-          <Text style={s.blockCount}>{GENRES.length} Sectors</Text>
         </View>
 
         <View style={s.genreGrid}>
-          {GENRES.map((genre) => (
+          {BROWSE_GENRES.map((genre) => (
             <Pressable
-              key={genre.sector}
-              onPress={() => runSearch(genre.name)}
+              key={genre.query}
+              onPress={() => runSearch(genre.query)}
               style={({ pressed }) => [s.genreTile, pressed && s.pressed]}
               accessibilityRole="button"
               accessibilityLabel={`Browse ${genre.name}`}
             >
-              <View style={s.genreTop}>
-                <Text style={s.genreSector}>{genre.sector}</Text>
-                <Icon name="arrow-up-outline" size={14} color={colors.outlineText} />
-              </View>
-              <Text style={s.genreTag}>{genre.tag}</Text>
               <Text style={s.genreName} numberOfLines={2}>{genre.name}</Text>
+              <Icon name="chevron-forward" size={16} color={colors.outlineText} />
             </Pressable>
           ))}
         </View>
@@ -366,43 +337,17 @@ export default function SearchScreen() {
     </ScrollView>
   );
 
-  /** Live search, before the user commits a term. */
   const renderSuggestions = () => (
     <ScrollView
       contentContainerStyle={[s.content, { paddingBottom: bottomBarClearance }]}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
     >
-      <View style={s.searchInputRow}>
-        <View style={s.inputBox}>
-          <Icon name="search" size={18} color={colors.outlineText} />
-          <TextInput
-            ref={inputRef}
-            style={s.input}
-            placeholder={SEARCH_PLACEHOLDER}
-            placeholderTextColor={colors.outlineText}
-            value={query}
-            onChangeText={setQuery}
-            onSubmitEditing={() => handleSubmitSearch()}
-            returnKeyType="search"
-            autoFocus
-          />
-          {!!query && (
-            <Pressable onPress={() => setQuery('')} hitSlop={10} accessibilityLabel="Clear search">
-              <Icon name="close-circle" size={18} color={colors.outline} />
-            </Pressable>
-          )}
-        </View>
-        <Pressable onPress={handleCancelSearch} hitSlop={8} accessibilityLabel="Cancel search">
-          <Text style={s.cancelText}>Cancel</Text>
-        </Pressable>
-      </View>
-
       {loading && <ActivityIndicator color={colors.onSurface} style={s.loader} />}
 
       {!loading && !hasLiveResults && searchHistory.length > 0 && (
         <View style={s.block}>
-          <Text style={s.blockLabel}>RECENT</Text>
+          <Text style={s.blockLabel}>RECENT SEARCHES</Text>
           <View style={s.tagWrap}>
             {searchHistory.map((item) => (
               <Pressable
@@ -419,7 +364,6 @@ export default function SearchScreen() {
         </View>
       )}
 
-      {/* Every kind is listed so the three live requests are all visible. */}
       {hasLiveResults && (
         <View style={s.block}>
           <Text style={s.blockLabel}>TOP RESULTS</Text>
@@ -443,13 +387,10 @@ export default function SearchScreen() {
             </Pressable>
           ))}
 
-          {results.tracks.slice(0, 3).map((track) => (
+          {results.tracks.slice(0, 4).map((track) => (
             <Pressable
               key={`t_${track.id}`}
-              onPress={() => {
-                playOne(track);
-                handleSubmitSearch();
-              }}
+              onPress={() => playOne(track)}
               style={({ pressed }) => [s.resultRow, pressed && s.pressed]}
               accessibilityRole="button"
               accessibilityLabel={`Play ${track.title} by ${track.artist}`}
@@ -457,62 +398,55 @@ export default function SearchScreen() {
               <CoverThumb uri={track.coverUrl} size={44} borderRadius={r.sm} style={s.resultArt} />
               <View style={s.resultMeta}>
                 <Text style={s.resultText} numberOfLines={1}>{track.title}</Text>
-                <Text style={s.resultSub} numberOfLines={1}>{track.artist}</Text>
+                <Text style={s.resultSub} numberOfLines={1}>
+                  {track.artist}
+                  {track.durationMs ? ` • ${formatDuration(track.durationMs)}` : ''}
+                </Text>
               </View>
-              <Icon name="play" size={14} color={colors.onSurface} />
+              <Icon name="play" size={14} color={colors.outlineText} />
             </Pressable>
           ))}
+
+          {results.albums.slice(0, 2).map((album) => (
+            <Pressable
+              key={`alb_${album.id}`}
+              onPress={() => openAlbum(album)}
+              style={({ pressed }) => [s.resultRow, pressed && s.pressed]}
+              accessibilityRole="button"
+              accessibilityLabel={`View album ${album.title} by ${album.artist}`}
+            >
+              <CoverThumb uri={album.cover} size={44} borderRadius={r.sm} style={s.resultArt} />
+              <View style={s.resultMeta}>
+                <Text style={s.resultText} numberOfLines={1}>{album.title}</Text>
+                <Text style={s.resultSub} numberOfLines={1}>
+                  {album.artist}
+                  {album.releaseDate ? ` • ${album.releaseDate.slice(0, 4)}` : ''}
+                </Text>
+              </View>
+              <Icon name="chevron-forward" size={16} color={colors.outline} />
+            </Pressable>
+          ))}
+
+          <Pressable
+            onPress={() => handleSubmitSearch()}
+            style={({ pressed }) => [s.viewAllResultsBtn, pressed && s.pressed]}
+            accessibilityRole="button"
+            accessibilityLabel="View all search results"
+          >
+            <Text style={s.viewAllResultsText}>See all results for &ldquo;{query}&rdquo;</Text>
+            <Icon name="arrow-forward" size={14} color={colors.onSurface} />
+          </Pressable>
         </View>
       )}
     </ScrollView>
   );
 
-  /** Committed search results, with per-kind tabs. */
   const renderResults = () => (
     <ScrollView
       contentContainerStyle={[s.content, { paddingBottom: bottomBarClearance }]}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
     >
-      <View style={s.searchInputRow}>
-        <Pressable
-          onPress={() => setHasSubmitted(false)}
-          style={s.circleBtn}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel="Back to explore"
-        >
-          <Icon name="chevron-back" size={20} color={colors.onSurface} />
-        </Pressable>
-        <View style={s.inputBox}>
-          <Icon name="search" size={18} color={colors.outlineText} />
-          <TextInput
-            style={s.input}
-            value={query}
-            onChangeText={(text) => {
-              setQuery(text);
-              if (!text.trim()) setHasSubmitted(false);
-            }}
-            placeholder={SEARCH_PLACEHOLDER}
-            placeholderTextColor={colors.outlineText}
-            onSubmitEditing={() => handleSubmitSearch()}
-            returnKeyType="search"
-          />
-          {!!query && (
-            <Pressable
-              onPress={() => {
-                setQuery('');
-                setHasSubmitted(false);
-              }}
-              hitSlop={10}
-              accessibilityLabel="Clear search"
-            >
-              <Icon name="close-circle" size={18} color={colors.outline} />
-            </Pressable>
-          )}
-        </View>
-      </View>
-
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.rail}>
         {(['Top', 'Tracks', 'Artists', 'Albums'] as const).map((tab) => {
           const isActive = activeTab === tab;
@@ -527,7 +461,7 @@ export default function SearchScreen() {
               accessibilityLabel={count ? `${tab}, ${count} results` : tab}
             >
               <Text style={[s.tabPillText, isActive && s.tabPillTextActive]}>{tab}</Text>
-              {!!count && <Text style={s.tabPillCount}>{count}</Text>}
+              {!!count && <Text style={[s.tabPillCount, isActive && s.tabPillCountActive]}>{count}</Text>}
             </Pressable>
           );
         })}
@@ -561,7 +495,7 @@ export default function SearchScreen() {
                   accessibilityLabel="Play all search tracks"
                 >
                   <Icon name="play" size={14} color={colors.onSurface} />
-                  <Text style={s.blockCount}>Play all</Text>
+                  <Text style={s.inlineActionText}>Play all</Text>
                 </Pressable>
               </View>
               {results.tracks.map((track) => (
@@ -575,7 +509,7 @@ export default function SearchScreen() {
                   >
                     <CoverThumb
                       uri={track.coverUrl}
-                      size={48}
+                      size={44}
                       borderRadius={r.sm}
                       style={s.resultArt}
                     />
@@ -590,7 +524,7 @@ export default function SearchScreen() {
                   </Pressable>
                   <Pressable
                     onPress={() => setOptionsTrack(track)}
-                    hitSlop={8}
+                    hitSlop={12}
                     style={s.rowMore}
                     accessibilityLabel={`More options for ${track.title}`}
                   >
@@ -616,10 +550,12 @@ export default function SearchScreen() {
                     <Image source={{ uri: artist.picture }} style={s.resultArtCircle} />
                   ) : (
                     <View style={[s.resultArtCircle, s.artFallback]}>
-                      <Icon name="person" size={16} color={colors.outlineText} />
+                      <Icon name="person" size={18} color={colors.outlineText} />
                     </View>
                   )}
-                  <Text style={s.resultText} numberOfLines={1}>{artist.name}</Text>
+                  <View style={s.resultMeta}>
+                    <Text style={s.resultText} numberOfLines={1}>{artist.name}</Text>
+                  </View>
                   <Icon name="chevron-forward" size={16} color={colors.outline} />
                 </Pressable>
               ))}
@@ -635,18 +571,20 @@ export default function SearchScreen() {
                   onPress={() => openAlbum(album)}
                   style={({ pressed }) => [s.resultRow, pressed && s.pressed]}
                   accessibilityRole="button"
-                  accessibilityLabel={`Open album ${album.title} by ${album.artist}`}
+                  accessibilityLabel={`View album ${album.title} by ${album.artist}`}
                 >
-                  {album.cover ? (
-                    <Image source={{ uri: album.cover }} style={s.resultArt} />
-                  ) : (
-                    <View style={[s.resultArt, s.artFallback]}>
-                      <Icon name="albums-outline" size={16} color={colors.outlineText} />
-                    </View>
-                  )}
+                  <CoverThumb
+                    uri={album.cover}
+                    size={44}
+                    borderRadius={r.sm}
+                    style={s.resultArt}
+                  />
                   <View style={s.resultMeta}>
                     <Text style={s.resultText} numberOfLines={1}>{album.title}</Text>
-                    <Text style={s.resultSub} numberOfLines={1}>{album.artist}</Text>
+                    <Text style={s.resultSub} numberOfLines={1}>
+                      {album.artist}
+                      {album.releaseDate ? ` • ${album.releaseDate.slice(0, 4)}` : ''}
+                    </Text>
                   </View>
                   <Icon name="chevron-forward" size={16} color={colors.outline} />
                 </Pressable>
@@ -660,8 +598,71 @@ export default function SearchScreen() {
 
   return (
     <SafeAreaView style={s.container} edges={['top']}>
-      {!isSearching && !hasSubmitted && renderLanding()}
-      {isSearching && !hasSubmitted && renderSuggestions()}
+      {/* Search Header: Persistent real TextInput on all platforms */}
+      <View style={s.headerContainer}>
+        {hasSubmitted && (
+          <Pressable
+            onPress={() => {
+              setHasSubmitted(false);
+              setIsSearching(false);
+            }}
+            style={s.circleBtn}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Back to search suggestions"
+          >
+            <Icon name="chevron-back" size={20} color={colors.onSurface} />
+          </Pressable>
+        )}
+        <View style={s.inputBox}>
+          <Icon name="search" size={18} color={colors.outlineText} />
+          <TextInput
+            ref={inputRef}
+            style={s.input}
+            placeholder={SEARCH_PLACEHOLDER}
+            placeholderTextColor={colors.outlineText}
+            value={query}
+            onChangeText={(text) => {
+              setQuery(text);
+              if (!text.trim()) {
+                setHasSubmitted(false);
+              }
+            }}
+            onFocus={() => setIsSearching(true)}
+            onSubmitEditing={() => handleSubmitSearch()}
+            returnKeyType="search"
+            accessibilityRole="search"
+            accessibilityLabel={SEARCH_PLACEHOLDER}
+          />
+          {!!query && (
+            <Pressable
+              onPress={() => {
+                setQuery('');
+                setHasSubmitted(false);
+              }}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel="Clear search"
+            >
+              <Icon name="close-circle" size={18} color={colors.outline} />
+            </Pressable>
+          )}
+        </View>
+        {(isSearching || query.length > 0) && !hasSubmitted && (
+          <Pressable
+            onPress={handleCancelSearch}
+            hitSlop={8}
+            style={s.cancelBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Cancel search"
+          >
+            <Text style={s.cancelText}>Cancel</Text>
+          </Pressable>
+        )}
+      </View>
+
+      {!query && !hasSubmitted && renderLanding()}
+      {query && !hasSubmitted && renderSuggestions()}
       {hasSubmitted && renderResults()}
 
       <TrackOptionsMenu
@@ -678,37 +679,59 @@ const s = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  headerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 8,
+  },
   pressed: {
     opacity: 0.7,
   },
   content: {
     paddingHorizontal: 16,
-      paddingTop: 16,
+    paddingTop: 12,
     gap: 24,
   },
 
-  pageTitle: {
-    ...t.display,
-    color: colors.onSurface,
-  },
-
-  searchBar: {
+  inputBox: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    height: 48,
-    paddingHorizontal: 16,
+    gap: 10,
+    height: 44,
+    paddingHorizontal: 14,
     borderRadius: r.md,
     backgroundColor: colors.surfaceContainer,
   },
-  searchPlaceholder: {
-    ...t.body,
+  input: {
     flex: 1,
-    color: colors.outlineText,
+    fontFamily: FONTS.regular,
+    fontSize: 14,
+    color: colors.onSurface,
+  },
+  cancelBtn: {
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  cancelText: {
+    ...t.labelMd,
+    color: colors.onSurfaceVariant,
+  },
+  circleBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceContainer,
   },
 
   rail: {
-    gap: 8,
+    gap: 10,
     paddingRight: 16,
   },
 
@@ -732,8 +755,8 @@ const s = StyleSheet.create({
     ...t.title,
     color: colors.onSurface,
   },
-  blockCount: {
-    ...t.labelSm,
+  clearText: {
+    ...t.labelMd,
     color: colors.outlineText,
   },
   inlineAction: {
@@ -741,6 +764,11 @@ const s = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     minHeight: 32,
+    paddingHorizontal: 8,
+  },
+  inlineActionText: {
+    ...t.labelSm,
+    color: colors.onSurface,
   },
 
   tagWrap: {
@@ -750,7 +778,7 @@ const s = StyleSheet.create({
   },
   tag: {
     paddingHorizontal: 14,
-    height: 32,
+    minHeight: 34,
     justifyContent: 'center',
     borderRadius: r.pill,
     backgroundColor: colors.surfaceContainer,
@@ -760,144 +788,92 @@ const s = StyleSheet.create({
     color: colors.onSurface,
   },
 
-  curationCard: {
-    width: 250,
-    padding: 12,
-    gap: 6,
+  styleCard: {
+    width: 220,
+    minHeight: 110,
+    padding: 14,
+    justifyContent: 'space-between',
     borderRadius: r.lg,
     backgroundColor: colors.surfaceVariant,
   },
-  curationArtWrap: {
-    position: 'relative',
-    height: 140,
-    borderRadius: r.md,
-    overflow: 'hidden',
-  },
-  curationArtFallback: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceContainerHigh,
-  },
-  curationCode: {
-    ...t.mono,
-    color: colors.outlineText,
-  },
-  curationCodeBadge: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    paddingHorizontal: 8,
-    height: 20,
-    justifyContent: 'center',
-    borderRadius: r.sm,
-    backgroundColor: 'rgba(14, 14, 17, 0.85)',
-  },
-  curationCodeBadgeText: {
-    ...t.micro,
-    color: colors.onSurface,
-  },
-  curationTitle: {
-    fontFamily: FONTS.contentSemiBold,
-    fontSize: 15,
-    lineHeight: 20,
-    fontWeight: '600',
-    color: colors.onSurface,
-  },
-  curationBlurb: {
-    ...t.bodySm,
-    color: colors.outlineText,
-    lineHeight: 16,
-  },
-  curationFooter: {
+  styleCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 4,
+    gap: 8,
   },
-  curationMeta: {
-    ...t.micro,
-    color: colors.outlineText,
+  styleCardTitle: {
+    fontFamily: FONTS.contentSemiBold,
+    fontSize: 14,
+    lineHeight: 18,
+    color: colors.onSurface,
+    flex: 1,
   },
-  curationPlay: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+  styleSearchBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.onSurface,
+    backgroundColor: colors.surfaceContainer,
+  },
+  styleCardBlurb: {
+    ...t.bodySm,
+    color: colors.outlineText,
+    lineHeight: 16,
+    marginVertical: 6,
+  },
+  styleCardFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  styleCardSeed: {
+    ...t.micro,
+    color: colors.outlineText,
   },
 
   genreGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: 10,
   },
   genreTile: {
     width: '48%',
-    minHeight: 130,
-    padding: 14,
-    gap: 4,
-    borderRadius: r.lg,
-    backgroundColor: colors.surfaceVariant,
-  },
-  genreTop: {
+    minHeight: 52,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  genreSector: {
-    ...t.labelSm,
-    color: colors.outlineText,
-  },
-  genreTag: {
-    ...t.labelSm,
-    color: colors.outlineText,
+    borderRadius: r.md,
+    backgroundColor: colors.surfaceVariant,
   },
   genreName: {
-    ...t.titleMd,
+    ...t.bodyMd,
     color: colors.onSurface,
+    flex: 1,
   },
 
-  searchInputRow: {
+  viewAllResultsBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-  },
-  inputBox: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    height: 44,
-    paddingHorizontal: 14,
+    justifyContent: 'center',
+    gap: 8,
+    minHeight: 44,
+    marginTop: 8,
     borderRadius: r.md,
     backgroundColor: colors.surfaceContainer,
   },
-  input: {
-    flex: 1,
-    fontSize: 14,
-    color: colors.onSurface,
-  },
-  cancelText: {
+  viewAllResultsText: {
     ...t.labelMd,
-    color: colors.onSurfaceVariant,
-  },
-  circleBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceContainer,
+    color: colors.onSurface,
   },
 
   tabPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    height: 32,
+    minHeight: 34,
     paddingHorizontal: 16,
     borderRadius: r.pill,
     backgroundColor: colors.surfaceContainer,
@@ -916,6 +892,9 @@ const s = StyleSheet.create({
     ...t.micro,
     color: colors.outlineText,
   },
+  tabPillCountActive: {
+    color: colors.onPrimary,
+  },
 
   resultRow: {
     flexDirection: 'row',
@@ -923,7 +902,7 @@ const s = StyleSheet.create({
     gap: 12,
     minHeight: 56,
     paddingVertical: 6,
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     borderRadius: r.md,
     backgroundColor: colors.surfaceVariant,
   },
@@ -962,8 +941,8 @@ const s = StyleSheet.create({
     color: colors.outlineText,
   },
   rowMore: {
-    width: 32,
-    height: 32,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -983,7 +962,7 @@ const s = StyleSheet.create({
   },
   stateAction: {
     paddingHorizontal: 20,
-    height: 40,
+    minHeight: 44,
     justifyContent: 'center',
     borderRadius: r.pill,
     backgroundColor: colors.surfaceContainer,
