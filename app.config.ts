@@ -27,7 +27,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       // would have clipped on circular and squircle masks.
       foregroundImage: './assets/brand/adaptive-icon-foreground.png',
       backgroundImage: './assets/brand/adaptive-icon-background.png',
-      backgroundColor: '#131316',
+      backgroundColor: '#1a1c1e',
     },
     permissions: [
       'android.permission.FOREGROUND_SERVICE',
@@ -57,9 +57,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'expo-splash-screen',
       {
         backgroundColor: '#131316',
-        image: './assets/brand/icon-1024.png',
-        // The 1024px mark is scaled down for the splash, and the wide width keeps
-        // it from filling the screen on tablets.
+        image: './assets/brand/splash-icon.png',
         imageWidth: 160,
         resizeMode: 'contain',
       },

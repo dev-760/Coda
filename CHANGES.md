@@ -208,3 +208,12 @@ npm test            # 12 test suites passed, 137 / 137 tests passed
 - **Elevated Artwork Container (`app/now-playing.tsx`):** Added subtle container border (`colors.surfaceContainerHighest`), rounded geometry, and refined depth.
 - **Persistent Lossless Fidelity Badge:** Now Playing displays a dedicated fidelity indicator pill (`FLAC 24/192 • Lossless Audio` with indicator dot) whenever audio is active.
 - **Android Media Notification Formatting (`src/audio/ExpoAudioBackend.ts`):** Enforced fallback album titles (`track.album || 'Luma Lossless'`) and artwork URLs in `publishMetadata` and `activateMediaSession`, ensuring Android's media control notification shade renders crisp artwork, album subtitle, and full playback controls.
+
+### 11.4. Brand Asset & Splash Screen Modernization
+- **New App Icon & Mark (`icon.svg`):** Replaced legacy soundbar icon with the new modern brand mark: a sleek squircle app tile (`#1a1c1e`) featuring a silver open ring and floating dot (`#b0b3ba`) with subtle drop shadow.
+- **Multi-Platform Asset Generation:**
+  - `assets/brand/icon-1024.png`: Full high-resolution 1024x1024 app icon for iOS and universal packaging.
+  - `assets/brand/adaptive-icon-foreground.png`: Centered 1024x1024 transparent foreground mark properly bounded within Android's 66% adaptive icon safe zone to prevent launcher mask clipping.
+  - `assets/brand/adaptive-icon-background.png`: Flat fill matching the `#1a1c1e` tile color.
+  - `assets/brand/splash-icon.png`: Centered high-resolution mark rendered on `#131316` background in `expo-splash-screen` for a seamless launch sequence.
+- **Generator Pipeline (`scripts/build-icons.js`):** Added automated rasterization pipeline ensuring pixel-perfect antialiasing and subpixel precision.

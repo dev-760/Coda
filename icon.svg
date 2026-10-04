@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- Subtle drop shadow matching the app icon style -->
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.45" />
+    </filter>
+  </defs>
+
+  <!-- Squircle Base / App Tile -->
+  <rect 
+    x="32" 
+    y="32" 
+    width="448" 
+    height="448" 
+    rx="102" 
+    ry="102" 
+    fill="#1a1c1e" 
+    filter="url(#shadow)" 
+  />
+
+  <!-- Main Open Ring -->
+  <!-- Center: (256, 268), Radius: 104, Stroke: 44 -->
+  <!-- Arc sweeps clockwise from ~76° (top) around to ~14° (upper-right) -->
+  <path 
+    d="M 256 164 A 104 104 0 1 0 357 242" 
+    fill="none" 
+    stroke="#b0b3ba" 
+    stroke-width="44" 
+    stroke-linecap="butt" 
+  />
+
+  <!-- Floating Dot -->
+  <circle 
+    cx="302" 
+    cy="204" 
+    r="22" 
+    fill="#b0b3ba" 
+  />
+</svg>
