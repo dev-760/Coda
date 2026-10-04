@@ -15,8 +15,9 @@ import { Track } from '../../providers/types';
 import Icon from './Icon';
 import { useLibraryStore } from '../../store/libraryStore';
 import { useQueueStore } from '../../store/queueStore';
-import { audioService } from '../../audio/AudioService';
 import { useDownloadStore } from '../../downloads/downloadStore';
+import { useSettingsStore } from '../../store/settingsStore';
+import { audioService } from '../../audio/AudioService';
 import { colors, FONTS, r, t } from '../../theme/theme';
 
 interface TrackOptionsMenuProps {
@@ -27,9 +28,11 @@ interface TrackOptionsMenuProps {
 }
 
 /**
- * Track options, as a drawer card with the four grouped sections from the
- * spec. Grouping is the point: queue actions, where to go, audio handling and
- * utilities are separate concerns, and one flat list buries them.
+ * Track options as a full-height sheet.
+ *
+ * The quick actions sit in a row of four up top because favorite, queue, share
+ * and offline are the things reached for constantly. Everything else is grouped
+ * underneath, since these are occasional.
  */
 export default function TrackOptionsMenu({
   visible,
@@ -45,17 +48,16 @@ export default function TrackOptionsMenu({
   const downloadTrack = useDownloadStore((state) => state.downloadTrack);
   const deleteDownload = useDownloadStore((state) => state.deleteDownload);
   const cancelDownload = useDownloadStore((state) => state.cancelDownload);
+  const hifiQuality = useSettingsStore((state) => state.audio.hifiAudioQuality);
 
   if (!track) return null;
 
   const inCollection = isFavorite(track.id);
+  const isDownloaded = downloadStatus === 'completed';
 
   const handleToggleCollection = async () => {
-    if (inCollection) {
-      await removeFavorite(track.id);
-    } else {
-      await addFavorite(track);
-    }
+    if (inCollection) await removeFavorite(track.id);
+    else await addFavorite(track);
     onClose();
   };
 
@@ -79,6 +81,15 @@ export default function TrackOptionsMenu({
     }
   };
 
+  const handleShare = async () => {
+    onClose();
+    try {
+      await Share.share({ message: `Listen to "${track.title}" by ${track.artist} on Luma` });
+    } catch {
+      // The user dismissed the share sheet.
+    }
+  };
+
   const handleGoToArtist = () => {
     onClose();
     router.push({
@@ -91,7 +102,11 @@ export default function TrackOptionsMenu({
     onClose();
     router.push({
       pathname: '/album' as any,
-      params: { title: track.album || track.title, artist: track.artist, coverUrl: track.coverUrl || '' },
+      params: {
+        title: track.album || track.title,
+        artist: track.artist,
+        coverUrl: track.coverUrl || '',
+      },
     });
   };
 
@@ -104,69 +119,55 @@ export default function TrackOptionsMenu({
     Alert.alert('Add to playlist', 'Open a playlist from your collection to add this track.');
   };
 
-  const handlePlayNext = () => {
-    useQueueStore.getState().playNext(track);
-    onClose();
-  };
-
   const handleAddToQueue = () => {
     useQueueStore.getState().addToQueue(track);
     onClose();
   };
 
-  const handleTrackRadio = async () => {
-    onClose();
-    useQueueStore.getState().playContext([track], 0, {
-      type: 'radio',
-      name: `${track.title} radio`,
-    });
-    await audioService.playTrack(track);
-  };
-
-  const handleShare = async () => {
-    onClose();
-    try {
-      await Share.share({ message: `Listen to "${track.title}" by ${track.artist} on Luma` });
-    } catch {
-      // The user dismissed the share sheet.
-    }
-  };
-
   const handleCredits = () => {
     onClose();
     Alert.alert(
-      'Credits',
+      'Song Credits',
       `Title: ${track.title}\nArtist: ${track.artist}\nAlbum: ${track.album || 'Single'}`,
     );
   };
 
+  /** Short fidelity badge for the track header. */
+  const formatBadge = (() => {
+    const q = hifiQuality ?? '';
+    if (/24\/192/i.test(q)) return 'FLAC 24/192';
+    if (/24\/96/i.test(q)) return 'FLAC 24/96';
+    if (/320/i.test(q)) return 'AAC 320';
+    return 'AAC 160';
+  })();
+
   const Row = ({
-    label,
     icon,
+    label,
+    detail,
     onPress,
-    badge,
-    showChevron = false,
+    trailing,
   }: {
+    icon: string;
     label: string;
-    icon?: string;
+    detail?: string;
     onPress: () => void;
-    badge?: string;
-    showChevron?: boolean;
+    trailing?: React.ReactNode;
   }) => (
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [s.row, pressed && s.pressed]}
       accessibilityRole="button"
-      accessibilityLabel={label}
+      accessibilityLabel={detail ? `${label}. ${detail}` : label}
     >
-      {!!icon && <Icon name={icon} size={16} color={colors.onSurfaceVariant} />}
-      <Text style={s.rowLabel} numberOfLines={1}>{label}</Text>
-      {!!badge && (
-        <View style={s.badge}>
-          <Text style={s.badgeText}>{badge}</Text>
-        </View>
-      )}
-      {showChevron && <Icon name="chevron-forward" size={16} color={colors.outlineText} />}
+      <View style={s.rowIcon}>
+        <Icon name={icon} size={16} color={colors.onSurfaceVariant} />
+      </View>
+      <View style={s.rowText}>
+        <Text style={s.rowLabel} numberOfLines={1}>{label}</Text>
+        {!!detail && <Text style={s.rowDetail} numberOfLines={1}>{detail}</Text>}
+      </View>
+      {trailing ?? <Icon name="chevron-forward" size={16} color={colors.outlineText} />}
     </Pressable>
   );
 
@@ -174,60 +175,110 @@ export default function TrackOptionsMenu({
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={s.overlay} onPress={onClose} accessibilityLabel="Close options" />
       <View style={s.sheet}>
-        <View style={s.handle} />
-
         {/* Track header */}
         <View style={s.trackHeader}>
           {track.coverUrl ? (
             <Image source={{ uri: track.coverUrl }} style={s.art} />
           ) : (
-            <View style={[s.art, s.artPlaceholder]}>
-              <Icon name="musical-notes" size={18} color={colors.outlineText} />
+            <View style={[s.art, s.artFallback]}>
+              <Icon name="musical-note" size={18} color={colors.outlineText} />
             </View>
           )}
-          <View style={s.trackInfo}>
-            <Text numberOfLines={1} style={s.trackTitle}>{track.title}</Text>
-            <Text numberOfLines={1} style={s.trackArtist}>{track.artist}</Text>
+          <View style={s.trackMeta}>
+            <View style={s.trackTitleLine}>
+              <Text numberOfLines={1} style={s.trackTitle}>{track.title}</Text>
+              {inCollection && <View style={s.favDot} />}
+            </View>
+            <Text numberOfLines={1} style={s.trackArtist}>
+              {[track.artist, track.album].filter(Boolean).join(' • ')}
+            </Text>
           </View>
-          {inCollection && (
-            <View style={s.badge}>
-              <Text style={s.badgeText}>SAVED</Text>
-            </View>
-          )}
+          <View style={s.formatBadge}>
+            <Text style={s.formatText}>{formatBadge}</Text>
+          </View>
         </View>
 
-        <ScrollView style={s.list} showsVerticalScrollIndicator={false}>
-          <Text style={s.sectionLabel}>Queue</Text>
-          <Row icon="play-forward" label="Play next" onPress={handlePlayNext} />
-          <Row icon="list" label="Add to queue" onPress={handleAddToQueue} />
-          <Row icon="radio-outline" label="Track radio" onPress={handleTrackRadio} />
+        <ScrollView style={s.body} showsVerticalScrollIndicator={false}>
+          {/* Quick actions */}
+          <View style={s.quickRow}>
+            <Pressable
+              onPress={handleToggleCollection}
+              style={({ pressed }) => [s.quickAction, pressed && s.pressed]}
+              accessibilityRole="button"
+              accessibilityLabel={inCollection ? 'Remove from favorites' : 'Favorite'}
+            >
+              <Icon
+                name={inCollection ? 'heart' : 'heart-outline'}
+                size={18}
+                color={colors.onSurface}
+              />
+              <Text style={s.quickLabel}>FAVORITE</Text>
+            </Pressable>
 
-          <Text style={s.sectionLabel}>Library</Text>
+            <Pressable
+              onPress={handleAddToPlaylist}
+              style={({ pressed }) => [s.quickAction, pressed && s.pressed]}
+              accessibilityRole="button"
+              accessibilityLabel="Add to playlist"
+            >
+              <Icon name="list" size={18} color={colors.onSurface} />
+              <Text style={s.quickLabel}>ADD TO…</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={handleShare}
+              style={({ pressed }) => [s.quickAction, pressed && s.pressed]}
+              accessibilityRole="button"
+              accessibilityLabel="Share"
+            >
+              <Icon name="share-outline" size={18} color={colors.onSurface} />
+              <Text style={s.quickLabel}>SHARE</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={handleDownload}
+              style={({ pressed }) => [s.quickAction, pressed && s.pressed]}
+              accessibilityRole="button"
+              accessibilityLabel={isDownloaded ? 'Remove download' : 'Download for offline'}
+            >
+              <Icon
+                name={isDownloaded ? 'checkmark-circle' : 'arrow-down-circle-outline'}
+                size={18}
+                color={colors.onSurface}
+              />
+              <Text style={s.quickLabel}>OFFLINE</Text>
+            </Pressable>
+          </View>
+
           <Row
-            icon={inCollection ? 'heart' : 'heart-outline'}
-            label={inCollection ? 'Remove from collection' : 'Add to collection'}
-            onPress={handleToggleCollection}
+                      icon="list"
+                      label="Add to Up Next Queue"
+                      detail="Append to tail of session queue"
+                      onPress={handleAddToQueue}
+                      trailing={<Icon name="add" size={18} color={colors.onSurfaceVariant} />}
+                    />
+
+          <Text style={s.sectionLabel}>CONTEXT &amp; CREDITS</Text>
+          <Row
+            icon="person-outline"
+            label="Go to Artist"
+            detail={`${track.artist}`}
+            onPress={handleGoToArtist}
           />
-          <Row icon="albums-outline" label="Add to playlist" onPress={handleAddToPlaylist} showChevron />
-          <Row icon="arrow-down-circle-outline" label="On this device" onPress={handleDownload} />
+          <Row
+            icon="disc-outline"
+            label="Go to Album"
+            detail={track.album ?? 'Single'}
+            onPress={handleGoToAlbum}
+          />
+          <Row
+            icon="information-circle-outline"
+            label="Song Credits"
+            detail={`Produced by ${track.artist}`}
+            onPress={handleCredits}
+          />
 
-          <Text style={s.sectionLabel}>Metadata</Text>
-          <Row icon="disc-outline" label="Go to album" onPress={handleGoToAlbum} showChevron />
-          <Row icon="person-outline" label="Go to artist" onPress={handleGoToArtist} showChevron />
-          <Row icon="information-circle-outline" label="Credits" onPress={handleCredits} />
-
-          <Text style={s.sectionLabel}>Utilities</Text>
-          <Row icon="share-outline" label="Share" onPress={handleShare} />
-        </ScrollView>
-
-        <Pressable
-          onPress={onClose}
-          style={({ pressed }) => [s.closeBtn, pressed && s.pressed]}
-          accessibilityRole="button"
-          accessibilityLabel="Close"
-        >
-          <Text style={s.closeText}>Close</Text>
-        </Pressable>
+          </ScrollView>
       </View>
     </Modal>
   );
@@ -236,37 +287,29 @@ export default function TrackOptionsMenu({
 const s = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.72)',
   },
   sheet: {
     position: 'absolute',
     bottom: 0,
-    left: 16,
-    right: 16,
-    maxHeight: '88%',
-    paddingTop: 12,
-    paddingBottom: 24,
-    borderRadius: r.lg,
+    left: 0,
+    right: 0,
+    maxHeight: '92%',
+    paddingTop: 16,
+    paddingHorizontal: 16,
+    borderTopLeftRadius: r.lg,
+    borderTopRightRadius: r.lg,
     backgroundColor: colors.surfaceVariant,
   },
   pressed: {
     opacity: 0.7,
-  },
-  handle: {
-    alignSelf: 'center',
-    width: 40,
-    height: 4,
-    borderRadius: r.pill,
-    backgroundColor: colors.surfaceContainerHighest,
-    marginBottom: 12,
   },
 
   trackHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingBottom: 16,
   },
   art: {
     width: 48,
@@ -274,72 +317,115 @@ const s = StyleSheet.create({
     borderRadius: r.sm,
     backgroundColor: colors.surfaceContainer,
   },
-  artPlaceholder: {
+  artFallback: {
     alignItems: 'center',
     justifyContent: 'center',
   },
-  trackInfo: {
+  trackMeta: {
     flex: 1,
     minWidth: 0,
     gap: 2,
   },
+  trackTitleLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   trackTitle: {
     fontFamily: FONTS.contentSemiBold,
-    fontSize: 14,
+    fontSize: 15,
     lineHeight: 20,
     fontWeight: '600',
+    flexShrink: 1,
     color: colors.onSurface,
   },
+  favDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.onSurface,
+  },
   trackArtist: {
-    ...t.bodyMd,
+    ...t.bodySm,
     color: colors.outlineText,
   },
 
-  list: {
-    paddingHorizontal: 16,
+  body: {
+    paddingBottom: 24,
   },
+
+  quickRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 8,
+  },
+  quickAction: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    borderRadius: r.md,
+    backgroundColor: colors.surfaceContainer,
+  },
+  quickLabel: {
+    fontSize: 9,
+    letterSpacing: 0.4,
+    color: colors.outlineText,
+  },
+
   sectionLabel: {
     ...t.labelSm,
     color: colors.outlineText,
-    textTransform: 'uppercase',
-    marginTop: 16,
-    marginBottom: 4,
+    marginTop: 20,
+    marginBottom: 8,
   },
+
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    minHeight: 44,
+    minHeight: 56,
   },
-  rowLabel: {
-    flex: 1,
-    ...t.body,
-    color: colors.onSurface,
-  },
-  badge: {
-    paddingHorizontal: 8,
-    height: 18,
-    justifyContent: 'center',
-    borderRadius: r.pill,
-    backgroundColor: colors.surfaceContainerHighest,
-  },
-  badgeText: {
-    ...t.micro,
-    color: colors.onSurface,
-    textTransform: 'uppercase',
-  },
-
-  closeBtn: {
-    marginTop: 16,
-    marginHorizontal: 16,
-    height: 44,
+  rowIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: r.sm,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: r.pill,
-    backgroundColor: colors.surfaceContainerHigh,
+    backgroundColor: colors.surfaceContainer,
   },
-  closeText: {
-    ...t.labelMd,
+  rowText: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  rowLabel: {
+    ...t.titleMd,
     color: colors.onSurface,
   },
-});
+  rowDetail: {
+      ...t.bodySm,
+      color: colors.outlineText,
+    },
+
+    formatBadge: {
+    paddingHorizontal: 10,
+    height: 22,
+    justifyContent: 'center',
+    borderRadius: r.sm,
+    backgroundColor: colors.surfaceContainerHighest,
+  },
+  formatBadgeActive: {
+    backgroundColor: colors.onSurface,
+  },
+  formatText: {
+    fontSize: 9,
+    letterSpacing: 0.4,
+    color: colors.onSurfaceVariant,
+  },
+  formatTextActive: {
+    color: colors.onPrimary,
+  },
+
+  });

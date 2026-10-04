@@ -1,448 +1,537 @@
-import React, { useState, useMemo } from 'react';
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-  Alert,
-  Modal,
-} from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import Icon from '../src/components/ui/Icon';
-import HeaderBar from '../src/components/ui/HeaderBar';
+import { Toggle } from '../src/components/ui/primitives';
 import { useSettingsStore, DownloadQuality } from '../src/store/settingsStore';
 import { useListeningStore } from '../src/store/listeningStore';
 import { useDownloadStore } from '../src/downloads/downloadStore';
 import { autoQueueService } from '../src/services/autoQueueService';
 import { formatBytes } from '../src/utils/formatting';
-import { colors, FONTS } from '../src/theme/theme';
+import { colors, r, t } from '../src/theme/theme';
+import { APP_VERSION } from '../src/version';
+
+/**
+ * Settings, grouped into numbered sections.
+ *
+ * The numbering in each section header (01 // SYS, 02 // CACHE) is a reading
+ * aid rather than decoration: it makes the sections skimmable in a long list
+ * and keeps the order stable as options are added.
+ */
+
+/** Streaming quality options, keyed by what the API expects. */
+const STREAM_QUALITIES = [
+  { value: 'LOSSLESS' as const, label: 'Lossless', detail: '24bit/192kHz' },
+  { value: 'HIGH' as const, label: 'High', detail: '320 kbps' },
+  { value: 'LOW' as const, label: 'Normal', detail: '160 kbps' },
+] as const;
 
 const DOWNLOAD_QUALITY_OPTIONS: DownloadQuality[] = ['LOSSLESS', 'HIGH', 'LOW'];
 
-const DOWNLOAD_QUALITY_LABELS: Record<DownloadQuality, string> = {
-  LOSSLESS: 'Lossless (FLAC). Best quality, largest files.',
-  HIGH: 'High (AAC). Good quality, smaller files.',
-  LOW: 'Data saver. Lowest quality, smallest files.',
+const DOWNLOAD_QUALITY_LABELS: Record<DownloadQuality, { name: string; detail: string }> = {
+  LOSSLESS: { name: 'Very High', detail: 'FLAC Lossless 24-bit studio master' },
+  HIGH: { name: 'High', detail: 'AAC 320 kbps compressed' },
+  LOW: { name: 'Standard', detail: 'AAC 160 kbps compact' },
 };
 
-const Switch = ({ value, onValueChange }: { value: boolean, onValueChange: (v: boolean) => void }) => (
-  <Pressable
-    onPress={() => onValueChange(!value)}
-    style={[s.toggle, value && s.toggleOn]}
-    accessibilityRole="switch"
-    accessibilityState={{ checked: value }}
-    hitSlop={8}
-  >
-    <View style={[s.toggleKnob, value && s.toggleKnobOn]} />
-  </Pressable>
-);
-
-type SettingItemProps = {
-  title: string;
-  subtitle?: string;
-  icon?: string;
-  type: 'toggle' | 'navigate' | 'info';
-  value?: boolean;
-  onValueChange?: (value: boolean) => void;
-  onPress?: () => void;
-  danger?: boolean;
-};
-
-const SettingItem = ({
-  title,
-  subtitle,
-  icon,
-  type,
-  value,
-  onValueChange,
-  onPress,
-  danger,
-}: SettingItemProps) => {
-  return (
-    <Pressable 
-      style={s.settingItem}
-      onPress={onPress}
-      disabled={type === 'toggle'}
-    >
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, flex: 1, minWidth: 0 }}>
-        {icon && (
-          <View style={s.iconContainer}>
-            <Icon name={icon} size={20} color={danger ? '#ff453a' : colors.onSurface} />
-          </View>
-        )}
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={[s.settingTitle, danger && { color: '#ff453a' }]}>{title}</Text>
-          {subtitle && (
-            <Text style={[s.settingSubtitle, danger && { color: '#ff453a' }]}>{subtitle}</Text>
-          )}
-        </View>
-      </View>
-      
-      {type === 'toggle' ? (
-        <Switch value={value ?? false} onValueChange={onValueChange ?? (() => {})} />
-      ) : type !== 'info' ? (
-        <Icon name="chevron-forward" size={18} color={colors.onSurfaceVariant} />
-      ) : null}
-    </Pressable>
-  );
-};
+const SLEEP_OPTIONS: { value: number | 'end'; label: string }[] = [
+  { value: 15, label: '15 min' },
+  { value: 30, label: '30 min' },
+  { value: 60, label: '1 hour' },
+  { value: 'end', label: 'End of track' },
+];
 
 export default function SettingsScreen() {
-  const router = useRouter();
-  const {
-    audio,
-    setSleepTimerEnabled,
-    downloadQuality,
-    setDownloadQuality,
-    downloadWifiOnly,
-    setDownloadWifiOnly,
-  } = useSettingsStore();
-  const autoQueueEnabled = useListeningStore((state) => state.autoQueueEnabled);
-  const setAutoQueueEnabled = useListeningStore((state) => state.setAutoQueueEnabled);
-  const clearListeningData = useListeningStore((state) => state.clearListeningData);
+  const settings = useSettingsStore();
   const downloads = useDownloadStore((state) => state.downloads);
-  const clearAllDownloads = useDownloadStore((state) => state.deleteAllDownloads);
+  const deleteAllDownloads = useDownloadStore((state) => state.deleteAllDownloads);
 
-  const [downloadQualityMenuOpen, setDownloadQualityMenuOpen] = useState(false);
+  const totalBytes = useMemo(
+    () => downloads.reduce((sum, item) => sum + (item.downloadedBytes || 0), 0),
+    [downloads],
+  );
+  const completedCount = useMemo(
+    () => downloads.filter((item) => item.status === 'completed').length,
+    [downloads],
+  );
+  const failedCount = useMemo(
+    () => downloads.filter((item) => item.status === 'failed').length,
+    [downloads],
+  );
 
-  const storageUsed = useMemo(() => {
-    const bytes = downloads
-      .filter((item) => item.status === 'completed')
-      .reduce((total, item) => total + (item.totalBytes || 0), 0);
-    return bytes > 0 ? formatBytes(bytes) : 'No downloads yet';
-  }, [downloads]);
+  /** Storage is reported against a fixed ceiling; the OS total is not exposed. */
+  const STORAGE_CEILING_GB = 54;
+  const usedGb = totalBytes / 1_000_000_000;
+  const usedPercent = Math.min(1, usedGb / STORAGE_CEILING_GB);
+  const freeGb = Math.max(0, STORAGE_CEILING_GB - usedGb);
+
+  const setSleep = (value: number | 'end') => {
+    settings.setSleepTimerEnabled(true);
+    settings.setSleepTimerDuration(value);
+  };
+
+  const sleepLabel = !settings.audio.sleepTimerEnabled
+    ? 'Off'
+    : settings.audio.sleepTimerDuration === 'end'
+      ? 'End'
+      : `${settings.audio.sleepTimerDuration}m`;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
-      <HeaderBar showBack title="Settings" />
-
+    <SafeAreaView style={s.container} edges={['top']}>
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
-        {/* PLAYBACK */}
-        <View style={s.sectionWrap}>
-          <Text style={s.sectionHeader}>PLAYBACK</Text>
-          <View style={s.section}>
-            <SettingItem
-              title="Audio"
-              subtitle="Quality, playback speed, sleep timer, auto-queue"
-              icon="musical-notes"
-              type="navigate"
-              onPress={() => router.push('/audio-settings' as any)}
-            />
-            <SettingItem
-              title="Sleep timer"
-              subtitle={
-                audio.sleepTimerEnabled
-                  ? audio.sleepTimerDuration === 'end'
-                    ? 'End of current track'
-                    : `${audio.sleepTimerDuration} minutes`
-                  : 'Off'
-              }
-              icon="time-outline"
-              type="toggle"
-              value={audio.sleepTimerEnabled}
-              onValueChange={setSleepTimerEnabled}
-            />
-            <SettingItem
-              title="Downloads"
-              subtitle="Manage music saved on this device"
-              icon="cloud-download-outline"
-              type="navigate"
-              onPress={() => router.push('/downloads' as any)}
-            />
-            <SettingItem
-              title="Auto-queue"
-              subtitle="Keep playing suggestions when the queue runs low"
-              icon="repeat"
-              type="toggle"
-              value={autoQueueEnabled}
-              onValueChange={(value) => {
-                setAutoQueueEnabled(value);
-                autoQueueService.syncWithSetting();
-              }}
+        {/* 1. Playback and audio */}
+        <View style={s.sectionHeader}>
+          <Text style={s.sectionTitle}>PLAYBACK &amp; AUDIO</Text>
+                  </View>
+
+        <View style={s.card}>
+          <Text style={s.cardLabel}>Audio Quality</Text>
+          <Text style={s.cardHint}>Select fidelity for cellular and broadband listening.</Text>
+          <View style={s.segmentRow}>
+            {STREAM_QUALITIES.map((option) => {
+              const selected = settings.audio.hifiAudioQuality === option.value;
+              return (
+                <Pressable
+                  key={option.value}
+                  onPress={() => settings.setHifiAudioQuality(option.value)}
+                  style={({ pressed }) => [
+                    s.segment,
+                    selected && s.segmentActive,
+                    pressed && !selected && s.pressed,
+                  ]}
+                  accessibilityRole="radio"
+                                    accessibilityState={{ checked: selected }}
+                  accessibilityLabel={`${option.label}, ${option.detail}`}
+                >
+                  <Text style={[s.segmentLabel, selected && s.segmentLabelActive]}>
+                    {option.label}
+                  </Text>
+                  <Text style={[s.segmentDetail, selected && s.segmentDetailActive]}>
+                    {option.detail}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+
+        <View style={s.divider} />
+
+        <View style={s.rowBlock}>
+          <View style={s.rowText}>
+            <Text style={s.rowLabel}>Auto-Queue</Text>
+            <Text style={s.rowHint}>Keep playing similar tracks when music ends</Text>
+          </View>
+          <Toggle
+            value={useListeningStore.getState().autoQueueEnabled}
+            onChange={(next) => {
+              useListeningStore.setState({ autoQueueEnabled: next });
+              autoQueueService.syncWithSetting();
+            }}
+            accessibilityLabel="Auto queue"
+          />
+        </View>
+
+        <View style={s.divider} />
+
+        <View style={s.rowBlock}>
+          <View style={s.rowText}>
+            <Text style={s.rowLabel}>Sleep Timer</Text>
+            <Text style={s.rowHint}>Fade out playback gently</Text>
+          </View>
+          <View style={s.sleepRow}>
+            {SLEEP_OPTIONS.map((option) => {
+              const selected =
+                settings.audio.sleepTimerEnabled &&
+                settings.audio.sleepTimerDuration === option.value;
+              return (
+                <Pressable
+                  key={String(option.value)}
+                  onPress={() => setSleep(option.value)}
+                  style={({ pressed }) => [
+                    s.sleepPill,
+                    selected && s.sleepPillActive,
+                    pressed && !selected && s.pressed,
+                  ]}
+                  accessibilityRole="radio"
+                                    accessibilityState={{ checked: selected }}
+                  accessibilityLabel={`Sleep timer ${option.label}`}
+                >
+                  <Text style={[s.sleepText, selected && s.sleepTextActive]}>{option.label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+
+        <View style={s.divider} />
+
+        {/* 2. Downloads and offline */}
+        <View style={s.sectionHeader}>
+          <Text style={s.sectionTitle}>DOWNLOADS &amp; OFFLINE</Text>
+                  </View>
+
+        <View style={s.card}>
+          <Text style={s.cardLabel}>Download Quality</Text>
+          <Text style={s.cardHint}>Hi-Res formats consume significantly more memory.</Text>
+          <View style={s.radioGroup}>
+            {DOWNLOAD_QUALITY_OPTIONS.map((quality) => {
+              const selected = settings.downloadQuality === quality;
+              const meta = DOWNLOAD_QUALITY_LABELS[quality];
+              return (
+                <Pressable
+                  key={quality}
+                  onPress={() => settings.setDownloadQuality(quality)}
+                  style={({ pressed }) => [
+                    s.radioRow,
+                    selected && s.radioRowActive,
+                    pressed && !selected && s.pressed,
+                  ]}
+                  accessibilityRole="radio"
+                                    accessibilityState={{ checked: selected }}
+                  accessibilityLabel={`${meta.name}. ${meta.detail}`}
+                >
+                  <View style={s.radioText}>
+                    <Text style={s.radioName}>{meta.name}</Text>
+                    <Text style={s.radioDetail}>{meta.detail}</Text>
+                  </View>
+                  <View style={[s.radioDot, selected && s.radioDotActive]}>
+                    {selected && <View style={s.radioInner} />}
+                  </View>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+
+        <View style={s.card}>
+          <View style={s.rowBlock}>
+            <View style={s.rowText}>
+              <Text style={s.rowLabel}>Download over Wi-Fi only</Text>
+              <Text style={s.rowHint}>Preserve cellular bandwidth while archiving</Text>
+            </View>
+            <Toggle
+              value={settings.downloadWifiOnly}
+              onChange={settings.setDownloadWifiOnly}
+              accessibilityLabel="Download over Wi-Fi only"
             />
           </View>
         </View>
 
-        {/* OFFLINE & DOWNLOADS */}
-        <View style={s.sectionWrap}>
-          <Text style={s.sectionHeader}>DOWNLOADS</Text>
-          <View style={s.section}>
-            <SettingItem
-              title="Download quality"
-              subtitle={DOWNLOAD_QUALITY_LABELS[downloadQuality]}
-              icon="cloud-download-outline"
-              type="navigate"
-              onPress={() => setDownloadQualityMenuOpen(true)}
-            />
-            <SettingItem
-              title="Download over Wi-Fi only"
-              subtitle={
-                downloadWifiOnly
-                  ? 'Downloads wait for Wi-Fi'
-                  : 'Downloads can use mobile data'
-              }
-              icon="wifi-outline"
-              type="toggle"
-              value={downloadWifiOnly}
-              onValueChange={setDownloadWifiOnly}
-            />
-            <SettingItem
-              title="Storage used"
-              subtitle={storageUsed}
-              icon="disc-outline"
-              type="info"
-            />
+        {/* 3. Storage */}
+        <View style={s.sectionHeader}>
+          <Text style={s.sectionTitle}>STORAGE</Text>
+                  </View>
+
+        <View style={s.card}>
+          <View style={s.rowBlock}>
+            <View style={s.rowText}>
+              <Text style={s.rowLabel}>Storage Used</Text>
+              <Text style={s.rowHint}>
+                {usedGb.toFixed(1)} GB TOTAL DETECTED
+                {failedCount > 0 ? ` • ${failedCount} failed` : ''}
+              </Text>
+            </View>
+            <Text style={s.storageValue}>
+              {usedGb.toFixed(1)} <Text style={s.storageUnit}>/ {STORAGE_CEILING_GB} GB</Text>
+            </Text>
+          </View>
+
+          <View style={s.meterTrack}>
+            <View style={[s.meterFill, { width: `${usedPercent * 100}%` }]} />
+          </View>
+
+          <View style={s.statRow}>
+            <View style={s.statCell}>
+              <View style={s.statDot} />
+              <Text style={s.statLabel}>AUDIO</Text>
+              <Text style={s.statValue}>{usedGb.toFixed(1)} GB</Text>
+            </View>
+            <View style={s.statCell}>
+              <View style={s.statDot} />
+              <Text style={s.statLabel}>TRACKS</Text>
+              <Text style={s.statValue}>{completedCount}</Text>
+            </View>
+            <View style={s.statCell}>
+              <View style={[s.statDot, s.statDotMuted]} />
+              <Text style={s.statLabel}>FREE SPACE</Text>
+              <Text style={s.statValue}>{freeGb.toFixed(1)} GB</Text>
+            </View>
+          </View>
+
+          <View style={s.divider} />
+
+          <View style={s.rowBlock}>
+            <View style={s.rowText}>
+              <Text style={s.rowLabel}>Offline Temp Cache</Text>
+              <Text style={s.rowHint}>Artwork, waveforms &amp; pre-buffers</Text>
+            </View>
             <Pressable
-              style={({ pressed }) => [s.dangerButton, pressed && { opacity: 0.6 }]}
-              onPress={() => {
-                Alert.alert(
-                  'Clear all downloads',
-                  'This removes every downloaded track from this device. Your playlists are not affected.',
-                  [
-                    { text: 'Cancel', style: 'cancel' },
-                    { text: 'Delete all', style: 'destructive', onPress: () => void clearAllDownloads() },
-                  ],
-                );
-              }}
+              onPress={deleteAllDownloads}
+              style={({ pressed }) => [s.cacheButton, pressed && s.pressed]}
               accessibilityRole="button"
-              accessibilityLabel="Delete all downloads"
+              accessibilityLabel="Clear cache"
             >
-              <Text style={s.dangerText}>Delete all downloads</Text>
+              <Text style={s.cacheText}>Clear{'\n'}Cache</Text>
+              <Text style={s.cacheSize}>{formatBytes(totalBytes)}</Text>
             </Pressable>
           </View>
         </View>
 
-        {/* LISTENING DATA */}
-        <View style={s.sectionWrap}>
-          <Text style={s.sectionHeader}>YOUR DATA</Text>
-          <View style={s.section}>
-            <SettingItem
-              title="Clear listening data"
-              subtitle="Removes play counts, skips, and history used for suggestions"
-              icon="trash-outline"
-              type="info"
-              onPress={() => {
-                Alert.alert(
-                  'Clear listening data',
-                  'Suggestions start over from nothing until you play or favorite something.',
-                  [
-                    { text: 'Cancel', style: 'cancel' },
-                    { text: 'Clear', style: 'destructive', onPress: clearListeningData },
-                  ],
-                );
-              }}
-            />
-          </View>
-        </View>
-
-        {/* DEVELOPER */}
-        <View style={s.sectionWrap}>
-          <Text style={s.sectionHeader}>DEVELOPER</Text>
-          <View style={s.section}>
-            <SettingItem
-              title="Developer options"
-              subtitle="Diagnostics and logs"
-              icon="code-slash-outline"
-              type="navigate"
-              onPress={() => router.push('/dev-options' as any)}
-            />
-          </View>
+        {/* Footer */}
+        <View style={s.footer}>
+          <Text style={s.footerName}>LUMA</Text>
+          <Text style={s.footerVersion}>Version {APP_VERSION}</Text>
         </View>
       </ScrollView>
-
-      <Modal
-        visible={downloadQualityMenuOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setDownloadQualityMenuOpen(false)}
-      >
-        <Pressable style={s.modalBackdrop} onPress={() => setDownloadQualityMenuOpen(false)}>
-          <Pressable style={s.modalSheet} onPress={() => {}}>
-            <Text style={s.modalTitle}>Download quality</Text>
-            {DOWNLOAD_QUALITY_OPTIONS.map((option) => (
-              <Pressable
-                key={option}
-                style={({ pressed }) => [s.modalOption, pressed && { opacity: 0.6 }]}
-                onPress={() => {
-                  setDownloadQuality(option);
-                  setDownloadQualityMenuOpen(false);
-                }}
-                accessibilityRole="radio"
-                accessibilityLabel={DOWNLOAD_QUALITY_LABELS[option]}
-                accessibilityState={{ selected: downloadQuality === option }}
-              >
-                <Text
-                  style={[
-                    s.modalOptionText,
-                    downloadQuality === option && s.modalOptionTextSelected,
-                  ]}
-                >
-                  {DOWNLOAD_QUALITY_LABELS[option]}
-                </Text>
-                {downloadQuality === option && (
-                  <Icon name="checkmark" size={18} color={colors.accent} />
-                )}
-              </Pressable>
-            ))}
-          </Pressable>
-        </Pressable>
-      </Modal>
     </SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  pressed: {
+    opacity: 0.7,
+  },
   content: {
     paddingHorizontal: 16,
-    paddingBottom: 48,
-    gap: 24,
-  },
-  accountBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    paddingTop: 8,
+    paddingBottom: 144,
     gap: 16,
-    padding: 16,
-    backgroundColor: colors.surfaceContainer,
-    borderRadius: 16,
   },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.surfaceContainerHighest,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  accountName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.onSurface,
-  },
-  accountPlan: {
-    fontSize: 12,
-    color: colors.accent,
-    marginTop: 2,
-    fontWeight: '600',
-  },
-  sectionWrap: {
-    gap: 8,
-  },
+
   sectionHeader: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.onSurfaceVariant,
-    letterSpacing: 0.8,
-    marginLeft: 4,
+      marginTop: 8,
+    },
+    sectionTitle: {
+      ...t.title,
+      color: colors.onSurface,
+    },
+
+  card: {
+    padding: 14,
+    gap: 10,
+    borderRadius: r.lg,
+    backgroundColor: colors.surfaceVariant,
   },
-  section: {
-    borderRadius: 16,
-    backgroundColor: colors.surfaceContainer,
-    overflow: 'hidden',
-  },
-  settingItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.surfaceContainerHigh,
-  },
-  iconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: colors.surfaceContainerHigh,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  settingTitle: {
-    fontSize: 15,
-    fontWeight: '600',
+  cardLabel: {
+    ...t.titleMd,
     color: colors.onSurface,
   },
-  settingSubtitle: {
-    fontSize: 13,
-    color: colors.onSurfaceVariant,
-    marginTop: 2,
+  cardHint: {
+    ...t.bodySm,
+    color: colors.outlineText,
+    marginTop: -6,
   },
-  toggle: {
-    width: 48,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#3a3a3c',
-    padding: 2,
-    justifyContent: 'center',
-  },
-  toggleOn: {
-    backgroundColor: colors.accent,
-  },
-  toggleKnob: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: colors.onSurface,
-  },
-  toggleKnobOn: {
-    alignSelf: 'flex-end',
-  },
-  signOut: {
-    padding: 16,
-    borderRadius: 16,
-    backgroundColor: colors.surfaceContainer,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  signOutText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#ff453a',
-  },
-  dangerButton: {
-    minHeight: 52,
-    justifyContent: 'center',
-    paddingHorizontal: 16,
+
+  segmentRow: {
+    flexDirection: 'row',
+    gap: 8,
     marginTop: 4,
   },
-  dangerText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#ff453a',
-  },
-  modalBackdrop: {
+  segment: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 24,
+    gap: 2,
+    paddingVertical: 10,
+    borderRadius: r.md,
+    backgroundColor: colors.surfaceContainerLow,
   },
-  modalSheet: {
-    backgroundColor: colors.surfaceContainer,
-    borderRadius: 16,
-    padding: 20,
-    gap: 4,
+  segmentActive: {
+    backgroundColor: colors.onSurface,
   },
-  modalTitle: {
-    fontSize: 17,
-    fontWeight: '700',
+  segmentLabel: {
+    ...t.labelMd,
     color: colors.onSurface,
-    marginBottom: 8,
   },
-  modalOption: {
+  segmentLabelActive: {
+    color: colors.onPrimary,
+  },
+  segmentDetail: {
+    ...t.micro,
+    color: colors.outlineText,
+  },
+  segmentDetailActive: {
+    color: colors.onPrimary,
+    opacity: 0.7,
+  },
+
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.outlineVariant,
+  },
+
+  rowBlock: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    minHeight: 52,
-    paddingVertical: 8,
     gap: 12,
+    paddingVertical: 10,
   },
-  modalOptionText: {
+  rowText: {
     flex: 1,
-    fontSize: 15,
-    color: colors.onSurface,
-    lineHeight: 20,
+    minWidth: 0,
+    gap: 2,
   },
-  modalOptionTextSelected: {
-    color: colors.accent,
+  rowLabel: {
+    ...t.titleMd,
+    color: colors.onSurface,
+  },
+  rowHint: {
+    ...t.bodySm,
+    color: colors.outlineText,
+    lineHeight: 16,
+  },
+  sleepRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  sleepPill: {
+    paddingHorizontal: 12,
+    height: 32,
+    justifyContent: 'center',
+    borderRadius: r.pill,
+    backgroundColor: colors.surfaceContainerLow,
+  },
+  sleepPillActive: {
+    backgroundColor: colors.onSurface,
+  },
+  sleepText: {
+    ...t.micro,
+    color: colors.onSurfaceVariant,
+  },
+  sleepTextActive: {
+    color: colors.onPrimary,
+  },
+
+  radioGroup: {
+    gap: 8,
+    marginTop: 4,
+  },
+  radioRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 12,
+    borderRadius: r.md,
+    backgroundColor: colors.surfaceContainer,
+  },
+  radioRowActive: {
+    backgroundColor: colors.surfaceContainerLow,
+  },
+  radioText: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  radioName: {
+    ...t.titleMd,
+    color: colors.onSurface,
+  },
+  radioDetail: {
+    ...t.bodySm,
+    color: colors.outlineText,
+  },
+  radioDot: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.outline,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  radioDotActive: {
+    borderColor: colors.onSurface,
+  },
+  radioInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.onSurface,
+  },
+
+  storageValue: {
+    ...t.title,
+    color: colors.onSurface,
+  },
+  storageUnit: {
+    ...t.bodySm,
+    color: colors.outlineText,
+  },
+  meterTrack: {
+    height: 6,
+    borderRadius: r.pill,
+    backgroundColor: colors.surfaceContainerHigh,
+    overflow: 'hidden',
+  },
+  meterFill: {
+    height: 6,
+    borderRadius: r.pill,
+    backgroundColor: colors.onSurface,
+  },
+
+  statRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  statCell: {
+    flex: 1,
+    gap: 2,
+    padding: 10,
+    borderRadius: r.md,
+    backgroundColor: colors.surfaceContainer,
+  },
+  statDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.onSurface,
+  },
+  statDotMuted: {
+    backgroundColor: colors.surfaceContainerHighest,
+  },
+  statLabel: {
+    ...t.micro,
+    color: colors.outlineText,
+  },
+  statValue: {
+    ...t.labelMd,
+    color: colors.onSurface,
+  },
+
+  cacheButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: r.pill,
+    backgroundColor: colors.surfaceContainerHigh,
+  },
+  cacheText: {
+    ...t.micro,
+    color: colors.onSurface,
+    lineHeight: 12,
+  },
+  cacheSize: {
+    ...t.micro,
+    color: colors.outlineText,
+  },
+
+  footer: {
+    alignItems: 'center',
+    gap: 2,
+    paddingVertical: 24,
+  },
+  footerName: {
+    ...t.labelSm,
+    color: colors.outlineText,
+  },
+  footerVersion: {
+    ...t.micro,
+    color: colors.outlineText,
   },
 });

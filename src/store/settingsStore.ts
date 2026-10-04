@@ -21,6 +21,12 @@ export interface AppSettings {
   downloadQuality: DownloadQuality;
   /** When true, downloads wait for Wi-Fi instead of using mobile data. */
   downloadWifiOnly: boolean;
+  /**
+   * When true, playback is restricted to downloaded music. The Collection
+   * screen exposes this, so it is stored rather than derived from connectivity:
+   * being offline is not the same as asking to stay offline.
+   */
+  offlineMode: boolean;
 }
 
 interface SettingsState extends AppSettings {
@@ -34,6 +40,7 @@ interface SettingsState extends AppSettings {
   setHifiAudioQuality: (quality: AudioQuality) => void;
   setDownloadQuality: (quality: DownloadQuality) => void;
   setDownloadWifiOnly: (value: boolean) => void;
+  setOfflineMode: (value: boolean) => void;
   initialize: () => Promise<void>;
 }
 
@@ -49,6 +56,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   audio: DEFAULT_AUDIO_SETTINGS,
   downloadQuality: 'LOSSLESS',
   downloadWifiOnly: true,
+  offlineMode: false,
 };
 
 export const useSettingsStore = create<SettingsState>()(
@@ -73,6 +81,7 @@ export const useSettingsStore = create<SettingsState>()(
       })),
       setDownloadQuality: (downloadQuality) => set({ downloadQuality }),
       setDownloadWifiOnly: (downloadWifiOnly) => set({ downloadWifiOnly }),
+      setOfflineMode: (offlineMode) => set({ offlineMode }),
       initialize: async () => {
         set({ hasHydrated: true });
       },

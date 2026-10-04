@@ -11,8 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Icon from '../../src/components/ui/Icon';
-import AppLogo from '../../src/components/ui/AppLogo';
-import { Pill, SectionHeader } from '../../src/components/ui/primitives';
+import { SectionHeader } from '../../src/components/ui/primitives';
 import { TrackRow } from '../../src/components/ui/TrackRow';
 import TrackOptionsMenu from '../../src/components/ui/TrackOptionsMenu';
 import MadeForYou from '../../src/components/discover/MadeForYou';
@@ -26,12 +25,6 @@ import { subscribeToConnectivity } from '../../src/services/connectivity';
 import { useResponsive } from '../../src/hooks/useResponsive';
 import { getSuggestions, Suggestion } from '../../src/services/suggestionEngine';
 import { colors, FONTS, r, t } from '../../src/theme/theme';
-
-/**
- * Vibe filters. These scope the discovery rail rather than navigating, so a
- * selection narrows Heavy Rotation in place.
- */
-const VIBES = ['For you', 'Chill', 'Focus', 'Energize', 'Late night'] as const;
 
 /** Curated series shown in the bento rows. */
 const SERIES = [
@@ -50,7 +43,6 @@ export default function HomeScreen() {
   // device navigation area rather than assuming a gesture-only device.
   const { bottomBarClearance } = useResponsive();
 
-  const [vibe, setVibe] = useState<string>(VIBES[0]);
   const [rotation, setRotation] = useState<Suggestion[]>([]);
   const [rotationState, setRotationState] = useState<'loading' | 'ready' | 'empty'>('loading');
   const [optionsTrack, setOptionsTrack] = useState<Track | null>(null);
@@ -104,32 +96,6 @@ export default function HomeScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.outlineText} />
         }
       >
-        {/* Header: wordmark plus the two top-right actions */}
-        <View style={s.header}>
-          <AppLogo size={26} color={colors.onSurface} ringColor={colors.outline} />
-          <Text style={s.wordmark}>Luma</Text>
-          <View style={s.headerActions}>
-            <Pressable
-              onPress={() => router.push('/downloads' as any)}
-              hitSlop={8}
-              style={({ pressed }) => [s.headerButton, pressed && s.pressed]}
-              accessibilityRole="button"
-              accessibilityLabel="On this device"
-            >
-              <Icon name="arrow-down-circle-outline" size={18} color={colors.onSurfaceVariant} />
-            </Pressable>
-            <Pressable
-              onPress={() => router.push('/settings' as any)}
-              hitSlop={8}
-              style={({ pressed }) => [s.headerButton, pressed && s.pressed]}
-              accessibilityRole="button"
-              accessibilityLabel="Settings"
-            >
-              <Icon name="settings-outline" size={18} color={colors.onSurfaceVariant} />
-            </Pressable>
-          </View>
-        </View>
-
         {offline && (
           <View style={s.offlineBanner} accessibilityRole="alert">
             <Icon name="cloud-offline-outline" size={16} color={colors.error} />
@@ -137,23 +103,7 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* 1. Vibe filter pills */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={s.pillRail}
-        >
-          {VIBES.map((item) => (
-            <Pill
-              key={item}
-              label={item}
-              selected={vibe === item}
-              onPress={() => setVibe(item)}
-            />
-          ))}
-        </ScrollView>
-
-        {/* 2. Heavy Rotation rail */}
+        {/* 1. Heavy Rotation rail */}
         <View style={s.section}>
           <SectionHeader
             title="Heavy Rotation"
@@ -293,35 +243,11 @@ const s = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 16,
-    paddingTop: 8,
+    paddingTop: 16,
     gap: 24,
   },
   pressed: {
     opacity: 0.7,
-  },
-
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    height: 40,
-  },
-  wordmark: {
-    ...t.title,
-    color: colors.onSurface,
-  },
-  headerActions: {
-    marginLeft: 'auto',
-    flexDirection: 'row',
-    gap: 8,
-  },
-  headerButton: {
-    width: 36,
-    height: 36,
-    borderRadius: r.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceContainer,
   },
 
   offlineBanner: {
@@ -335,11 +261,6 @@ const s = StyleSheet.create({
   offlineText: {
     ...t.bodyMd,
     color: colors.onSurfaceVariant,
-  },
-
-  pillRail: {
-    gap: 8,
-    paddingRight: 16,
   },
 
   section: {

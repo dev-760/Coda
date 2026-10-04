@@ -18,13 +18,12 @@ import { formatBytes } from '../src/utils/formatting';
 import { DownloadMetadata } from '../src/downloads/downloadTypes';
 import { colors, FONTS } from '../src/theme/theme';
 
-type Filter = 'all' | 'completed' | 'downloading' | 'failed';
+type Filter = 'all' | 'completed' | 'downloading';
 
 const FILTERS: { value: Filter; label: string }[] = [
   { value: 'all', label: 'All' },
   { value: 'completed', label: 'Ready' },
   { value: 'downloading', label: 'Downloading' },
-  { value: 'failed', label: 'Needs attention' },
 ];
 
 function cleanErrorMessage(msg?: string): string {
