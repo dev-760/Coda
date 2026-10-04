@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   Image,
   Pressable,
@@ -17,68 +17,64 @@ import TrackOptionsMenu from '../../src/components/ui/TrackOptionsMenu';
 import MadeForYou from '../../src/components/discover/MadeForYou';
 import { useLibraryStore } from '../../src/store/libraryStore';
 import { usePlaybackStore } from '../../src/store/playbackStore';
+import { useListeningStore } from '../../src/store/listeningStore';
 import { audioService } from '../../src/audio/AudioService';
 import { useQueueStore, cacheTracks } from '../../src/store/queueStore';
 import { Track } from '../../src/providers/types';
 import { subscribeToConnectivity } from '../../src/services/connectivity';
 import { useResponsive } from '../../src/hooks/useResponsive';
-import { getSuggestions, Suggestion } from '../../src/services/suggestionEngine';
 import { colors, FONTS, r, t } from '../../src/theme/theme';
-
-/** Curated series shown in the bento rows. */
-const SERIES = [
-  { id: 'discover', name: 'Discover Weekly', note: 'Fresh finds every Monday', glyph: 'DW' },
-  { id: 'radar', name: 'Release Radar', note: 'New from artists you follow', glyph: 'RR' },
-  { id: 'focus', name: 'Deep Focus Mono', note: 'Instrumental, no vocals', glyph: 'DF' },
-] as const;
 
 export default function HomeScreen() {
   const router = useRouter();
   const { favorites, playlists, recentlyPlayed } = useLibraryStore();
+  const stats = useListeningStore((state) => state.stats);
   const currentTrack = usePlaybackStore((state) => state.currentTrack);
   const isPlaying = usePlaybackStore((state) => state.isPlaying);
-  // The spec's fixed 144px bottom padding, resolved so it also clears the
-  // device navigation area rather than assuming a gesture-only device.
   const { bottomBarClearance } = useResponsive();
 
-  const [rotation, setRotation] = useState<Suggestion[]>([]);
-  const [rotationState, setRotationState] = useState<'loading' | 'ready' | 'empty'>('loading');
   const [optionsTrack, setOptionsTrack] = useState<Track | null>(null);
   const [offline, setOffline] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => subscribeToConnectivity((isConnected) => setOffline(!isConnected)), []);
 
-  const loadRotation = useCallback(async (seed: Track | null) => {
-    try {
-      const results = await getSuggestions(seed, 10);
-      setRotation(results);
-      setRotationState(results.length === 0 ? 'empty' : 'ready');
-    } catch {
-      setRotationState('empty');
-    }
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-    void (async () => {
-      try {
-        const results = await getSuggestions(null, 10);
-        if (!active) return;
-        setRotation(results);
-        setRotationState(results.length === 0 ? 'empty' : 'ready');
-      } catch {
-        if (active) setRotationState('empty');
+  /**
+   * Heavy rotation is derived from actual device play counts in listeningStore.
+   * Only tracks with real recorded plays qualify.
+   */
+  const heavyRotation = useMemo(() => {
+    const candidateMap = new Map<string, Track>();
+    for (const track of recentlyPlayed) candidateMap.set(track.id, track);
+    for (const track of favorites) candidateMap.set(track.id, track);
+    for (const playlist of playlists) {
+      for (const track of playlist.tracks) {
+        candidateMap.set(track.id, track as Track);
       }
-    })();
-    return () => {
-      active = false;
-    };
-  }, []);
+    }
+
+    const scored: { track: Track; score: number }[] = [];
+    for (const [id, track] of candidateMap.entries()) {
+      const s = stats[id];
+      if (s && s.playCount > 0) {
+        const score = s.completedPlays * 2 + s.playCount - s.skips;
+        if (score > 0) {
+          scored.push({ track, score });
+        }
+      }
+    }
+
+    scored.sort((a, b) => b.score - a.score);
+    return scored.slice(0, 10).map((item) => item.track);
+  }, [stats, recentlyPlayed, favorites, playlists]);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadRotation(null);
+    // Refreshing triggers store sync
+    await Promise.all([
+      useLibraryStore.getState().loadFavorites(),
+      useLibraryStore.getState().loadRecentlyPlayed(),
+    ]);
     setRefreshing(false);
   };
 
@@ -89,13 +85,8 @@ export default function HomeScreen() {
     await audioService.playTrack(tracks[index]);
   };
 
-  const playSuggestion = (index: number) => {
-    const tracks = rotation.map((item) => item.track);
-    void playList(tracks, index, 'Heavy Rotation');
-  };
-
   const hasAnything =
-    favorites.length > 0 || playlists.length > 0 || recentlyPlayed.length > 0;
+    favorites.length > 0 || playlists.length > 0 || recentlyPlayed.length > 0 || heavyRotation.length > 0;
 
   return (
     <SafeAreaView style={s.container} edges={['top']}>
@@ -113,39 +104,35 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* 1. Heavy Rotation rail */}
+        {/* 1. Heavy Rotation rail: backed by real play counts */}
         <View style={s.section}>
           <SectionHeader
             title="Heavy Rotation"
-            eyebrow={`${rotation.length} tracks`}
-            actionLabel="See all"
-            onAction={() => router.push('/(tabs)/search' as any)}
+            eyebrow={heavyRotation.length > 0 ? `${heavyRotation.length} tracks` : 'Most played'}
+            actionLabel={heavyRotation.length > 0 ? 'Play all' : undefined}
+            onAction={heavyRotation.length > 0 ? () => void playList(heavyRotation, 0, 'Heavy Rotation') : undefined}
           />
 
-          {rotationState === 'loading' ? (
-            <View style={s.railPlaceholder}>
-              <Text style={s.placeholderText}>Building your rotation</Text>
-            </View>
-          ) : rotationState === 'empty' ? (
+          {heavyRotation.length === 0 ? (
             <View style={s.railPlaceholder}>
               <Text style={s.placeholderText}>
-                Play a few tracks and your rotation builds here.
+                Play tracks repeatedly and your top rotation will appear here.
               </Text>
             </View>
           ) : (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.rail}>
-              {rotation.map((item, index) => (
+              {heavyRotation.map((track, index) => (
                 <Pressable
-                  key={item.track.id}
+                  key={track.id}
                   style={({ pressed }) => [s.card, pressed && s.pressed]}
-                  onPress={() => playSuggestion(index)}
-                  onLongPress={() => setOptionsTrack(item.track)}
+                  onPress={() => void playList(heavyRotation, index, 'Heavy Rotation')}
+                  onLongPress={() => setOptionsTrack(track)}
                   accessibilityRole="button"
-                  accessibilityLabel={`${item.track.title} by ${item.track.artist}. ${item.reason}`}
+                  accessibilityLabel={`${track.title} by ${track.artist}`}
                 >
                   <View style={s.cardArtWrap}>
-                    {item.track.coverUrl ? (
-                      <Image source={{ uri: item.track.coverUrl }} style={s.cardArt} />
+                    {track.coverUrl ? (
+                      <Image source={{ uri: track.coverUrl }} style={s.cardArt} />
                     ) : (
                       <View style={[s.cardArt, s.cardArtFallback]}>
                         <Icon name="musical-notes" size={20} color={colors.outlineText} />
@@ -156,10 +143,10 @@ export default function HomeScreen() {
                     </View>
                   </View>
                   <Text numberOfLines={1} style={s.cardTitle}>
-                    {item.track.title}
+                    {track.title}
                   </Text>
                   <Text numberOfLines={1} style={s.cardArtist}>
-                    {item.track.artist}
+                    {track.artist}
                   </Text>
                 </Pressable>
               ))}
@@ -167,35 +154,55 @@ export default function HomeScreen() {
           )}
         </View>
 
-        {/* 3. Made for you bento series */}
+        {/* 2. Made for you: honest recommendations from suggestionEngine */}
         <View style={s.section}>
-          <SectionHeader title="Made for you" eyebrow="Curated series" />
-
-          <View style={s.bento}>
-            {SERIES.map((item) => (
-              <Pressable
-                key={item.id}
-                style={({ pressed }) => [s.bentoRow, pressed && s.pressed]}
-                onPress={() => router.push('/(tabs)/search' as any)}
-                accessibilityRole="button"
-                accessibilityLabel={item.name}
-              >
-                <View style={s.bentoGlyph}>
-                  <Text style={s.bentoGlyphText}>{item.glyph}</Text>
-                </View>
-                <View style={s.bentoMeta}>
-                  <Text numberOfLines={1} style={s.bentoTitle}>{item.name}</Text>
-                  <Text numberOfLines={1} style={s.bentoNote}>{item.note}</Text>
-                </View>
-                <Icon name="chevron-forward" size={16} color={colors.outlineText} />
-              </Pressable>
-            ))}
-          </View>
-
           <MadeForYou />
         </View>
 
-        {/* 4. Recently played */}
+        {/* 3. Favorites rail: real user-favorited music */}
+        {favorites.length > 0 && (
+          <View style={s.section}>
+            <SectionHeader
+              title="Favorites"
+              eyebrow={`${favorites.length} saved`}
+              actionLabel="Play all"
+              onAction={() => void playList(favorites, 0, 'Favorites')}
+            />
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.rail}>
+              {favorites.map((track, index) => (
+                <Pressable
+                  key={`fav_${track.id}`}
+                  style={({ pressed }) => [s.card, pressed && s.pressed]}
+                  onPress={() => void playList(favorites, index, 'Favorites')}
+                  onLongPress={() => setOptionsTrack(track)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${track.title} by ${track.artist}`}
+                >
+                  <View style={s.cardArtWrap}>
+                    {track.coverUrl ? (
+                      <Image source={{ uri: track.coverUrl }} style={s.cardArt} />
+                    ) : (
+                      <View style={[s.cardArt, s.cardArtFallback]}>
+                        <Icon name="musical-notes" size={20} color={colors.outlineText} />
+                      </View>
+                    )}
+                    <View style={s.cardPlay}>
+                      <Icon name="play" size={10} color={colors.onSurface} />
+                    </View>
+                  </View>
+                  <Text numberOfLines={1} style={s.cardTitle}>
+                    {track.title}
+                  </Text>
+                  <Text numberOfLines={1} style={s.cardArtist}>
+                    {track.artist}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* 4. Recently played: honest recent history */}
         {recentlyPlayed.length > 0 && (
           <View style={s.section}>
             <SectionHeader
@@ -223,7 +230,7 @@ export default function HomeScreen() {
           <View style={s.emptyState}>
             <Text style={s.emptyTitle}>Nothing here yet</Text>
             <Text style={s.emptyBody}>
-              Search for music and press play, or favorite a track. This page fills in as you listen.
+              Search for music and press play, or favorite a track. Your home screen learns from what you listen to on this device.
             </Text>
             <Pressable
               onPress={() => router.push('/(tabs)/search' as any)}
@@ -254,7 +261,7 @@ const s = StyleSheet.create({
   content: {
     paddingHorizontal: 16,
     paddingTop: 16,
-    gap: 24,
+    gap: 28,
   },
   pressed: {
     opacity: 0.7,
@@ -282,7 +289,7 @@ const s = StyleSheet.create({
     paddingRight: 16,
   },
   railPlaceholder: {
-    height: 196,
+    height: 120,
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: r.lg,
@@ -293,11 +300,12 @@ const s = StyleSheet.create({
     ...t.bodyMd,
     color: colors.outlineText,
     textAlign: 'center',
+    lineHeight: 18,
   },
 
   card: {
     width: 144,
-    gap: 8,
+    gap: 6,
   },
   cardArtWrap: {
     position: 'relative',
@@ -329,54 +337,11 @@ const s = StyleSheet.create({
   cardTitle: {
     fontFamily: FONTS.contentSemiBold,
     fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '600',
+    lineHeight: 18,
     color: colors.onSurface,
   },
   cardArtist: {
     ...t.bodySm,
-    color: colors.outlineText,
-  },
-
-  bento: {
-    gap: 8,
-  },
-  bentoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    padding: 16,
-    height: 98,
-    borderRadius: r.lg,
-    backgroundColor: colors.surfaceContainerHigh,
-  },
-  bentoGlyph: {
-    width: 56,
-    height: 56,
-    borderRadius: r.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceContainerHighest,
-  },
-  bentoGlyphText: {
-    ...t.labelSm,
-    fontWeight: '700',
-    color: colors.onSurface,
-  },
-  bentoMeta: {
-    flex: 1,
-    minWidth: 0,
-    gap: 4,
-  },
-  bentoTitle: {
-    fontFamily: FONTS.contentSemiBold,
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '600',
-    color: colors.onSurface,
-  },
-  bentoNote: {
-    ...t.bodyMd,
     color: colors.outlineText,
   },
 
