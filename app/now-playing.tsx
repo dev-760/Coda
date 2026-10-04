@@ -88,6 +88,14 @@ export default function NowPlayingScreen() {
     router.push(`/${tab}` as any);
   };
 
+  const handleDismiss = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.navigate('/(tabs)');
+    }
+  };
+
   /** Short fidelity badge, e.g. FLAC 24/192 or AAC 320. */
   const qualityBadge = (() => {
     const q = hifiQuality ?? '';
@@ -102,18 +110,18 @@ export default function NowPlayingScreen() {
       {/* Header: dismiss, centred title, options */}
       <View style={s.header}>
         <Pressable
-          onPress={() => router.back()}
-          hitSlop={10}
+          onPress={handleDismiss}
+          hitSlop={16}
           style={({ pressed }) => [s.headerButton, pressed && s.pressed]}
           accessibilityRole="button"
           accessibilityLabel="Close player"
         >
-          <Icon name="chevron-down" size={22} color={colors.onSurface} />
+          <Icon name="chevron-down" size={26} color={colors.onSurface} />
         </Pressable>
         <Text style={s.headerTitle}>NOW PLAYING</Text>
         <Pressable
           onPress={() => setOptionsVisible(true)}
-          hitSlop={10}
+          hitSlop={16}
           style={({ pressed }) => [s.headerButton, pressed && s.pressed]}
           accessibilityRole="button"
           accessibilityLabel="Track options"
@@ -280,9 +288,11 @@ export default function NowPlayingScreen() {
           </Pressable>
         </View>
 
-        {isDownloaded && (
+        {!!track && (
           <View style={s.qualityStrip}>
-            <Text style={s.qualityText}>{qualityBadge}</Text>
+            <View style={s.qualityDot} />
+            <Text style={s.qualityText}>{qualityBadge} • Lossless Audio</Text>
+            {isDownloaded && <Text style={s.downloadedBadgeText}>• Downloaded</Text>}
           </View>
         )}
 
@@ -335,14 +345,16 @@ const s = StyleSheet.create({
 
   artFrame: {
     alignSelf: 'center',
-    padding: 12,
+    padding: 10,
     borderRadius: r.lg,
     backgroundColor: colors.surfaceVariant,
+    borderWidth: 1,
+    borderColor: colors.surfaceContainerHighest,
   },
   artwork: {
     width: '100%',
     height: '100%',
-    borderRadius: r.sm,
+    borderRadius: r.md,
     backgroundColor: colors.surfaceContainer,
   },
   artworkFallback: {
@@ -448,16 +460,32 @@ const s = StyleSheet.create({
   },
 
   qualityStrip: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 10,
-    height: 24,
-    justifyContent: 'center',
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    height: 28,
     borderRadius: r.pill,
     backgroundColor: colors.surfaceContainer,
+    borderWidth: 1,
+    borderColor: colors.surfaceContainerHighest,
+  },
+  qualityDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.onSurface,
   },
   qualityText: {
     ...t.micro,
     color: colors.onSurfaceVariant,
+    letterSpacing: 0.3,
+  },
+  downloadedBadgeText: {
+    ...t.micro,
+    color: colors.onSurface,
+    fontWeight: '600',
   },
 
   errorText: {

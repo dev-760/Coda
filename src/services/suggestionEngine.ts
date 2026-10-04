@@ -144,6 +144,21 @@ async function apiCandidates(seed: Track | null, limit: number): Promise<Track[]
       for (const artist of affinityArtists(SUGGESTION_WEIGHTS.maxSeedArtists)) {
         requests.push(provider.search(artist));
       }
+      const library = useLibraryStore.getState();
+      if (requests.length === 0 && library.favorites.length > 0) {
+        for (const fav of library.favorites.slice(0, 3)) {
+          requests.push(getTrackRecommendations(fav.id, 20));
+          if (fav.artist) requests.push(provider.search(fav.artist));
+        }
+      }
+      if (requests.length === 0) {
+        requests.push(
+          provider.search('Electronic'),
+          provider.search('Chill'),
+          provider.search('Ambient'),
+          provider.search('Lo-Fi'),
+        );
+      }
     }
 
     const settled = await Promise.allSettled(requests);

@@ -188,3 +188,23 @@ npm test            # 12 test suites passed, 137 / 137 tests passed
 - [x] **Android Media Playback & Controls:** Background audio enabled via `expo-audio` config plugin (`enableBackgroundPlayback: true`) with `FOREGROUND_SERVICE_MEDIA_PLAYBACK` permission and `interruptionMode: 'doNotMix'`. Added `POST_NOTIFICATIONS` runtime permission request on startup so playback controls and metadata display directly in the Android notification bar and lock screen.
 - [x] **Android Storage & File Permissions:** Added `READ_EXTERNAL_STORAGE`, `WRITE_EXTERNAL_STORAGE`, and `READ_MEDIA_AUDIO` to Android permissions in `app.config.ts` alongside runtime permission helpers in `src/utils/androidPermissions.ts`.
 - [x] **Android System UI & Gestures:** Status bar themed to `#131316` via `androidStatusBar` and `<StatusBar backgroundColor={colors.surface} />`. Predictive back gesture enabled (`predictiveBackGestureEnabled: true`) with `onRequestClose` listeners on all modals. `versionCode` bumped to `42`.
+
+---
+
+## 11. v4.2 Final Polish & UX Elevations
+
+### 11.1. Navigation Boundary Trapping Resolution
+- **Dismiss & Back Handlers:** Across all modal and stack views (`app/now-playing.tsx`, `app/settings.tsx`, `app/queue.tsx`, `app/lyrics.tsx`), dismiss handlers now evaluate `router.canGoBack() ? router.back() : router.navigate('/(tabs)')` (or `/(tabs)/library` for Settings).
+- **Touch Target & Ergonomics:** Enlarged dismiss chevron touch areas to 44x44 with `hitSlop={16}` and 26pt icons for effortless one-handed dismissal on mobile.
+
+### 11.2. Home Screen & Suggestion Engine Overhaul
+- **Suggestion Engine Cold Start Fix (`src/services/suggestionEngine.ts`):** Resolved cold start starvation where candidate queries were empty when listening stats had zero plays. The engine now uses user library favorites as query seeds and falls back to foundational genre streams (`Electronic`, `Chill`, `Ambient`, `Lo-Fi`), ensuring high-fidelity discovery recommendations load immediately.
+- **Top Greeting & Header (`app/(tabs)/index.tsx`):** Added a brand header featuring "Luma", time-of-day greeting ("Good morning / afternoon / evening"), and a quick settings button.
+- **Vibe & Genre Quick Filters:** Added a horizontal pill rail (`All`, `Electronic`, `Ambient`, `Chill`, `Lo-Fi`, `Classical`, `Jazz`). Selecting a genre dynamically seeds the suggestion engine on the fly.
+- **Featured Soundscapes Rail:** Replaced the empty "Play tracks repeatedly" placeholder with high-taste soundscape discovery cards (`Ambient & Drone`, `Lo-Fi & Downtempo`, `Electronic & Synth`, `Modern Classical`).
+- **Skeleton Shimmer Loading (`src/components/discover/MadeForYou.tsx`):** Added card skeleton placeholders during recommendation fetch, preventing layout jumpiness and providing immediate visual feedback. Added play button overlay affordance on recommendation cards.
+
+### 11.3. Now Playing & Notification Elevation
+- **Elevated Artwork Container (`app/now-playing.tsx`):** Added subtle container border (`colors.surfaceContainerHighest`), rounded geometry, and refined depth.
+- **Persistent Lossless Fidelity Badge:** Now Playing displays a dedicated fidelity indicator pill (`FLAC 24/192 • Lossless Audio` with indicator dot) whenever audio is active.
+- **Android Media Notification Formatting (`src/audio/ExpoAudioBackend.ts`):** Enforced fallback album titles (`track.album || 'Luma Lossless'`) and artwork URLs in `publishMetadata` and `activateMediaSession`, ensuring Android's media control notification shade renders crisp artwork, album subtitle, and full playback controls.

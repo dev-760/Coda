@@ -176,17 +176,25 @@ export default function QueueScreen() {
     );
   };
 
+  const handleDismiss = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.navigate('/(tabs)');
+    }
+  };
+
   return (
     <SafeAreaView style={s.container} edges={['top']}>
       <View style={s.header}>
         <Pressable
-          onPress={() => router.push('/now-playing' as any)}
-          hitSlop={10}
+          onPress={handleDismiss}
+          hitSlop={16}
           style={({ pressed }) => [s.headerButton, pressed && s.pressed]}
           accessibilityRole="button"
-          accessibilityLabel="Back to now playing"
+          accessibilityLabel="Close queue"
         >
-          <Icon name="chevron-down" size={22} color={colors.onSurface} />
+          <Icon name="chevron-down" size={26} color={colors.onSurface} />
         </Pressable>
         <Text style={s.headerTitle}>QUEUE</Text>
         <Pressable

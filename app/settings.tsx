@@ -94,18 +94,26 @@ export default function SettingsScreen() {
     }
   };
 
+  const handleDismiss = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.navigate('/(tabs)/library');
+    }
+  };
+
   return (
     <SafeAreaView style={s.container} edges={['top']}>
       {/* Top Header with Back button for safe navigation */}
       <View style={s.header}>
         <Pressable
-          onPress={() => router.back()}
-          hitSlop={12}
+          onPress={handleDismiss}
+          hitSlop={16}
           style={({ pressed }) => [s.headerButton, pressed && s.pressed]}
           accessibilityRole="button"
           accessibilityLabel="Back"
         >
-          <Icon name="chevron-back" size={24} color={colors.onSurface} />
+          <Icon name="chevron-back" size={26} color={colors.onSurface} />
         </Pressable>
         <Text style={s.headerTitle}>Settings</Text>
         <View style={s.headerPlaceholder} />

@@ -108,7 +108,16 @@ export default function MadeForYou({
   if (state === 'loading') {
     return (
       <View style={s.container}>
-        <SectionHeader title="Made for you" eyebrow="Reading your history" />
+        <SectionHeader title="Made for you" eyebrow="Finding music" />
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.rail}>
+          {[1, 2, 3].map((key) => (
+            <View key={key} style={s.card}>
+              <View style={[s.cardArtWrap, s.skeletonArt]} />
+              <View style={s.skeletonTitle} />
+              <View style={s.skeletonSubtitle} />
+            </View>
+          ))}
+        </ScrollView>
       </View>
     );
   }
@@ -154,6 +163,9 @@ export default function MadeForYou({
                   <Icon name="musical-notes" size={20} color={colors.outlineText} />
                 </View>
               )}
+              <View style={s.cardPlay}>
+                <Icon name="play" size={10} color={colors.onSurface} />
+              </View>
               {isDownloaded(item.track.id) && (
                 <View style={s.downloadedBadge}>
                   <Icon name="arrow-down-circle" size={13} color={colors.onSurface} />
@@ -192,6 +204,8 @@ const s = StyleSheet.create({
     borderRadius: r.md,
     overflow: 'hidden',
     backgroundColor: colors.surfaceContainer,
+    borderWidth: 1,
+    borderColor: colors.surfaceContainerHighest,
     marginBottom: 4,
   },
   cardArt: {
@@ -201,6 +215,17 @@ const s = StyleSheet.create({
   cardArtFallback: {
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  cardPlay: {
+    position: 'absolute',
+    right: 8,
+    bottom: 8,
+    width: 28,
+    height: 28,
+    borderRadius: r.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(19, 19, 22, 0.85)',
   },
   downloadedBadge: {
     position: 'absolute',
@@ -212,6 +237,22 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(19, 19, 22, 0.85)',
+  },
+  skeletonArt: {
+    backgroundColor: colors.surfaceVariant,
+  },
+  skeletonTitle: {
+    width: 110,
+    height: 14,
+    borderRadius: 4,
+    backgroundColor: colors.surfaceVariant,
+    marginBottom: 4,
+  },
+  skeletonSubtitle: {
+    width: 70,
+    height: 12,
+    borderRadius: 4,
+    backgroundColor: colors.surfaceVariant,
   },
   cardTitle: {
     fontFamily: FONTS.contentSemiBold,

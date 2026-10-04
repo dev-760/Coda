@@ -25,6 +25,22 @@ import { subscribeToConnectivity } from '../../src/services/connectivity';
 import { useResponsive } from '../../src/hooks/useResponsive';
 import { colors, FONTS, r, t } from '../../src/theme/theme';
 
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 18) return 'Good afternoon';
+  return 'Good evening';
+}
+
+const GENRE_CHIPS = ['All', 'Electronic', 'Ambient', 'Chill', 'Lo-Fi', 'Classical', 'Jazz'] as const;
+
+const SOUNDSCAPES = [
+  { id: 'ambient', title: 'Ambient & Drone', blurb: 'Slow modular synth beds', genre: 'Ambient' },
+  { id: 'lofi', title: 'Lo-Fi & Downtempo', blurb: 'Tape-warm beats & keys', genre: 'Lo-Fi' },
+  { id: 'electronic', title: 'Electronic & Synth', blurb: 'Pulsing textures & rhythms', genre: 'Electronic' },
+  { id: 'classical', title: 'Modern Classical', blurb: 'Acoustic piano & chamber strings', genre: 'Classical' },
+];
+
 export default function HomeScreen() {
   const router = useRouter();
   const { favorites, playlists, recentlyPlayed } = useLibraryStore();
@@ -36,6 +52,7 @@ export default function HomeScreen() {
   const [optionsTrack, setOptionsTrack] = useState<Track | null>(null);
   const [offline, setOffline] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedGenre, setSelectedGenre] = useState<string>('All');
 
   useEffect(() => subscribeToConnectivity((isConnected) => setOffline(!isConnected)), []);
 
@@ -97,6 +114,23 @@ export default function HomeScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.outlineText} />
         }
       >
+        {/* Top Header: Brand & Settings shortcut */}
+        <View style={s.headerRow}>
+          <View>
+            <Text style={s.brandTitle}>Luma</Text>
+            <Text style={s.greetingText}>{getGreeting()}</Text>
+          </View>
+          <Pressable
+            onPress={() => router.push('/settings' as any)}
+            hitSlop={12}
+            style={({ pressed }) => [s.headerSettingsButton, pressed && s.pressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Settings"
+          >
+            <Icon name="settings-outline" size={22} color={colors.onSurface} />
+          </Pressable>
+        </View>
+
         {offline && (
           <View style={s.offlineBanner} accessibilityRole="alert">
             <Icon name="cloud-offline-outline" size={16} color={colors.error} />
@@ -104,22 +138,43 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* 1. Heavy Rotation rail: backed by real play counts */}
-        <View style={s.section}>
-          <SectionHeader
-            title="Heavy Rotation"
-            eyebrow={heavyRotation.length > 0 ? `${heavyRotation.length} tracks` : 'Most played'}
-            actionLabel={heavyRotation.length > 0 ? 'Play all' : undefined}
-            onAction={heavyRotation.length > 0 ? () => void playList(heavyRotation, 0, 'Heavy Rotation') : undefined}
-          />
+        {/* Quick Genre / Mood Filter Chips */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={s.chipRail}
+        >
+          {GENRE_CHIPS.map((genre) => {
+            const active = selectedGenre === genre;
+            return (
+              <Pressable
+                key={genre}
+                onPress={() => setSelectedGenre(genre)}
+                style={({ pressed }) => [
+                  s.genreChip,
+                  active && s.genreChipActive,
+                  pressed && !active && s.pressed,
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel={`${genre} filter`}
+              >
+                <Text style={[s.genreChipText, active && s.genreChipTextActive]}>
+                  {genre}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
 
-          {heavyRotation.length === 0 ? (
-            <View style={s.railPlaceholder}>
-              <Text style={s.placeholderText}>
-                Play tracks repeatedly and your top rotation will appear here.
-              </Text>
-            </View>
-          ) : (
+        {/* 1. Heavy Rotation rail: only shown when user has playback history */}
+        {heavyRotation.length > 0 && (
+          <View style={s.section}>
+            <SectionHeader
+              title="Heavy Rotation"
+              eyebrow={`${heavyRotation.length} tracks`}
+              actionLabel="Play all"
+              onAction={() => void playList(heavyRotation, 0, 'Heavy Rotation')}
+            />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.rail}>
               {heavyRotation.map((track, index) => (
                 <Pressable
@@ -151,13 +206,49 @@ export default function HomeScreen() {
                 </Pressable>
               ))}
             </ScrollView>
-          )}
+          </View>
+        )}
+
+        {/* 2. Made for you: recommendations with seed from genre chip if selected */}
+        <View style={s.section}>
+          <MadeForYou
+            seed={
+              selectedGenre === 'All'
+                ? null
+                : { id: `genre_${selectedGenre.toLowerCase()}`, title: selectedGenre, artist: selectedGenre }
+            }
+          />
         </View>
 
-        {/* 2. Made for you: honest recommendations from suggestionEngine */}
-        <View style={s.section}>
-          <MadeForYou />
-        </View>
+        {/* 3. Soundscape Discovery styles when rotation is empty */}
+        {heavyRotation.length === 0 && (
+          <View style={s.section}>
+            <SectionHeader
+              title="Featured Soundscapes"
+              eyebrow="Lossless Discovery"
+            />
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.rail}>
+              {SOUNDSCAPES.map((style) => (
+                <Pressable
+                  key={style.id}
+                  style={({ pressed }) => [s.soundscapeCard, pressed && s.pressed]}
+                  onPress={() => setSelectedGenre(style.genre)}
+                  accessibilityRole="button"
+                  accessibilityLabel={style.title}
+                >
+                  <View style={s.soundscapeContent}>
+                    <Text style={s.soundscapeTitle} numberOfLines={1}>{style.title}</Text>
+                    <Text style={s.soundscapeBlurb} numberOfLines={2}>{style.blurb}</Text>
+                    <View style={s.soundscapeTag}>
+                      <Text style={s.soundscapeTagText}>Explore {style.genre}</Text>
+                      <Icon name="arrow-forward" size={12} color={colors.onSurface} />
+                    </View>
+                  </View>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        )}
 
         {/* 3. Favorites rail: real user-favorited music */}
         {favorites.length > 0 && (
@@ -288,6 +379,99 @@ const s = StyleSheet.create({
     gap: 12,
     paddingRight: 16,
   },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  brandTitle: {
+    fontFamily: FONTS.semiBold,
+    fontSize: 28,
+    lineHeight: 34,
+    fontWeight: '700',
+    color: colors.onSurface,
+    letterSpacing: -0.5,
+  },
+  greetingText: {
+    ...t.bodySm,
+    color: colors.outlineText,
+    marginTop: 2,
+  },
+  headerSettingsButton: {
+    width: 44,
+    height: 44,
+    borderRadius: r.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceContainer,
+  },
+
+  chipRail: {
+    gap: 8,
+    paddingRight: 16,
+  },
+  genreChip: {
+    paddingHorizontal: 16,
+    height: 36,
+    borderRadius: r.pill,
+    backgroundColor: colors.surfaceContainer,
+    borderWidth: 1,
+    borderColor: colors.surfaceContainerHighest,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  genreChipActive: {
+    backgroundColor: colors.onSurface,
+    borderColor: colors.onSurface,
+  },
+  genreChipText: {
+    ...t.labelMd,
+    color: colors.outlineText,
+  },
+  genreChipTextActive: {
+    color: colors.surface,
+    fontWeight: '600',
+  },
+
+  soundscapeCard: {
+    width: 170,
+    height: 120,
+    borderRadius: r.md,
+    backgroundColor: colors.surfaceVariant,
+    borderWidth: 1,
+    borderColor: colors.surfaceContainerHighest,
+    padding: 12,
+    justifyContent: 'space-between',
+  },
+  soundscapeContent: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  soundscapeTitle: {
+    fontFamily: FONTS.contentSemiBold,
+    fontSize: 14,
+    lineHeight: 18,
+    color: colors.onSurface,
+  },
+  soundscapeBlurb: {
+    ...t.micro,
+    color: colors.outlineText,
+    lineHeight: 14,
+    marginTop: 4,
+  },
+  soundscapeTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 8,
+  },
+  soundscapeTagText: {
+    ...t.micro,
+    color: colors.onSurface,
+    fontWeight: '600',
+  },
+
   railPlaceholder: {
     height: 120,
     justifyContent: 'center',
@@ -314,6 +498,8 @@ const s = StyleSheet.create({
     borderRadius: r.md,
     overflow: 'hidden',
     backgroundColor: colors.surfaceContainer,
+    borderWidth: 1,
+    borderColor: colors.surfaceContainerHighest,
   },
   cardArt: {
     width: '100%',
