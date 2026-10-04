@@ -37,7 +37,7 @@ const ICONS = [
   'sun',
   'moon',
   'cloud',
-  'lightning',
+  'disc',
   'rocket',
 ];
 
@@ -137,7 +137,7 @@ export const CreatePlaylistModal: React.FC<CreatePlaylistModalProps> = ({
                     onPress={() => setSelectedColor(color)}
                   >
                     {selectedColor === color && (
-                      <Icon name="checkmark" size={16} color="#fff" />
+                      <Icon name="checkmark" size={16} color={colors.onSurface} />
                     )}
                   </TouchableOpacity>
                 ))}
@@ -173,8 +173,8 @@ export const CreatePlaylistModal: React.FC<CreatePlaylistModalProps> = ({
             {/* Preview */}
             <View style={s.preview}>
               <View style={[s.previewCard, { backgroundColor: selectedColor }]}>
-                <Icon name={selectedIcon} size={32} color="#fff" />
-                <Text style={[s.previewName, { color: '#fff' }]}>{name || 'Playlist Name'}</Text>
+                <Icon name={selectedIcon} size={32} color={colors.onSurface} />
+                <Text style={[s.previewName, { color: colors.onSurface }]}>{name || 'Playlist Name'}</Text>
                 {description && (
                   <Text style={[s.previewDesc, { color: 'rgba(255,255,255,0.8)' }]}>
                     {description}
@@ -198,7 +198,7 @@ export const CreatePlaylistModal: React.FC<CreatePlaylistModalProps> = ({
               onPress={handleCreate}
               disabled={isLoading || !name.trim()}
             >
-              <Text style={[t.labelMd, { color: '#fff' }]}>Create</Text>
+              <Text style={[t.labelMd, { color: colors.onSurface }]}>Create</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -265,7 +265,7 @@ const s = StyleSheet.create({
   },
   selectedColor: {
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: colors.onSurface,
   },
   iconGrid: {
     flexDirection: 'row',

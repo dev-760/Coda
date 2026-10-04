@@ -105,7 +105,7 @@ export default function MiniPlayer() {
           <Icon
             name="play-skip-forward"
             size={22}
-            color={hasNext ? colors.onSurface : '#4A5463'}
+            color={hasNext ? colors.onSurface : colors.surfaceContainerHighest}
           />
         </Pressable>
       </View>

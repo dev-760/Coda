@@ -116,7 +116,7 @@ export const AddToPlaylistModal: React.FC<AddToPlaylistModalProps> = ({
                   onPress={() => handleAddToPlaylist(playlist.id)}
                 >
                   <View style={[s.playlistIcon, { backgroundColor: playlist.color || colors.primary }]}>
-                    <Icon name={playlist.icon || 'musical-notes'} size={20} color="#fff" />
+                    <Icon name={playlist.icon || 'musical-notes'} size={20} color={colors.onSurface} />
                   </View>
                   <View style={s.playlistInfo}>
                     <Text style={[t.bodyMd, { color: colors.onSurface }]}>{playlist.name}</Text>
@@ -148,7 +148,7 @@ export const AddToPlaylistModal: React.FC<AddToPlaylistModalProps> = ({
                 onPress={handleCreateAndAdd}
                 disabled={isCreating || !newPlaylistName.trim()}
               >
-                <Icon name="add" size={20} color="#fff" />
+                <Icon name="add" size={20} color={colors.onPrimary} />
               </TouchableOpacity>
             </View>
           </View>

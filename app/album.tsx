@@ -345,7 +345,7 @@ const s = StyleSheet.create({
     color: colors.onSurfaceVariant,
   },
   qualityBadge: {
-    backgroundColor: '#163330',
+    backgroundColor: colors.surfaceContainer,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,

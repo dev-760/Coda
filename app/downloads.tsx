@@ -154,7 +154,7 @@ export default function DownloadsScreen() {
               </View>
             ) : (
               <View style={s.errorBadge}>
-                <Icon name="alert-circle" size={13} color="#F43F5E" />
+                <Icon name="alert-circle" size={13} color={colors.error} />
                 <Text numberOfLines={1} style={s.errorText}>
                   {cleanErrorMessage(item.errorMessage)}
                 </Text>
@@ -447,7 +447,7 @@ const s = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#10B981',
+    backgroundColor: colors.success,
   },
   completedText: {
     fontSize: 12,
@@ -462,13 +462,13 @@ const s = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
-    backgroundColor: 'rgba(244, 63, 94, 0.12)',
+    backgroundColor: colors.surfaceContainerHighest,
     alignSelf: 'flex-start',
   },
   errorText: {
     fontSize: 11,
     fontWeight: '500',
-    color: '#F43F5E',
+    color: colors.error,
   },
   progressBlock: {
     marginTop: 6,

@@ -109,8 +109,8 @@ export const PlaylistActionsModal: React.FC<PlaylistActionsModalProps> = ({
         <View style={s.container}>
           <View style={s.header}>
             <View style={[s.playlistHeader, { backgroundColor: playlist.color || colors.primary }]}>
-              <Icon name={playlist.icon || 'musical-notes'} size={32} color="#fff" />
-              <Text style={[s.playlistName, { color: '#fff' }]}>{playlist.name}</Text>
+              <Icon name={playlist.icon || 'musical-notes'} size={32} color={colors.onSurface} />
+              <Text style={[s.playlistName, { color: colors.onSurface }]}>{playlist.name}</Text>
               <Text style={[s.trackCount, { color: 'rgba(255,255,255,0.8)' }]}>
                 {playlist.tracks.length} tracks
               </Text>

@@ -337,7 +337,7 @@ const s = StyleSheet.create({
   },
   fansCount: {
     fontSize: 14,
-    color: '#b3b3b3',
+    color: colors.outlineText,
     fontWeight: '500',
   },
   bigButtonsRow: {

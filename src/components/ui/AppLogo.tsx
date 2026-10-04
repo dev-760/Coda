@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, ViewStyle } from 'react-native';
 import Svg, { Circle, Rect } from 'react-native-svg';
+import { colors } from '../../theme/theme';
 
 /**
  * The Luma waveform mark.
@@ -33,8 +34,8 @@ const CENTER = 48;
 
 export function AppLogo({
   size = 26,
-  color = '#F3F5F8',
-  ringColor = '#4A5463',
+  color = colors.inverseSurface,
+  ringColor = colors.surfaceContainerHighest,
   style,
 }: AppLogoProps) {
   return (
