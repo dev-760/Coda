@@ -41,7 +41,6 @@ export class ReportBuilder {
     const settings = useSettingsStore.getState();
     const logs = useLogStore.getState().entries;
 
-    // Sanitize logs
     const sanitizedLogs = logs.map(log => ({
       ...log,
       message: redact(log.message),

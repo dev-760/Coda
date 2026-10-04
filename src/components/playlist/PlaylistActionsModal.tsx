@@ -190,9 +190,7 @@ const s = StyleSheet.create({
     gap: sp.md,
     borderRadius: r.md,
   },
-  destructiveAction: {
-    // Can add special styling for destructive actions if needed
-  },
+  destructiveAction: {},
   cancelButton: {
     padding: sp.lg,
     alignItems: 'center',

@@ -74,9 +74,7 @@ class HifiApiProvider implements MusicProvider {
     try {
       const response = await hifiApiClient.getTrack(numericId, this.getPreferredQuality(), false);
 
-      // Every Hifi-API payload is wrapped in `{ version, data }`. Reading the
-      // stream fields off the envelope yields undefined, which is why the
-      // manifest parser used to be handed nothing at all.
+      // Payloads are wrapped in { version, data }.
       const payload = (response?.data ?? response) as HifiTrackPayload;
       const { manifest, manifestMimeType, audioQuality } = payload;
 
@@ -120,7 +118,6 @@ class HifiApiProvider implements MusicProvider {
     }
   }
 
-  // Additional methods for accessing API features
   async getTrackInfo(trackId: string | number): Promise<any> {
     return hifiApiClient.getInfo(trackId);
   }
@@ -203,7 +200,6 @@ class HifiApiProvider implements MusicProvider {
         return fileUri;
       }
 
-      // Fallback: try to decode and find a direct URL
       const urlMatch = decodedManifest.match(/https?:\/\/[^\s"']+/);
 
       if (!urlMatch) {

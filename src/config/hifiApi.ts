@@ -13,10 +13,7 @@ export const HIFI_API_CONFIG = {
 };
 
 export const HIFI_ENDPOINTS = {
-  // Core / Meta
   ROOT: '/',
-  
-  // Metadata & Search
   INFO: '/info/',
   SEARCH: '/search/',
   ALBUM: '/album/',
@@ -29,17 +26,11 @@ export const HIFI_ENDPOINTS = {
   COVER: '/cover/',
   LYRICS: '/lyrics/',
   TOP_VIDEOS: '/topvideos/',
-  
-  // Audio & Video Playback
   TRACK: '/track/',
   TRACK_MANIFESTS: '/trackManifests/',
   VIDEO: '/video/',
   WIDEVINE: '/widevine',
-  
-  // File Downloading
   DOWNLOAD: '/download/',
-  
-  // Async Queue Management
   PLAYBACK_REQUESTS: '/playback/requests/',
 };
 

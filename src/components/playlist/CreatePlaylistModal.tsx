@@ -60,7 +60,6 @@ export const CreatePlaylistModal: React.FC<CreatePlaylistModalProps> = ({
 
     try {
       await onCreate(name.trim(), description.trim(), selectedColor, selectedIcon);
-      // Reset form
       setName('');
       setDescription('');
       setSelectedColor(COLORS[0]);

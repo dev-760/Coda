@@ -2,10 +2,8 @@ import { useLogStore, LogLevel } from '../store/logStore';
 
 class Logger {
   private log(level: LogLevel, tag: string, message: string, data?: any) {
-    // Add to ring buffer store
     useLogStore.getState().addEntry({ level, tag, message, data });
 
-    // In development, also log to console
     if (__DEV__) {
       const formattedMessage = `[${tag}] ${message}`;
       switch (level) {

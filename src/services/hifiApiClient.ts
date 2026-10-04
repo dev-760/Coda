@@ -226,7 +226,7 @@ class HifiApiClient {
       if (error.name === 'AbortError') {
         return new Error('Request timeout');
       }
-      return error; // Return actual error for better debugging
+      return error;
     }
     return new Error('Unknown error occurred');
   }
@@ -251,13 +251,11 @@ class HifiApiClient {
     }, abortSignal);
   }
 
-  // Core / Meta
   async getRoot(): Promise<string> {
     const response = await fetch(`${this.baseURL}/`);
     return await response.text();
   }
 
-  // Metadata & Search
   async getInfo(trackId: string | number): Promise<any> {
     return this.get('/info/', { id: trackId.toString() });
   }
@@ -357,7 +355,6 @@ class HifiApiClient {
     });
   }
 
-  // Audio & Video Playback
   async getTrack(
     trackId: number,
     quality: AudioQuality = 'LOSSLESS',
@@ -409,7 +406,6 @@ class HifiApiClient {
     return this.post('/widevine', { challenge });
   }
 
-  // Async Queue Management
   async getPlaybackRequest(requestId: string): Promise<any> {
     return this.get(`/playback/requests/${requestId}`);
   }
@@ -418,7 +414,6 @@ class HifiApiClient {
     return this.delete(`/playback/requests/${requestId}`);
   }
 
-  // Convenience method for multi-type search
   async searchMulti(query: string, type: 's' | 'a' | 'al' | 'v' | 'p', limit = 10): Promise<any> {
     const params: Record<string, string> = { limit: limit.toString() };
     params[type] = query;

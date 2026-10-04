@@ -21,28 +21,23 @@ export function isDashManifestUrl(url: string): boolean {
 /** Parses initialization and segment URL templates from an MPD XML document. */
 export function parseDashManifest(xml: string): DashSegmentPlan | null {
   try {
-    // Extract initialization attribute
     const initMatch = xml.match(/initialization="([^"]+)"/);
     if (!initMatch) return null;
     const initUrl = initMatch[1].replace(/&amp;/g, '&');
 
-    // Extract media template attribute
     const mediaMatch = xml.match(/media="([^"]+)"/);
     if (!mediaMatch) return null;
     const mediaTemplate = mediaMatch[1].replace(/&amp;/g, '&');
 
-    // Extract startNumber (defaults to 1)
     const startMatch = xml.match(/startNumber="(\d+)"/);
     const startNumber = startMatch ? parseInt(startMatch[1], 10) : 1;
 
-    // Extract mimeType & codecs
     const mimeMatch = xml.match(/mimeType="([^"]+)"/);
     const mimeType = mimeMatch ? mimeMatch[1] : 'audio/mp4';
 
     const codecMatch = xml.match(/codecs="([^"]+)"/);
     const codecs = codecMatch ? codecMatch[1] : 'flac';
 
-    // Parse SegmentTimeline to compute total segments
     let totalSegments = 0;
     const timelineMatch = xml.match(/<SegmentTimeline>([\s\S]*?)<\/SegmentTimeline>/);
     if (timelineMatch) {
@@ -59,7 +54,7 @@ export function parseDashManifest(xml: string): DashSegmentPlan | null {
     }
 
     if (totalSegments === 0) {
-      // Fallback if SegmentTimeline is not present: look for duration
+      // Single segment fallback when SegmentTimeline is omitted.
       totalSegments = 1;
     }
 
@@ -95,7 +90,6 @@ export async function downloadDashStream(
 
   let xmlContent = '';
   if (manifestUrlOrFile.startsWith('file:') || manifestUrlOrFile.startsWith('/')) {
-    // Read from local file
     try {
       xmlContent = await FileSystemLegacy.readAsStringAsync(manifestUrlOrFile, {
         encoding: FileSystemLegacy.EncodingType.UTF8,
@@ -117,17 +111,14 @@ export async function downloadDashStream(
     throw new Error('Could not parse DASH manifest. Stream format is invalid or unsupported.');
   }
 
-  // Ensure destination is clean and created
   if (destination.exists) {
     destination.delete();
   }
   destination.create();
 
   let bytesWritten = 0;
-  // Estimate ~300KB per segment if unknown
   const estimatedTotalBytes = (plan.totalSegments + 1) * 320 * 1024;
 
-  // 1. Fetch & write initialization segment (ftyp + moov)
   if (signal?.aborted) throw new Error('Download cancelled.');
   const initRes = await fetch(plan.initUrl, { signal });
   if (!initRes.ok) throw new Error(`Failed to fetch init segment: HTTP ${initRes.status}`);
@@ -136,7 +127,6 @@ export async function downloadDashStream(
   bytesWritten += initBuf.byteLength;
   onProgress?.(bytesWritten, estimatedTotalBytes);
 
-  // 2. Fetch & append media segments sequentially
   const endNumber = plan.startNumber + plan.totalSegments - 1;
   for (let seg = plan.startNumber; seg <= endNumber; seg++) {
     if (signal?.aborted) throw new Error('Download cancelled.');
