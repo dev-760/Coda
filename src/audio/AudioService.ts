@@ -109,13 +109,13 @@ class AudioService {
 
       store.setError(message);
       store.setPlaying(false);
-      await this.skipUnplayable(track);
+      await this.skipUnplayable(track, message);
     } finally {
       store.setLoading(false);
     }
   }
 
-  private async skipUnplayable(track: Track): Promise<void> {
+  private async skipUnplayable(track: Track, reason?: string): Promise<void> {
     this.consecutiveSkips += 1;
 
     if (this.consecutiveSkips >= MAX_CONSECUTIVE_SKIPS) {
@@ -127,19 +127,30 @@ class AudioService {
 
     usePlaybackStore
       .getState()
-      .setError(`Skipped ${track.title}: it could not be played.`);
+      // Prefer the specific cause (e.g. Offline Mode) over a generic failure.
+      .setError(reason ?? `Skipped ${track.title}: it could not be played.`);
 
     const next = useQueueStore.getState().advanceForManualNext();
     if (!next) return;
     await this.playAttempt(next, 0);
   }
 
-  /** Local file first, then network. Keeps downloaded music playable offline. */
+  /**
+   * Local file first, then network. Keeps downloaded music playable offline.
+   *
+   * When Offline Mode is on, a track with no downloaded copy is refused rather
+   * than silently falling through to the network. The toggle is otherwise inert:
+   * it was persisted but nothing consulted it, so switching it on looked like
+   * it should avoid mobile data and did not.
+   */
   private async resolveStream(track: Track): Promise<StreamInfo> {
     const localPath = await useDownloadStore.getState().getOfflineTrackUrl(track.id);
     if (localPath) {
       logger.info('AudioService', `Playing downloaded file for track ${track.id}`);
       return { url: localPath, format: 'unknown' };
+    }
+    if (useSettingsStore.getState().offlineMode) {
+      throw new Error(`"${track.title}" is not downloaded and Offline Mode is on.`);
     }
     return getActiveProvider().getStreamInfo(track.id);
   }

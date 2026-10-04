@@ -78,9 +78,7 @@ export default function RootLayout() {
         <Stack.Screen name="album" options={{ presentation: 'card', headerShown: false }} />
         <Stack.Screen name="artist" options={{ presentation: 'card', headerShown: false }} />
         <Stack.Screen name="settings" options={{ presentation: 'card', headerShown: false }} />
-        <Stack.Screen name="audio-settings" options={{ presentation: 'card', headerShown: false }} />
-        <Stack.Screen name="dev-options" options={{ presentation: 'card', headerShown: false }} />
-        <Stack.Screen name="lyrics" options={{ presentation: 'fullScreenModal', headerShown: false }} />
+                <Stack.Screen name="lyrics" options={{ presentation: 'fullScreenModal', headerShown: false }} />
         <Stack.Screen name="downloads" options={{ presentation: 'card', headerShown: false }} />
       </Stack>
     </>

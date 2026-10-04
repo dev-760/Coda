@@ -163,6 +163,10 @@ Every suggestion carries a reason the user can check, either `From your favorite
   longer matches is dropped, and an interrupted entry goes back to `pending`.
 - The file extension comes from the response, not from an assumption about quality.
 - Playback resolves the local file first and only then asks the provider.
+- Offline Mode (Collection screen) gates that fallback: with it on, a track with no
+  downloaded copy is refused with a named error instead of silently streaming. The
+  refusal reason is passed through to the player, so the message says which track
+  needs downloading rather than a generic "could not be played".
 
 ## 6. Connectivity
 

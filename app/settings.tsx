@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Toggle } from '../src/components/ui/primitives';
@@ -6,6 +6,7 @@ import { useSettingsStore, DownloadQuality } from '../src/store/settingsStore';
 import { useListeningStore } from '../src/store/listeningStore';
 import { useDownloadStore } from '../src/downloads/downloadStore';
 import { autoQueueService } from '../src/services/autoQueueService';
+import { audioService } from '../src/audio/AudioService';
 import { formatBytes } from '../src/utils/formatting';
 import { colors, r, t } from '../src/theme/theme';
 import { APP_VERSION } from '../src/version';
@@ -40,6 +41,9 @@ const SLEEP_OPTIONS: { value: number | 'end'; label: string }[] = [
   { value: 'end', label: 'End of track' },
 ];
 
+/** Playback speeds, matching the steps the audio backend supports. */
+const SPEED_OPTIONS = [0.75, 1, 1.25, 1.5, 2] as const;
+
 export default function SettingsScreen() {
   const settings = useSettingsStore();
   const downloads = useDownloadStore((state) => state.downloads);
@@ -69,11 +73,14 @@ export default function SettingsScreen() {
     settings.setSleepTimerDuration(value);
   };
 
-  const sleepLabel = !settings.audio.sleepTimerEnabled
-    ? 'Off'
-    : settings.audio.sleepTimerDuration === 'end'
-      ? 'End'
-      : `${settings.audio.sleepTimerDuration}m`;
+    /** Persists the rate and applies it to the running player. */
+    const setSpeed = async (value: number) => {
+      try {
+        await audioService.setPlaybackSpeed(value);
+      } catch (error) {
+        console.warn('Could not apply playback speed', error);
+      }
+    };
 
   return (
     <SafeAreaView style={s.container} edges={['top']}>
@@ -81,7 +88,7 @@ export default function SettingsScreen() {
         {/* 1. Playback and audio */}
         <View style={s.sectionHeader}>
           <Text style={s.sectionTitle}>PLAYBACK &amp; AUDIO</Text>
-                  </View>
+        </View>
 
         <View style={s.card}>
           <Text style={s.cardLabel}>Audio Quality</Text>
@@ -99,7 +106,7 @@ export default function SettingsScreen() {
                     pressed && !selected && s.pressed,
                   ]}
                   accessibilityRole="radio"
-                                    accessibilityState={{ checked: selected }}
+                  accessibilityState={{ checked: selected }}
                   accessibilityLabel={`${option.label}, ${option.detail}`}
                 >
                   <Text style={[s.segmentLabel, selected && s.segmentLabelActive]}>
@@ -153,7 +160,7 @@ export default function SettingsScreen() {
                     pressed && !selected && s.pressed,
                   ]}
                   accessibilityRole="radio"
-                                    accessibilityState={{ checked: selected }}
+                  accessibilityState={{ checked: selected }}
                   accessibilityLabel={`Sleep timer ${option.label}`}
                 >
                   <Text style={[s.sleepText, selected && s.sleepTextActive]}>{option.label}</Text>
@@ -165,10 +172,42 @@ export default function SettingsScreen() {
 
         <View style={s.divider} />
 
-        {/* 2. Downloads and offline */}
+                <View style={s.rowBlock}>
+                  <View style={s.rowText}>
+                    <Text style={s.rowLabel}>Playback Speed</Text>
+                    <Text style={s.rowHint}>Pitch is corrected to the original key</Text>
+        </View>
+                  <View style={s.sleepRow}>
+                    {SPEED_OPTIONS.map((speed) => {
+                      const selected = settings.audio.playbackSpeed === speed;
+                      return (
+                        <Pressable
+                          key={speed}
+                          onPress={() => setSpeed(speed)}
+                          style={({ pressed }) => [
+                            s.sleepPill,
+                            selected && s.sleepPillActive,
+                            pressed && !selected && s.pressed,
+                          ]}
+                          accessibilityRole="radio"
+                  accessibilityState={{ checked: selected }}
+                          accessibilityLabel={`Playback speed ${speed} times`}
+                        >
+                          <Text style={[s.sleepText, selected && s.sleepTextActive]}>
+                            {speed}×
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+        </View>
+                </View>
+
+                <View style={s.divider} />
+
+                {/* 2. Downloads and offline */}
         <View style={s.sectionHeader}>
           <Text style={s.sectionTitle}>DOWNLOADS &amp; OFFLINE</Text>
-                  </View>
+        </View>
 
         <View style={s.card}>
           <Text style={s.cardLabel}>Download Quality</Text>
@@ -187,16 +226,16 @@ export default function SettingsScreen() {
                     pressed && !selected && s.pressed,
                   ]}
                   accessibilityRole="radio"
-                                    accessibilityState={{ checked: selected }}
+                  accessibilityState={{ checked: selected }}
                   accessibilityLabel={`${meta.name}. ${meta.detail}`}
                 >
                   <View style={s.radioText}>
                     <Text style={s.radioName}>{meta.name}</Text>
                     <Text style={s.radioDetail}>{meta.detail}</Text>
-                  </View>
+        </View>
                   <View style={[s.radioDot, selected && s.radioDotActive]}>
                     {selected && <View style={s.radioInner} />}
-                  </View>
+        </View>
                 </Pressable>
               );
             })}
@@ -220,7 +259,7 @@ export default function SettingsScreen() {
         {/* 3. Storage */}
         <View style={s.sectionHeader}>
           <Text style={s.sectionTitle}>STORAGE</Text>
-                  </View>
+        </View>
 
         <View style={s.card}>
           <View style={s.rowBlock}>

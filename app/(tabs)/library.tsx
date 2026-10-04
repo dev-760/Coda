@@ -278,7 +278,15 @@ export default function LibraryScreen() {
               <View style={s.offlineDot} />
               <Text style={s.blockLabel}>OFFLINE CACHED</Text>
             </View>
-            <Text style={s.blockCount}>VIEW ALL</Text>
+            <Pressable
+              onPress={() => setView('tracks')}
+              hitSlop={10}
+              style={({ pressed }) => [s.blockAction, pressed && s.pressed]}
+              accessibilityRole="button"
+              accessibilityLabel="View all favorite tracks"
+            >
+              <Text style={s.blockCount}>VIEW ALL</Text>
+            </Pressable>
           </View>
 
           {favorites.length === 0 ? (
@@ -574,8 +582,12 @@ const s = StyleSheet.create({
   },
   blockCount: {
     ...t.labelSm,
-    color: colors.outlineText,
+      color: colors.onSurfaceVariant,
   },
+    blockAction: {
+      minHeight: 44,
+      justifyContent: 'center',
+    },
   offlineDot: {
     width: 6,
     height: 6,
