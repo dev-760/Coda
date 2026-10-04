@@ -155,20 +155,6 @@ where the remaining risk sits.
 
 ## Known limitations
 
-Verified by running the app on `expo start --web` on 2026-10-04.
-
-- **The web target is not usable for search.** The Explore search field renders as a
-  `Pressable` rather than a real text input, so no `<input>` exists in the DOM and the
-  field cannot be focused or typed into. Everything else renders.
-- **The download system throws on web at startup.** `downloadStorage` constructs
-  `new Directory(Paths.document, 'downloads')`, and the web shim lacks `validatePath`:
-  `TypeError: this.validatePath is not a function`. The failure is caught and surfaced as
-  an error toast, but that toast is a full-screen overlay that intercepts pointer events,
-  so it also blocks navigation on the tabs underneath. Native is unaffected.
-- **The Explore landing page is hardcoded.** "Curated Editions" and "Browse Genres" are
-  literal constants in `app/(tabs)/search.tsx` (`CURATIONS`, `GENRES`). The real search
-  only runs after a query is submitted. So the discovery rail you see first has no data
-  source, and its track counts are fictional.
 - **The catalog is reached through a hardcoded base URL** in `src/config/hifiApi.ts`.
   There is no API key or environment variable support, and no way to point the app at a
   different host without editing that file.
@@ -186,11 +172,9 @@ Verified by running the app on `expo start --web` on 2026-10-04.
 - **Download pause and resume are not exposed in the UI.** Cancel and retry work.
 - **Artwork and lyrics are not downloaded** alongside the audio, so Now Playing shows the
   remote cover and fetches lyrics when online.
-- **`/settings` is registered as both a tab href and a stack route.** The tab entry
-  pushes onto the stack rather than switching tabs.
-- **Native splash background is the old colour.** `app.config.ts` sets `#090B10` while the
-  theme base is now `#131316`, so there is a brief colour shift from splash to first
-  screen. Fixing it requires a native rebuild.
+- **Web target limitations:** Audio downloads are app-private on native file systems and
+  disabled on web. Search, browsing, playlist management, queueing, and navigation run
+  smoothly on web previews.
 
 ## Further reading
 

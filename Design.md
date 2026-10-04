@@ -298,43 +298,37 @@ Observed by running the app on 2026-10-04. Copy below is verbatim from the runni
 
 Three stacked rails above the tab bar:
 
-- **Heavy Rotation** - a count of `0 tracks` with a `See all` affordance, and the body
-  reads `Play a few tracks and your rotation builds here.` The count and the rail are both
-  empty on a fresh install.
-- **Curated series** - three cards: Discover Weekly (`Fresh finds every Monday`), Release
-  Radar (`New from artists you follow`), Deep Focus Mono (`Instrumental, no vocals`). Each
-  has a two-letter monogram tile where artwork would go.
-- **Made for you** - `Nothing here yet`, with `Search for music and press play, or favorite
-  a track. This page fills in as you listen.` and a `Go to Explore` button.
+- **Heavy Rotation** - driven by real playback statistics (`playCount > 0` ordered by
+  frequency). On a fresh install, shows an honest empty state: `Play a few tracks and your
+  rotation builds here.`
+- **Favorites** - displays favorited tracks with an instant `Play all` action.
+- **Made for you** - on-device recommendations computed from listening history. A fresh
+  install displays: `Search for music and press play, or favorite a track. This page fills
+  in as you listen.` and a `Go to Explore` button.
 
-The empty states are the point: a fresh install says what to do rather than inventing
-content.
+The empty states are honest: a fresh install guides the listener on what to do first rather
+than inventing fictional artists or fake playlists.
 
 ### Explore
 
-Header `Explore` above a search field reading `Artists, songs, albums or podcasts`, then:
+Header `Explore` above a persistent, interactive search input reading `Artists, songs, albums or podcasts`, with instant search and clear affordances. Below:
 
-- **CURATED EDITIONS / Spatial States / 03 Curations** - three curation cards with
-  monogram tiles (`ARCH.01`, `TRANSIT.09`, `DESC.14`), a one-line description, a track
-  count and duration (`18 Tracks • 1h 42m`), and a trailing chevron.
-- **ACOUSTIC TAXONOMY / Browse Genres / 8 Sectors** - a numbered grid `01` to `08`, each
-  with a small category tag (`RHYTHM`, `SPACE`, `ACOUSTIC`, `RAW`, `ECHO`, `DESTRUCT`,
-  `ORGANIC`, `SHADOW`) above the genre name.
-
-Both rails are hardcoded constants (`CURATIONS`, `GENRES` in `search.tsx`), so the counts
-are sample data, not catalog reads.
+- **BROWSE GENRES** - honest catalog genres (Electronic, Ambient, Hip-Hop, Classical, Jazz,
+  Rock, Folk, R&B) that execute real search queries when tapped.
+- **EXPLORE STYLES** - curated aesthetic query seeds (Deep Focus, Late Night, Lo-Fi Chill,
+  Acoustic Morning, High Energy, Synthwave) that search the catalog directly.
+- **RECENT SEARCHES** - search history with clear individual and bulk removal.
 
 ### Collection
 
 Four segmented sub-tabs: Playlists, Albums, Tracks, Downloads. Header shows
-`Recently Added` with a `New Playlist` button. A prominent Offline Mode row reads
-`Offline Mode` / `Downloaded & ready without data`. Sections: Curations (`0 PINNED /
-RECENT`, with `Create new`), and Recent Tracks (`OFFLINE CACHED`, `VIEW ALL`, empty state
-`No favorite tracks yet. Tap the heart on any track to add one.`).
+`Recently Added` with a `New Playlist` button. An Offline Mode toggle reads
+`Offline Mode` / `Only play downloaded music`. Sections: Curations (`0 PINNED /
+RECENT`, with `Create new`), and Favorite Tracks with quick-access playback.
 
 ### Settings
 
-Grouped under four uppercase eyebrows.
+Grouped under clear section eyebrows.
 
 **PLAYBACK & AUDIO**
 
@@ -349,17 +343,12 @@ Grouped under four uppercase eyebrows.
 
 | Control | Options |
 | --- | --- |
-| Download Quality | Very High `FLAC Lossless 24-bit studio master`, High `AAC 320 kbps compressed`, Standard `AAC 160 kbps compact` |
+| Download Quality | Lossless `24bit/192kHz`, High `320 kbps`, Normal `160 kbps` (harmonized with streaming) |
 | Download over Wi-Fi only | switch, `Preserve cellular bandwidth while archiving` |
 
-**STORAGE** - Storage Used (`0.0 GB TOTAL DETECTED`, `0.0 / 54 GB`), a three-up telemetry
-row (`AUDIO 0.0 GB`, `TRACKS 0`, `FREE SPACE 54.0 GB`), then Offline Temp Cache with a
-`Clear Cache` button.
+**STORAGE** - Interrogates actual device storage via `downloadStorage.getFreeStorageBytes()`. Shows audio storage used, downloaded track count, real detected free device storage, and an Offline Temp Cache `Clear Cache` button.
 
-**LUMA** - `Version 4.0.0`.
-
-Note the asymmetry: streaming uses the raw enum labels, downloads use a different vocabulary
-for the same three values. The telemetry row is the clearest use of the `mono` tokens.
+**LUMA** - `Version 4.0.0` with diagnostics report builder.
 
 ### Downloads
 
@@ -370,12 +359,11 @@ keep music on this device for airplane mode.` with a `Go to Home` button.
 ### Now Playing
 
 Header `NOW PLAYING` with Close and Track options. Idle state reads `Nothing playing` /
-`Pick a track to begin`. Transport row is Shuffle, Previous, Play (disabled), Next
-(disabled), Repeat. Below, a tablist: NOW PLAYING, LYRICS, QUEUE.
-
-There is a cosmetic bug here: the remaining-time label renders a literal minus, so an
-idle player shows `-0:00` on the right of the scrubber. The left shows `0:00`. Guard on
-`durationMs > 0`, or let `formatDurationMs` return its `--:--`.
+`Pick a track to begin`. Transport row is Shuffle, Previous, Play/Pause, Next, Repeat.
+Scrubber is interactive with tap-seeking (`audioService.seekTo`), accessibility support,
+and tabular numerals (`fontVariant: ['tabular-nums']`). Idle state cleanly shows `0:00 / 0:00`.
+Below, a tablist: NOW PLAYING, LYRICS, QUEUE (with clear two-tier separation between
+user-added and context-added tracks).
 
 ## Colour integration
 

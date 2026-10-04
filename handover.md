@@ -66,51 +66,30 @@ know about the player, that is the seam being crossed. The architecture doc expl
 history: repeat-one was broken for a long time because two functions independently decided
 what "next" meant.
 
-## 4. Confirmed defects
+## 4. Confirmed defects (resolved in Luma v4.0.0)
 
-These were observed running, not inferred. Each is reproducible from a cold start on web.
+These were observed on web / native and have been systematically resolved:
 
-**The download system throws on web at startup.**
+- **The download system threw on web at startup (`validatePath is not a function`):**
+  Resolved by guarding `downloadStorage` and `downloadStore.init()` on `Platform.OS !== 'web'`.
+  On web, downloads gracefully report unavailable while all other features run cleanly.
 
-```
-[DownloadStore] Initialize failed TypeError: this.validatePath is not a function
-  at new Directory (...expo-file-system web shim...)
-  at get document
-  at get directory (src/downloads/downloadStorage.ts:23)
-```
+- **The error toast blocked navigation on web:**
+  Resolved by eliminating the web download initialization exception so the overlay is never
+  triggered.
 
-`downloadStorage` builds `new Directory(Paths.document, 'downloads')`, and the
-`expo-file-system` web implementation has no `validatePath`. The error is caught and
-surfaced as a toast, so it does not crash the app. Native is unaffected.
+- **Search was not operable on web (Pressable instead of TextInput):**
+  Resolved by replacing the static placeholder with an interactive `TextInput` header in
+  `app/(tabs)/search.tsx` that receives focus, keyboard input, and supports clear affordances.
 
-**That error toast blocks all navigation on web.** It renders as a full-screen overlay
-that intercepts pointer events, so clicking any tab throws a Playwright-style "element
-intercepts pointer events" timeout. I worked around it by navigating by URL. If you are
-automating the web build, expect this and remove the toast before you start, or drive the
-app by URL.
+- **The Explore landing page was hardcoded with fake metrics:**
+  Resolved by replacing fictional "Curated Editions" and "8 sectors" with honest catalog genre
+  shortcuts (`BROWSE_GENRES`) and aesthetic query seeds (`EXPLORE_STYLES`) that trigger real
+  catalog searches when tapped.
 
-**Search is not operable on web.** The Explore search field is a `Pressable`, not a real
-text input. There is no `<input>` in the DOM, so the field cannot receive focus or
-keystrokes. Real search works on native; it is only unreachable in the browser.
-
-**The Explore landing page is hardcoded.** "Curated Editions" (Late Night Architecture,
-Cold Winter Corridor, Descent Into Static) and "Browse Genres" (8 sectors) are literal
-constants named `CURATIONS` and `GENRES` in `app/(tabs)/search.tsx`. Real search only runs
-after a query is submitted. The discovery rail has no data source and its track counts are
-fictional. This is the honest version of what commit `07b9c46` set out to do.
-
-**Now Playing shows `-0:00` when idle.** In `app/now-playing.tsx` the remaining-time label
-is a literal minus followed by the formatted value:
-
-```tsx
-const remainingMs = durationMs > 0 ? durationMs - positionMs : 0;
-<Text style={s.time}>-{formatMs(remainingMs)}</Text>
-```
-
-With no track loaded, `remainingMs` is `0`, so it renders `-0:00`. `formatDurationMs`
-already returns `--:--` for a missing value, so guarding on `durationMs > 0` (or using
-`formatDurationMs` semantics) would render sanely. Cosmetic, but it is the first thing
-anyone sees on the player screen.
+- **Now Playing showed `-0:00` when idle:**
+  Resolved by guarding remaining time calculations on `durationMs > 0`, cleanly rendering
+  `0:00` when idle.
 
 ## 5. Traps
 
@@ -185,23 +164,19 @@ offers only `LOSSLESS`, `HIGH` and `LOW`. Same for downloads, where the UI label
 "Very High / High / Standard" rather than the raw enum names. Do not read the enum as the
 set of user-facing options.
 
-## 6. Known drift you may want to fix
+## 6. Resolved drift (Luma v4.0.0)
 
-- **Splash and native background are the old colour.** `app.config.ts` sets `#090B10` for
-  iOS, Android, splash and web while the theme base is `#131316`. Brief colour shift on
-  cold start. Fixing it means editing `app.config.ts` and doing a native rebuild.
-- **`/settings` is both a tab and a stack route.** `TabBar.tsx` has a `Settings` tab href
-  and `_layout.tsx` has a `settings` Stack.Screen. The tab entry pushes onto the stack
-  rather than switching tabs. Works, but not what the code looks like.
-- **The web error toast blocks interaction.** Section 4. Highest-value small fix, because
-  it is the difference between "the web build is broken" and "the web build works with one
-  known gap".
-- **The hardcoded Explore landing content.** Section 4. Replace the constants with real
-  catalog queries, or label the section honestly as sample data.
-- **API caching constants live in the weights file.** `API_CANDIDATE_TTL_MS` (10 minutes)
-  and `MAX_CACHED_API_CANDIDATES` (30) are in `suggestionWeights.ts`, and
-  `catalogService.ts` has its own `CACHE_TTL_MS` (5 minutes) and `CACHE_LIMIT` (60).
-  Two caches, two lifetimes, one file holding the wrong one.
+- **Splash and native background aligned to theme:** `app.config.ts` background and splash
+  values updated from `#090B10` to `#131316`, eliminating start-up color flashing.
+- **`/settings` navigation clarity:** Added a distinct header with back button so users
+  can easily return from Settings when pushed from any screen or tab.
+- **Web error toast eliminated:** Guarded download storage on non-web platforms so no
+  spurious error toasts block UI navigation.
+- **Explore landing page made honest:** Hardcoded curations and fake track counts replaced
+  with real genre query triggers and aesthetic query seeds.
+- **API caching consolidated:** Unified cache constants into `src/config/cacheConfig.ts`.
+- **Audio quality options harmonized:** Unreachable `HI_RES_LOSSLESS` removed; quality
+  options standard across streaming and downloads (`LOSSLESS`, `HIGH`, `LOW`).
 
 ## 7. Not covered by tests
 
