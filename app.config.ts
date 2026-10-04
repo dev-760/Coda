@@ -33,7 +33,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'android.permission.FOREGROUND_SERVICE',
       'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK',
       'android.permission.INTERNET',
-      'android.permission.ACCESS_NETWORK_STATE'
+      'android.permission.ACCESS_NETWORK_STATE',
+      'android.permission.POST_NOTIFICATIONS',
+      'android.permission.READ_EXTERNAL_STORAGE',
+      'android.permission.WRITE_EXTERNAL_STORAGE',
+      'android.permission.READ_MEDIA_AUDIO',
     ],
     backgroundColor: '#131316', // Android splash background
     predictiveBackGestureEnabled: true,

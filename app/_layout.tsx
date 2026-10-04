@@ -21,6 +21,7 @@ import { useLibraryStore } from '../src/store/libraryStore';
 import { useSettingsStore } from '../src/store/settingsStore';
 import { useDownloadStore } from '../src/downloads/downloadStore';
 import { autoQueueService } from '../src/services/autoQueueService';
+import { requestAndroidNotificationPermission } from '../src/utils/androidPermissions';
 
 SplashScreen.preventAutoHideAsync();
 export default function RootLayout() {
@@ -44,6 +45,7 @@ export default function RootLayout() {
     }
   }, [fontsLoaded, fontError]);
   useEffect(() => {
+    requestAndroidNotificationPermission().catch(console.warn);
     audioService.init().catch((error) => {
       console.error('Failed to initialize audio service:', error);
     });
