@@ -131,6 +131,7 @@ const s = StyleSheet.create({
   index: {
     ...t.labelSm,
     color: colors.outlineText,
+    fontVariant: ['tabular-nums'],
   },
   artwork: {
     width: 44,
@@ -172,8 +173,8 @@ const s = StyleSheet.create({
     color: colors.outlineText,
   },
   more: {
-    width: 32,
-    height: 32,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },

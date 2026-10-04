@@ -420,6 +420,7 @@ const s = StyleSheet.create({
     color: colors.onSurfaceVariant,
     width: 20,
     textAlign: 'center',
+    fontVariant: ['tabular-nums'],
   },
   trackTextCol: {
     flex: 1,
@@ -427,7 +428,7 @@ const s = StyleSheet.create({
     gap: 2,
   },
   trackTitle: {
-    fontFamily: FONTS.display,
+    fontFamily: FONTS.contentSemiBold,
     fontSize: 15,
     fontWeight: '600',
     color: colors.onSurface,
@@ -437,8 +438,8 @@ const s = StyleSheet.create({
     color: colors.onSurfaceVariant,
   },
   moreBtn: {
-    width: 36,
-    height: 36,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -451,6 +452,7 @@ const s = StyleSheet.create({
     fontSize: 13,
     color: colors.onSurfaceVariant,
     marginRight: 4,
+    fontVariant: ['tabular-nums'],
   },
   playBtnDisabled: {
     opacity: 0.4,

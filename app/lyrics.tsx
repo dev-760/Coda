@@ -374,6 +374,7 @@ const s = StyleSheet.create({
     width: 44,
     paddingTop: 4,
     color: colors.outlineText,
+    fontVariant: ['tabular-nums'],
   },
   lineTimePast: {
     opacity: 0.5,
@@ -402,6 +403,7 @@ const s = StyleSheet.create({
     width: 44,
     paddingTop: 2,
     color: colors.onSurface,
+    fontVariant: ['tabular-nums'],
   },
   activeLineBody: {
     flex: 1,
