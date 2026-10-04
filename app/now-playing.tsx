@@ -45,6 +45,7 @@ export default function NowPlayingScreen() {
   const hasNext = useQueueStore((state) => state.upcomingCount() > 0);
 
   const [optionsVisible, setOptionsVisible] = useState(false);
+  const [trackWidth, setTrackWidth] = useState(0);
 
   const track = currentTrack;
   const liked = track ? isFavorite(track.id) : false;
@@ -173,7 +174,37 @@ export default function NowPlayingScreen() {
         </View>
 
         {/* Scrubber with elapsed on the left and remaining on the right */}
-        <View style={s.scrubArea}>
+        <Pressable
+          style={s.scrubArea}
+          hitSlop={12}
+          onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}
+          onPress={(e) => {
+            if (trackWidth > 0 && durationMs > 0) {
+              const ratio = Math.min(Math.max(0, e.nativeEvent.locationX / trackWidth), 1);
+              const targetMs = Math.round(ratio * durationMs);
+              void audioService.seekTo(targetMs);
+            }
+          }}
+          accessibilityRole="adjustable"
+          accessibilityLabel="Playback progress"
+          accessibilityValue={{
+            min: 0,
+            max: durationMs,
+            now: positionMs,
+            text: `${formatMs(positionMs)} of ${formatMs(durationMs)}`,
+          }}
+          accessibilityActions={[
+            { name: 'increment', label: 'Seek forward 15 seconds' },
+            { name: 'decrement', label: 'Seek backward 15 seconds' },
+          ]}
+          onAccessibilityAction={(event) => {
+            if (event.nativeEvent.actionName === 'increment') {
+              void audioService.seekTo(Math.min(durationMs, positionMs + 15000));
+            } else if (event.nativeEvent.actionName === 'decrement') {
+              void audioService.seekTo(Math.max(0, positionMs - 15000));
+            }
+          }}
+        >
           <View style={s.scrubTrack}>
             <View style={[s.scrubFill, { width: `${progress * 100}%` }]} />
             <View style={[s.scrubKnob, { left: `${progress * 100}%` }]} />
@@ -182,7 +213,7 @@ export default function NowPlayingScreen() {
             <Text style={s.time}>{durationMs > 0 ? formatMs(positionMs) : '--:--'}</Text>
             <Text style={s.time}>{durationMs > 0 ? `-${formatMs(remainingMs)}` : '--:--'}</Text>
           </View>
-        </View>
+        </Pressable>
 
         {/* Transport */}
         <View style={s.transport}>
@@ -389,8 +420,11 @@ const s = StyleSheet.create({
     justifyContent: 'space-between',
   },
   time: {
-    ...t.mono,
+    fontFamily: FONTS.regular,
+    fontSize: 11,
+    lineHeight: 14,
     color: colors.outlineText,
+    fontVariant: ['tabular-nums'],
   },
 
   transport: {
