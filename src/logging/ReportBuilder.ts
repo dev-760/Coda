@@ -5,7 +5,7 @@ import { useLogStore } from '../store/logStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { APP_VERSION } from '../version';
 
-export const REPORT_SCHEMA_VERSION = '4.0.0';
+export const REPORT_SCHEMA_VERSION = '4.2.0';
 
 // Full URLs can carry signed stream tokens, so they are stripped from both the
 // message and the structured data before a report leaves the device.

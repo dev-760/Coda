@@ -13,7 +13,7 @@ library on the device, downloads tracks for offline playback, and ranks suggesti
 locally from listening history. No accounts, no backend of ours, no analytics. All state
 lives on the device.
 
-Version `4.0.0`, from `package.json`. `src/version.ts` re-exports it and `app.config.ts`
+Version `4.2.0`, from `package.json`. `src/version.ts` re-exports it and `app.config.ts`
 reads the same value, so the build and the diagnostics report cannot disagree.
 
 ## 2. First run
@@ -66,7 +66,7 @@ know about the player, that is the seam being crossed. The architecture doc expl
 history: repeat-one was broken for a long time because two functions independently decided
 what "next" meant.
 
-## 4. Confirmed defects (resolved in Luma v4.0.0)
+## 4. Confirmed defects (resolved in Luma v4.2.0)
 
 These were observed on web / native and have been systematically resolved:
 
@@ -164,7 +164,7 @@ offers only `LOSSLESS`, `HIGH` and `LOW`. Same for downloads, where the UI label
 "Very High / High / Standard" rather than the raw enum names. Do not read the enum as the
 set of user-facing options.
 
-## 6. Resolved drift (Luma v4.0.0)
+## 6. Resolved drift (Luma v4.2.0)
 
 - **Splash and native background aligned to theme:** `app.config.ts` background and splash
   values updated from `#090B10` to `#131316`, eliminating start-up color flashing.

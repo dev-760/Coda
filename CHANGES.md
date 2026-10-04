@@ -1,4 +1,4 @@
-# Changes in Luma v4.0.0
+# Changes in Luma v4.2.0
 
 A comprehensive record of code quality, architecture, UI/UX, mobile ergonomics, accessibility, and documentation improvements delivered in one uninterrupted pass.
 
@@ -6,7 +6,7 @@ A comprehensive record of code quality, architecture, UI/UX, mobile ergonomics, 
 
 ## 1. Executive Summary
 
-Luma v4.0.0 is an offline-capable, local-first music player built with React Native 0.86, Expo SDK 57, Expo Router, TypeScript (strict), Zustand 4.5 (with persist), and expo-audio.
+Luma v4.2.0 is an offline-capable, local-first music player built with React Native 0.86, Expo SDK 57, Expo Router, TypeScript (strict), Zustand 4.5 (with persist), and expo-audio.
 
 This release eliminates confirmed runtime crashes on web previews, replaces all hardcoded fictional catalog items and metrics with authentic on-device data and real search triggers, strengthens mobile touch targets and accessibility semantics, consolidates redundant caches and quality configurations, and cleans up codebase comments and design documentation.
 

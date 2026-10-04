@@ -1,7 +1,7 @@
-# AUDIT: Luma v4.0.0 Quality & UI/UX Audit
+# AUDIT: Luma v4.2.0 Quality & UI/UX Audit
 
 Date: 2026-10-04
-Target: Luma v4.0.0 (React Native 0.86 / Expo SDK 57 / Expo Router / TypeScript strict / Zustand 4.5 / expo-audio / expo-file-system)
+Target: Luma v4.2.0 (React Native 0.86 / Expo SDK 57 / Expo Router / TypeScript strict / Zustand 4.5 / expo-audio / expo-file-system)
 
 ## 1. Confirmed Known Defects Verification
 
