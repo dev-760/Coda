@@ -20,7 +20,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   android: {
     package: 'com.luma.musicplayer',
-    versionCode: 4,
+    versionCode: 42,
     adaptiveIcon: {
       // Split layers so the launcher can mask and tint them. The mark sits
       // inside the adaptive safe zone, which a single squashed foreground
@@ -36,7 +36,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'android.permission.ACCESS_NETWORK_STATE'
     ],
     backgroundColor: '#131316', // Android splash background
-  },  web: {
+    predictiveBackGestureEnabled: true,
+  },
+  androidStatusBar: {
+    barStyle: 'light-content',
+    backgroundColor: '#131316',
+  },
+  web: {
     output: 'static',
     backgroundColor: '#131316', // Web background
   },

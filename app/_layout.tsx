@@ -65,7 +65,7 @@ export default function RootLayout() {
   }
   return (
     <>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle="light-content" backgroundColor={colors.surface} />
       <Stack screenOptions={{ 
         headerStyle: { backgroundColor: colors.surface },
         headerTintColor: colors.onSurface,
