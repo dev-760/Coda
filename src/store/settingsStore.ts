@@ -88,7 +88,28 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: 'luma-settings',
+      version: 1,
       storage: createJSONStorage(() => AsyncStorage),
+      migrate: (persistedState: any, version: number) => {
+        if (!persistedState) return DEFAULT_SETTINGS;
+        if (version === 0) {
+          // Normalize legacy values
+          return {
+            ...DEFAULT_SETTINGS,
+            ...persistedState,
+            audio: {
+              ...DEFAULT_AUDIO_SETTINGS,
+              ...(persistedState.audio ?? {}),
+              // Map legacy quality if invalid
+              hifiAudioQuality:
+                persistedState.audio?.hifiAudioQuality === 'HI_RES_LOSSLESS'
+                  ? 'LOSSLESS'
+                  : (persistedState.audio?.hifiAudioQuality ?? 'LOSSLESS'),
+            },
+          };
+        }
+        return persistedState as SettingsState;
+      },
       onRehydrateStorage: () => (state) => {
         if (state) {
           state.setHydrated();

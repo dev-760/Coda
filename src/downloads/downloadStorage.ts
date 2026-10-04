@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { Directory, File, Paths } from 'expo-file-system';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_KEYS } from '../storage/StorageKeys';
@@ -19,24 +20,33 @@ class DownloadStorage {
     return DownloadStorage.instance;
   }
 
-  get directory(): Directory {
+  get isSupported(): boolean {
+    return Platform.OS !== 'web';
+  }
+
+  get directory(): Directory | null {
+    if (!this.isSupported) return null;
     return new Directory(Paths.document, 'downloads');
   }
 
-  get artworkDirectory(): Directory {
+  get artworkDirectory(): Directory | null {
+    if (!this.isSupported) return null;
     return new Directory(Paths.document, 'downloads', 'artwork');
   }
 
   async ensureDirectories(): Promise<void> {
-    if (!this.directory.exists) this.directory.create({ intermediates: true });
-    if (!this.artworkDirectory.exists) this.artworkDirectory.create({ intermediates: true });
+    if (!this.isSupported) return;
+    if (this.directory && !this.directory.exists) this.directory.create({ intermediates: true });
+    if (this.artworkDirectory && !this.artworkDirectory.exists) this.artworkDirectory.create({ intermediates: true });
   }
 
-  fileFor(trackId: string, extension: string): File {
+  fileFor(trackId: string, extension: string): File | null {
+    if (!this.isSupported || !this.directory) return null;
     return new File(this.directory, `${trackId}.${extension}`);
   }
 
-  artworkFileFor(trackId: string, extension: string): File {
+  artworkFileFor(trackId: string, extension: string): File | null {
+    if (!this.isSupported || !this.artworkDirectory) return null;
     return new File(this.artworkDirectory, `${trackId}.${extension}`);
   }
 
@@ -114,7 +124,7 @@ class DownloadStorage {
   /** Removes the index entry and the files on disk. */
   async deleteDownload(trackId: string): Promise<void> {
     const download = await this.getDownloadByTrackId(trackId);
-    if (download) {
+    if (download && this.isSupported) {
       if (download.filePath) {
         try {
           const file = new File(download.filePath);
@@ -150,6 +160,7 @@ class DownloadStorage {
    * so a half-written download never plays back as if it were complete.
    */
   async repairIndex(): Promise<string[]> {
+    if (!this.isSupported) return [];
     const downloads = await this.getAllDownloads();
     const repaired: DownloadMetadata[] = [];
     const removed: string[] = [];
@@ -192,12 +203,13 @@ class DownloadStorage {
   }
 
   async getFreeStorageBytes(): Promise<number> {
-      try {
-        return Paths.availableDiskSpace;
-      } catch {
-        return 0;
-      }
+    if (!this.isSupported) return 0;
+    try {
+      return Paths.availableDiskSpace;
+    } catch {
+      return 0;
     }
+  }
 }
 
 export const downloadStorage = DownloadStorage.getInstance();

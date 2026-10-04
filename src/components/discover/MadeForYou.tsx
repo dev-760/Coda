@@ -29,24 +29,23 @@ export default function MadeForYou({
   // invalidate the list. Subscribing to the record count is enough and avoids
   // re-ranking on every position tick.
   const playedCount = useListeningStore((store) => Object.keys(store.stats).length);
-  const [historyVersion, setHistoryVersion] = useState(0);
-
-  useEffect(() => {
-    setHistoryVersion((version) => version + 1);
-  }, [playedCount]);
 
   const fetchSuggestions = useCallback(async () => {
-    const results = await getSuggestions(
-      seed ? { id: seed.id, title: seed.title, artist: seed.artist } : null,
-      12,
-    );
-    setItems(results);
-    setState(results.length === 0 ? 'empty' : 'ready');
+    setState('loading');
+    try {
+      const results = await getSuggestions(
+        seed ? { id: seed.id, title: seed.title, artist: seed.artist } : null,
+        12,
+      );
+      setItems(results);
+      setState(results.length === 0 ? 'empty' : 'ready');
+    } catch {
+      setState('error');
+    }
   }, [seed]);
 
   useEffect(() => {
     let active = true;
-    setState('loading');
     void (async () => {
       try {
         const results = await getSuggestions(
@@ -63,7 +62,7 @@ export default function MadeForYou({
     return () => {
       active = false;
     };
-  }, [seed, historyVersion]);
+  }, [seed, playedCount]);
 
   const playAll = async () => {
     if (items.length === 0) return;

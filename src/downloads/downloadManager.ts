@@ -163,13 +163,26 @@ class DownloadManager {
   private async download(trackId: string): Promise<void> {
     const entry = await downloadStorage.getDownloadByTrackId(trackId);
     if (!entry) return;
+    if (!downloadStorage.isSupported) {
+      await downloadStorage.updateStatus(trackId, 'failed', {
+        errorMessage: 'Downloads are not supported on web.',
+      });
+      this.emit({
+        trackId,
+        progress: 0,
+        downloadedBytes: 0,
+        totalBytes: 0,
+        status: 'failed',
+      });
+      return;
+    }
 
-    const track = entry.track;
+    const temporary = downloadStorage.fileFor(trackId, 'part');
     try {
       const { url, headers } = await this.resolveStream(trackId, entry.quality);
 
       const controller = this.active.get(trackId)?.controller ?? new AbortController();
-      const temporary = downloadStorage.fileFor(trackId, 'part');
+      if (!temporary) throw new Error('File storage unavailable');
 
       let lastPersist = 0;
       let written = 0;
@@ -221,6 +234,7 @@ class DownloadManager {
       }
 
       const finalFile = downloadStorage.fileFor(trackId, extension);
+      if (!finalFile) throw new Error('File storage destination unavailable');
       if (finalFile.exists) finalFile.delete();
       temporary.move(finalFile);
 
@@ -235,6 +249,13 @@ class DownloadManager {
 
       this.emit({ trackId, progress: 100, downloadedBytes: written, totalBytes: written, status: 'completed' });
     } catch (error) {
+      if (temporary && temporary.exists) {
+        try {
+          temporary.delete();
+        } catch {
+          // Ignore deletion error on partial cleanup
+        }
+      }
       const aborted = error instanceof Error && error.name === 'AbortError';
       let message = 'Download failed.';
       if (aborted) {

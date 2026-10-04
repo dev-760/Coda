@@ -179,8 +179,8 @@ export default function NowPlayingScreen() {
             <View style={[s.scrubKnob, { left: `${progress * 100}%` }]} />
           </View>
           <View style={s.timeRow}>
-            <Text style={s.time}>{formatMs(positionMs)}</Text>
-            <Text style={s.time}>-{formatMs(remainingMs)}</Text>
+            <Text style={s.time}>{durationMs > 0 ? formatMs(positionMs) : '--:--'}</Text>
+            <Text style={s.time}>{durationMs > 0 ? `-${formatMs(remainingMs)}` : '--:--'}</Text>
           </View>
         </View>
 

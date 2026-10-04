@@ -1,3 +1,5 @@
+import { CACHE_CONFIG } from '../config/cacheConfig';
+
 /**
  * Scoring weights for the on-device suggestion engine. Each value is a
  * multiplier applied to a normalized signal, so changing one weight does not
@@ -54,5 +56,7 @@ export const AUTO_QUEUE_MIN_REMAINING = 3;
 export const AUTO_QUEUE_FILL_COUNT = 10;
 export const MAX_SAME_ARTIST_IN_A_ROW = 2;
 export const MAX_TRACKS_PER_ARTIST_IN_POOL = 3;
-export const API_CANDIDATE_TTL_MS = 10 * 60_000;
-export const MAX_CACHED_API_CANDIDATES = 30;
+
+/** Consolidated cache settings re-exported for backwards compatibility */
+export const API_CANDIDATE_TTL_MS = CACHE_CONFIG.suggestionApiCandidates.ttlMs;
+export const MAX_CACHED_API_CANDIDATES = CACHE_CONFIG.suggestionApiCandidates.limit;

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, Modal, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert } from 'react-native';
 import { colors, r, sp, t } from '../../theme/theme';
 import Icon from '../ui/Icon';
-import { Playlist , useLibraryStore } from '../../store/libraryStore';
+import { useLibraryStore } from '../../store/libraryStore';
 import { Track } from '../../providers/types';
 
 interface AddToPlaylistModalProps {
@@ -31,7 +31,7 @@ export const AddToPlaylistModal: React.FC<AddToPlaylistModalProps> = ({
       await addTrackToPlaylist(playlistId, track);
       Alert.alert('Success', `Added "${track.title}" to playlist`);
       onClose();
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to add track to playlist');
     }
   };
@@ -50,7 +50,7 @@ export const AddToPlaylistModal: React.FC<AddToPlaylistModalProps> = ({
       setNewPlaylistName('');
       setIsCreating(false);
       onClose();
-    } catch (error) {
+    } catch {
       setIsCreating(false);
       Alert.alert('Error', 'Failed to create playlist');
     }

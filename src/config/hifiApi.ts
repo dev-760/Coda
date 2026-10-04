@@ -1,5 +1,11 @@
+import Constants from 'expo-constants';
+
+const configuredBaseUrl =
+  (Constants.expoConfig?.extra?.hifiApiBaseUrl as string | undefined) ||
+  'https://hifi-api00.vercel.app';
+
 export const HIFI_API_CONFIG = {
-  baseURL: 'https://hifi-api00.vercel.app',
+  baseURL: configuredBaseUrl,
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
@@ -37,7 +43,7 @@ export const HIFI_ENDPOINTS = {
   PLAYBACK_REQUESTS: '/playback/requests/',
 };
 
-export const AUDIO_QUALITIES = ['HI_RES_LOSSLESS', 'LOSSLESS', 'HIGH', 'LOW'] as const;
+export const AUDIO_QUALITIES = ['LOSSLESS', 'HIGH', 'LOW'] as const;
 export type AudioQuality = typeof AUDIO_QUALITIES[number];
 
 export const VIDEO_QUALITIES = ['HIGH', 'MEDIUM', 'LOW'] as const;

@@ -17,7 +17,6 @@ import { useLibraryStore } from '../../store/libraryStore';
 import { useQueueStore } from '../../store/queueStore';
 import { useDownloadStore } from '../../downloads/downloadStore';
 import { useSettingsStore } from '../../store/settingsStore';
-import { audioService } from '../../audio/AudioService';
 import { colors, FONTS, r, t } from '../../theme/theme';
 
 interface TrackOptionsMenuProps {
@@ -25,6 +24,34 @@ interface TrackOptionsMenuProps {
   onClose: () => void;
   track: Track | null;
   onAddToPlaylist?: (track: Track) => void;
+}
+
+interface OptionRowProps {
+  icon: string;
+  label: string;
+  detail?: string;
+  onPress: () => void;
+  trailing?: React.ReactNode;
+}
+
+function OptionRow({ icon, label, detail, onPress, trailing }: OptionRowProps) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [s.row, pressed && s.pressed]}
+      accessibilityRole="button"
+      accessibilityLabel={detail ? `${label}. ${detail}` : label}
+    >
+      <View style={s.rowIcon}>
+        <Icon name={icon} size={16} color={colors.onSurfaceVariant} />
+      </View>
+      <View style={s.rowText}>
+        <Text style={s.rowLabel} numberOfLines={1}>{label}</Text>
+        {!!detail && <Text style={s.rowDetail} numberOfLines={1}>{detail}</Text>}
+      </View>
+      {trailing ?? <Icon name="chevron-forward" size={16} color={colors.outlineText} />}
+    </Pressable>
+  );
 }
 
 /**
@@ -141,35 +168,6 @@ export default function TrackOptionsMenu({
     return 'AAC 160';
   })();
 
-  const Row = ({
-    icon,
-    label,
-    detail,
-    onPress,
-    trailing,
-  }: {
-    icon: string;
-    label: string;
-    detail?: string;
-    onPress: () => void;
-    trailing?: React.ReactNode;
-  }) => (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [s.row, pressed && s.pressed]}
-      accessibilityRole="button"
-      accessibilityLabel={detail ? `${label}. ${detail}` : label}
-    >
-      <View style={s.rowIcon}>
-        <Icon name={icon} size={16} color={colors.onSurfaceVariant} />
-      </View>
-      <View style={s.rowText}>
-        <Text style={s.rowLabel} numberOfLines={1}>{label}</Text>
-        {!!detail && <Text style={s.rowDetail} numberOfLines={1}>{detail}</Text>}
-      </View>
-      {trailing ?? <Icon name="chevron-forward" size={16} color={colors.outlineText} />}
-    </Pressable>
-  );
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -250,28 +248,28 @@ export default function TrackOptionsMenu({
             </Pressable>
           </View>
 
-          <Row
-                      icon="list"
-                      label="Add to Up Next Queue"
-                      detail="Append to tail of session queue"
-                      onPress={handleAddToQueue}
-                      trailing={<Icon name="add" size={18} color={colors.onSurfaceVariant} />}
-                    />
+          <OptionRow
+            icon="list"
+            label="Add to Up Next Queue"
+            detail="Append to tail of session queue"
+            onPress={handleAddToQueue}
+            trailing={<Icon name="add" size={18} color={colors.onSurfaceVariant} />}
+          />
 
           <Text style={s.sectionLabel}>CONTEXT &amp; CREDITS</Text>
-          <Row
+          <OptionRow
             icon="person-outline"
             label="Go to Artist"
             detail={`${track.artist}`}
             onPress={handleGoToArtist}
           />
-          <Row
+          <OptionRow
             icon="disc-outline"
             label="Go to Album"
             detail={track.album ?? 'Single'}
             onPress={handleGoToAlbum}
           />
-          <Row
+          <OptionRow
             icon="information-circle-outline"
             label="Song Credits"
             detail={`Produced by ${track.artist}`}

@@ -21,17 +21,17 @@ import { APP_VERSION } from '../src/version';
 
 /** Streaming quality options, keyed by what the API expects. */
 const STREAM_QUALITIES = [
-  { value: 'LOSSLESS' as const, label: 'Lossless', detail: '24bit/192kHz' },
-  { value: 'HIGH' as const, label: 'High', detail: '320 kbps' },
-  { value: 'LOW' as const, label: 'Normal', detail: '160 kbps' },
+  { value: 'LOSSLESS' as const, label: 'Lossless', detail: 'FLAC 24-bit / 192 kHz' },
+  { value: 'HIGH' as const, label: 'High', detail: 'AAC 320 kbps' },
+  { value: 'LOW' as const, label: 'Normal', detail: 'AAC 160 kbps' },
 ] as const;
 
 const DOWNLOAD_QUALITY_OPTIONS: DownloadQuality[] = ['LOSSLESS', 'HIGH', 'LOW'];
 
 const DOWNLOAD_QUALITY_LABELS: Record<DownloadQuality, { name: string; detail: string }> = {
-  LOSSLESS: { name: 'Very High', detail: 'FLAC Lossless 24-bit studio master' },
+  LOSSLESS: { name: 'Lossless', detail: 'FLAC 24-bit studio master' },
   HIGH: { name: 'High', detail: 'AAC 320 kbps compressed' },
-  LOW: { name: 'Standard', detail: 'AAC 160 kbps compact' },
+  LOW: { name: 'Normal', detail: 'AAC 160 kbps compact' },
 };
 
 const SLEEP_OPTIONS: { value: number | 'end'; label: string }[] = [

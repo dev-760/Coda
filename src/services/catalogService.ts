@@ -23,8 +23,10 @@ import {
  * every caller needs to render an empty state rather than an error boundary.
  */
 
-const CACHE_LIMIT = 60;
-const CACHE_TTL_MS = 5 * 60 * 1000;
+import { CACHE_CONFIG } from '../config/cacheConfig';
+
+const CACHE_LIMIT = CACHE_CONFIG.catalog.limit;
+const CACHE_TTL_MS = CACHE_CONFIG.catalog.ttlMs;
 
 interface CacheEntry {
   value: unknown;

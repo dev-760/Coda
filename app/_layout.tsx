@@ -14,14 +14,13 @@ import {
   Inter_700Bold,
 } from '@expo-google-fonts/inter';
 import * as SplashScreen from 'expo-splash-screen';
-import { COLORS } from '../src/theme/theme';
+import { colors } from '../src/theme/theme';
 import { audioService } from '../src/audio/AudioService';
 import { StatusBar } from 'react-native';
 import { useLibraryStore } from '../src/store/libraryStore';
 import { useSettingsStore } from '../src/store/settingsStore';
 import { useDownloadStore } from '../src/downloads/downloadStore';
 import { autoQueueService } from '../src/services/autoQueueService';
-import { useListeningStore } from '../src/store/listeningStore';
 
 SplashScreen.preventAutoHideAsync();
 export default function RootLayout() {
@@ -68,8 +67,8 @@ export default function RootLayout() {
     <>
       <StatusBar barStyle="light-content" />
       <Stack screenOptions={{ 
-        headerStyle: { backgroundColor: COLORS.surface },
-        headerTintColor: COLORS.onSurface,
+        headerStyle: { backgroundColor: colors.surface },
+        headerTintColor: colors.onSurface,
         headerShown: false,
       }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

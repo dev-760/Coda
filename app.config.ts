@@ -11,7 +11,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   icon: './assets/brand/icon-1024.png',
   scheme: 'luma',
   userInterfaceStyle: 'dark',
-  backgroundColor: '#090B10', // App background
+  backgroundColor: '#131316', // App background
   ios: {
     bundleIdentifier: 'com.luma.musicplayer',
     infoPlist: {
@@ -27,7 +27,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       // would have clipped on circular and squircle masks.
       foregroundImage: './assets/brand/adaptive-icon-foreground.png',
       backgroundImage: './assets/brand/adaptive-icon-background.png',
-      backgroundColor: '#090B10',
+      backgroundColor: '#131316',
     },
     permissions: [
       'android.permission.FOREGROUND_SERVICE',
@@ -35,10 +35,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'android.permission.INTERNET',
       'android.permission.ACCESS_NETWORK_STATE'
     ],
-    backgroundColor: '#090B10', // Android splash background
+    backgroundColor: '#131316', // Android splash background
   },  web: {
     output: 'static',
-    backgroundColor: '#090B10', // Web background
+    backgroundColor: '#131316', // Web background
   },
   plugins: [
     'expo-router',
@@ -50,7 +50,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       'expo-splash-screen',
       {
-        backgroundColor: '#090B10',
+        backgroundColor: '#131316',
         image: './assets/brand/icon-1024.png',
         // The 1024px mark is scaled down for the splash, and the wide width keeps
         // it from filling the screen on tablets.
@@ -86,6 +86,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     typedRoutes: true,
   },
   extra: {
+    hifiApiBaseUrl: 'https://hifi-api00.vercel.app',
     eas: {
       projectId: "86613d32-14b6-437b-82b8-39a523963226"
     }

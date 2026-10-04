@@ -40,28 +40,31 @@ export default function LyricsScreen() {
   const liked = trackId ? isFavorite(trackId) : false;
 
   useEffect(() => {
+    let active = true;
     if (!trackId) {
-      setItems([]);
-      setLoading(false);
-      return;
+      const timer = setTimeout(() => {
+        if (!active) return;
+        setItems([]);
+        setLoading(false);
+      }, 0);
+      return () => {
+        active = false;
+        clearTimeout(timer);
+      };
     }
 
-    let active = true;
-    setLoading(true);
-
-    hifiApiClient
-      .getLyrics(trackId)
-      .then((data) => {
+    void (async () => {
+      try {
+        const data = await hifiApiClient.getLyrics(trackId);
         if (!active) return;
         const parsed = parseLyricsPayload(data);
         setItems(parsed);
-      })
-      .catch(() => {
+      } catch {
         if (active) setItems([]);
-      })
-      .finally(() => {
+      } finally {
         if (active) setLoading(false);
-      });
+      }
+    })();
 
     return () => {
       active = false;

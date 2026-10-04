@@ -66,7 +66,7 @@ export const CreatePlaylistModal: React.FC<CreatePlaylistModalProps> = ({
       setSelectedColor(COLORS[0]);
       setSelectedIcon(ICONS[0]);
       onClose();
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to create playlist');
     }
   };

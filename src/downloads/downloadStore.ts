@@ -32,6 +32,11 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
   initialize: async () => {
     set({ isLoading: true, error: null });
     try {
+      if (!downloadStorage.isSupported) {
+        set({ downloads: [], isLoading: false });
+        logger.info('DownloadStore', 'Downloads unavailable on web target');
+        return;
+      }
       await downloadManager.initialize();
       // Real progress arrives through the manager subscription.
       downloadManager.subscribe((progress: DownloadProgress) => {

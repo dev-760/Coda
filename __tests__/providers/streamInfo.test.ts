@@ -99,7 +99,7 @@ describe('HifiApiProvider.getStreamInfo', () => {
   it('reports a missing manifest instead of a Buffer TypeError', async () => {
     mockGetTrack.mockResolvedValue({
       version: '2.10',
-      data: { trackId: 1550546, audioQuality: 'HI_RES_LOSSLESS' },
+      data: { trackId: 1550546, audioQuality: 'LOSSLESS' },
     });
 
     // The wrapped message must not leak the opaque Buffer type error.

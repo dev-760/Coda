@@ -16,7 +16,6 @@ import { TrackRow } from '../../src/components/ui/TrackRow';
 import TrackOptionsMenu from '../../src/components/ui/TrackOptionsMenu';
 import MadeForYou from '../../src/components/discover/MadeForYou';
 import { useLibraryStore } from '../../src/store/libraryStore';
-import { useDownloadStore } from '../../src/downloads/downloadStore';
 import { usePlaybackStore } from '../../src/store/playbackStore';
 import { audioService } from '../../src/audio/AudioService';
 import { useQueueStore, cacheTracks } from '../../src/store/queueStore';
@@ -36,7 +35,6 @@ const SERIES = [
 export default function HomeScreen() {
   const router = useRouter();
   const { favorites, playlists, recentlyPlayed } = useLibraryStore();
-  const downloads = useDownloadStore((state) => state.downloads);
   const currentTrack = usePlaybackStore((state) => state.currentTrack);
   const isPlaying = usePlaybackStore((state) => state.isPlaying);
   // The spec's fixed 144px bottom padding, resolved so it also clears the
@@ -52,7 +50,6 @@ export default function HomeScreen() {
   useEffect(() => subscribeToConnectivity((isConnected) => setOffline(!isConnected)), []);
 
   const loadRotation = useCallback(async (seed: Track | null) => {
-    setRotationState('loading');
     try {
       const results = await getSuggestions(seed, 10);
       setRotation(results);
@@ -63,8 +60,21 @@ export default function HomeScreen() {
   }, []);
 
   useEffect(() => {
-    void loadRotation(null);
-  }, [loadRotation]);
+    let active = true;
+    void (async () => {
+      try {
+        const results = await getSuggestions(null, 10);
+        if (!active) return;
+        setRotation(results);
+        setRotationState(results.length === 0 ? 'empty' : 'ready');
+      } catch {
+        if (active) setRotationState('empty');
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const onRefresh = async () => {
     setRefreshing(true);

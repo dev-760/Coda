@@ -1,7 +1,7 @@
 import React from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../../theme/theme';
-import AppLogo from './AppLogo';
+import { colors } from '../../theme/theme';
+import { AppLogo } from './AppLogo';
 
 interface IconProps {
   name: string;
@@ -10,7 +10,7 @@ interface IconProps {
   style?: any;
 }
 
-export default function Icon({ name, size = 24, color = COLORS.onSurface, style }: IconProps) {
+export default function Icon({ name, size = 24, color = colors.onSurface, style }: IconProps) {
   if (name === 'tidal') {
     return <AppLogo size={size} color={color} style={style} />;
   }

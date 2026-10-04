@@ -26,6 +26,7 @@ export const colors = {
   surfaceContainerHigh: RAISED_ALT,
   surfaceContainerHighest: RAISED_ALT,
   surfaceVariant: SUBTLE_ALT,
+  surfaceSubtle: SUBTLE,
   surfaceBright: RAISED_ALT,
 
   /** Track titles and other content set in Inter. */

@@ -7,11 +7,23 @@ import { HIFI_API_CONFIG, AudioQuality, VideoQuality } from '../config/hifiApi';
  */
 export class ApiError extends Error {
   readonly status: number;
+  readonly userMessage: string;
 
   constructor(message: string, status = 0) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+    this.userMessage = ApiError.resolveUserMessage(status, message);
+  }
+
+  static resolveUserMessage(status: number, message: string): string {
+    if (status === 404) return 'The requested music or album was not found.';
+    if (status === 422) return 'This track is not available in the requested quality. Try adjusting settings.';
+    if (status === 429) return 'Catalog service is busy. Please wait a moment and try again.';
+    if (status >= 500) return 'The music service is temporarily unavailable. Downloaded tracks remain playable.';
+    if (message.includes('timeout') || message.includes('Timeout')) return 'Connection timed out. Check your network.';
+    if (message.includes('Network') || message.includes('fetch')) return 'Network unavailable. Playing offline music only.';
+    return message;
   }
 }
 
@@ -21,6 +33,7 @@ const PLAYBACK_POLL_TIMEOUT_MS = 90_000;
 
 /** How long the queue may hold a request before the caller gives up. */
 const QUEUED_PLAYBACK_BUDGET_MS = 110_000;
+const MAX_IDEMPOTENT_GET_RETRIES = 2;
 
 class HifiApiClient {
   private baseURL: string;
@@ -34,69 +47,87 @@ class HifiApiClient {
   private async request<T>(
     endpoint: string,
     options: RequestInit = {},
-    abortSignal?: AbortSignal
+    abortSignal?: AbortSignal,
+    isIdempotentGet = false,
   ): Promise<T> {
     const url = `${this.baseURL}${endpoint}`;
+    let attempts = 0;
+    const maxAttempts = isIdempotentGet ? MAX_IDEMPOTENT_GET_RETRIES + 1 : 1;
 
-    const controller = new AbortController();
-    let deadline = Date.now() + this.timeout;
+    while (attempts < maxAttempts) {
+      attempts++;
+      const controller = new AbortController();
+      let deadline = Date.now() + this.timeout;
 
-    const abortAtDeadline = () => controller.abort();
-    const timeoutId = setTimeout(abortAtDeadline, this.timeout);
+      const abortAtDeadline = () => controller.abort();
+      const timeoutId = setTimeout(abortAtDeadline, this.timeout);
 
-    // An external signal must cancel the request too, otherwise a caller that
-    // unmounts mid-request leaves it running to the timeout.
-    const externalAbort = () => controller.abort();
-    abortSignal?.addEventListener('abort', externalAbort);
-    const signal = controller.signal;
+      const externalAbort = () => controller.abort();
+      abortSignal?.addEventListener('abort', externalAbort);
+      const signal = controller.signal;
 
-    const armDeadline = () => {
-      clearTimeout(timeoutId);
-      const remaining = deadline - Date.now();
-      // A non-positive remaining time aborts immediately, which is the correct
-      // outcome once the queue budget is spent.
-      setTimeout(abortAtDeadline, Math.max(0, remaining));
-    };
+      const armDeadline = () => {
+        clearTimeout(timeoutId);
+        const remaining = deadline - Date.now();
+        setTimeout(abortAtDeadline, Math.max(0, remaining));
+      };
 
-    try {
-      let response = await fetch(url, {
-        ...options,
-        signal,
-        headers: {
-          ...HIFI_API_CONFIG.headers,
-          ...options.headers,
-          'X-Requested-With': 'XMLHttpRequest',
-        },
-      });
+      try {
+        let response = await fetch(url, {
+          ...options,
+          signal,
+          headers: {
+            ...HIFI_API_CONFIG.headers,
+            ...options.headers,
+            'X-Requested-With': 'XMLHttpRequest',
+          },
+        });
 
-      // The API queues playback requests and answers 202 until ready. Waiting
-      // for a queue slot can outlast the normal request timeout, so the
-      // deadline is pushed out for the duration of the polling.
-      if (response.status === 202) {
-        const requestId = await this.readRequestIdWithBody(response);
-        if (!requestId) {
-          throw new ApiError('The API queued this request but did not say how to track it.');
+        if (response.status === 202) {
+          const requestId = await this.readRequestIdWithBody(response);
+          if (!requestId) {
+            throw new ApiError('The API queued this request but did not say how to track it.');
+          }
+
+          deadline = Date.now() + QUEUED_PLAYBACK_BUDGET_MS;
+          armDeadline();
+
+          response = await this.pollPlaybackRequest(requestId, signal);
         }
 
-        deadline = Date.now() + QUEUED_PLAYBACK_BUDGET_MS;
-        armDeadline();
+        clearTimeout(timeoutId);
+        abortSignal?.removeEventListener('abort', externalAbort);
 
-        response = await this.pollPlaybackRequest(requestId, signal);
+        if (!response.ok) {
+          const err = await this.toApiError(response);
+          // Only retry 5xx on idempotent GETs
+          if (isIdempotentGet && attempts < maxAttempts && response.status >= 500) {
+            await new Promise((r) => setTimeout(r, attempts * 500));
+            continue;
+          }
+          throw err;
+        }
+
+        const data = await response.json();
+        return data;
+      } catch (error) {
+        clearTimeout(timeoutId);
+        abortSignal?.removeEventListener('abort', externalAbort);
+        if (
+          isIdempotentGet &&
+          attempts < maxAttempts &&
+          !abortSignal?.aborted &&
+          error instanceof Error &&
+          error.name !== 'AbortError'
+        ) {
+          await new Promise((r) => setTimeout(r, attempts * 500));
+          continue;
+        }
+        throw this.handleError(error);
       }
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        throw await this.toApiError(response);
-      }
-
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      clearTimeout(timeoutId);
-      abortSignal?.removeEventListener('abort', externalAbort);
-      throw this.handleError(error);
     }
+
+    throw new ApiError('Request failed after retry attempts.');
   }
 
   /**
@@ -204,7 +235,7 @@ class HifiApiClient {
     const queryString = params 
       ? `?${new URLSearchParams(params).toString()}` 
       : '';
-    return this.request<T>(`${endpoint}${queryString}`, {}, abortSignal);
+    return this.request<T>(`${endpoint}${queryString}`, {}, abortSignal, true);
   }
 
   async post<T>(endpoint: string, body?: unknown, abortSignal?: AbortSignal): Promise<T> {
@@ -329,7 +360,7 @@ class HifiApiClient {
   // Audio & Video Playback
   async getTrack(
     trackId: number,
-    quality: AudioQuality = 'HI_RES_LOSSLESS',
+    quality: AudioQuality = 'LOSSLESS',
     immersiveAudio = false
   ): Promise<any> {
     return this.get('/track/', {

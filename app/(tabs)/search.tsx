@@ -14,7 +14,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { audioService } from '../../src/audio/AudioService';
 import Icon from '../../src/components/ui/Icon';
 import CoverThumb from '../../src/components/ui/CoverThumb';
-import { SectionHeader } from '../../src/components/ui/primitives';
 import TrackOptionsMenu from '../../src/components/ui/TrackOptionsMenu';
 import { useResponsive } from '../../src/hooks/useResponsive';
 import { CatalogAlbum, CatalogArtist } from '../../src/providers/catalogTypes';
@@ -554,8 +553,17 @@ export default function SearchScreen() {
           {showTracks && results.tracks.length > 0 && (
             <View style={s.block}>
               <View style={s.blockHeader}>
-                              <Text style={s.blockTitle}>Tracks</Text>
-                            </View>
+                <Text style={s.blockTitle}>Tracks</Text>
+                <Pressable
+                  onPress={() => playMany(results.tracks)}
+                  style={({ pressed }) => [s.inlineAction, pressed && s.pressed]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Play all search tracks"
+                >
+                  <Icon name="play" size={14} color={colors.onSurface} />
+                  <Text style={s.blockCount}>Play all</Text>
+                </Pressable>
+              </View>
               {results.tracks.map((track) => (
                 <View key={track.id} style={s.resultRow}>
                   <Pressable
