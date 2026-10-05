@@ -202,7 +202,7 @@ export default function DownloadsScreen() {
     <SafeAreaView style={s.container} edges={['top']}>
       <View style={s.header}>
         <Pressable
-          onPress={() => router.back()}
+          onPress={() => (router.canGoBack() ? router.back() : router.navigate('/(tabs)/library'))}
           style={s.headerBack}
           hitSlop={12}
           accessibilityRole="button"

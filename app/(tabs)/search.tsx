@@ -168,7 +168,7 @@ export default function SearchScreen() {
     cacheTracks([track]);
     useQueueStore.getState().playContext([track], 0, {
       type: 'search',
-      name: query.trim() || 'Explore',
+      name: 'Search',
     });
     void audioService.playTrack(track);
   };
@@ -178,7 +178,7 @@ export default function SearchScreen() {
     cacheTracks(tracks);
     useQueueStore.getState().playContext(tracks, 0, {
       type: 'search',
-      name: query.trim() || 'Explore',
+      name: 'Search',
     });
     void audioService.playTrack(tracks[0]);
   };

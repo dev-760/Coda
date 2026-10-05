@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View, Share } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Icon from '../../src/components/ui/Icon';
@@ -28,7 +28,7 @@ type SubView = 'playlists' | 'tracks' | 'albums' | 'downloads';
 
 export default function LibraryScreen() {
   const router = useRouter();
-  const { playlists, favorites, createPlaylist, deletePlaylist, duplicatePlaylist } = useLibraryStore();
+  const { playlists, favorites, createPlaylist, updatePlaylist, deletePlaylist, duplicatePlaylist } = useLibraryStore();
   const downloads = useDownloadStore((state) => state.downloads);
   const currentTrack = usePlaybackStore((state) => state.currentTrack);
   const isPlaying = usePlaybackStore((state) => state.isPlaying);
@@ -38,6 +38,7 @@ export default function LibraryScreen() {
   const [view, setView] = useState<SubView>('playlists');
   const [albumFilter, setAlbumFilter] = useState('');
   const [createVisible, setCreateVisible] = useState(false);
+  const [editingPlaylist, setEditingPlaylist] = useState<any>(null);
   const [actionsVisible, setActionsVisible] = useState(false);
   const [selectedPlaylist, setSelectedPlaylist] = useState<any>(null);
   const [optionsTrack, setOptionsTrack] = useState<Track | null>(null);
@@ -87,7 +88,7 @@ export default function LibraryScreen() {
     await audioService.playTrack(track);
   };
 
-  const playPlaylist = async (playlist: any) => {
+  const playPlaylist = async (playlist: any, shuffle = false) => {
     if (!playlist?.tracks?.length) return;
     cacheTracks(playlist.tracks);
     useQueueStore.getState().playContext(playlist.tracks, 0, {
@@ -95,6 +96,9 @@ export default function LibraryScreen() {
       id: playlist.id,
       name: playlist.name,
     });
+    if (shuffle) {
+      useQueueStore.getState().toggleShuffle();
+    }
     await audioService.playTrack(playlist.tracks[0]);
   };
 
@@ -321,9 +325,18 @@ export default function LibraryScreen() {
               />
             ) : (
               <View style={s.tracksList}>
-                <Text style={s.sectionCount}>
-                  {`ON THIS DEVICE · ${completedDownloads.length} TRACKS`}
-                </Text>
+                <View style={s.sectionActionRow}>
+                  <Text style={s.sectionCount}>
+                    {`ON THIS DEVICE · ${completedDownloads.length} TRACKS`}
+                  </Text>
+                  <Button
+                    label="Manage"
+                    variant="secondary"
+                    size="sm"
+                    icon="download"
+                    onPress={() => router.push('/downloads' as any)}
+                  />
+                </View>
                 {completedDownloads.map((item, index) => {
                   const track: Track = item.track;
                   const isCurrent = currentTrack?.id === track.id;
@@ -352,27 +365,54 @@ export default function LibraryScreen() {
       {/* Modals */}
       <CreatePlaylistModal
         visible={createVisible}
+        initialPlaylist={editingPlaylist}
         onCreate={async (name, description, color, icon) => {
-          await createPlaylist(name, description, color, icon);
+          if (editingPlaylist) {
+            await updatePlaylist(editingPlaylist.id, { name, description, color, icon });
+            setEditingPlaylist(null);
+          } else {
+            await createPlaylist(name, description, color, icon);
+          }
           setCreateVisible(false);
         }}
-        onClose={() => setCreateVisible(false)}
+        onClose={() => {
+          setEditingPlaylist(null);
+          setCreateVisible(false);
+        }}
       />
 
       <PlaylistActionsModal
         visible={actionsVisible}
         playlist={selectedPlaylist}
         onClose={() => setActionsVisible(false)}
-        onDelete={() => {
-          if (selectedPlaylist) void deletePlaylist(selectedPlaylist.id);
-        }}
-        onDuplicate={() => {
-          if (selectedPlaylist) void duplicatePlaylist(selectedPlaylist.id);
+        onEdit={() => {
+          setEditingPlaylist(selectedPlaylist);
+          setCreateVisible(true);
         }}
         onPlay={() => {
           if (selectedPlaylist && selectedPlaylist.tracks.length > 0) {
             void playPlaylist(selectedPlaylist);
           }
+        }}
+        onShufflePlay={() => {
+          if (selectedPlaylist && selectedPlaylist.tracks.length > 0) {
+            void playPlaylist(selectedPlaylist, true);
+          }
+        }}
+        onShare={async () => {
+          if (selectedPlaylist) {
+            try {
+              await Share.share({
+                message: `Listen to "${selectedPlaylist.name}" on Luma`,
+              });
+            } catch {}
+          }
+        }}
+        onDuplicate={() => {
+          if (selectedPlaylist) void duplicatePlaylist(selectedPlaylist.id);
+        }}
+        onDelete={() => {
+          if (selectedPlaylist) void deletePlaylist(selectedPlaylist.id);
         }}
       />
 

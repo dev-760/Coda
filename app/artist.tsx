@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import HeaderBar from '../src/components/ui/HeaderBar';
 import Icon from '../src/components/ui/Icon';
 import CoverThumb from '../src/components/ui/CoverThumb';
@@ -96,6 +97,32 @@ export default function ArtistScreen() {
     useQueueStore.getState().toggleShuffle();
   };
 
+  const FOLLOWED_ARTISTS_KEY = 'luma:followed_artists';
+
+  useEffect(() => {
+    if (!name) return;
+    AsyncStorage.getItem(FOLLOWED_ARTISTS_KEY).then((raw) => {
+      if (raw) {
+        try {
+          const list: string[] = JSON.parse(raw);
+          setFollowing(list.includes(name.toLowerCase()));
+        } catch {}
+      }
+    });
+  }, [name]);
+
+  const handleToggleFollow = async () => {
+    const next = !following;
+    setFollowing(next);
+    try {
+      const raw = await AsyncStorage.getItem(FOLLOWED_ARTISTS_KEY);
+      const list: string[] = raw ? JSON.parse(raw) : [];
+      const key = name.toLowerCase();
+      const updated = next ? [...list.filter((x) => x !== key), key] : list.filter((x) => x !== key);
+      await AsyncStorage.setItem(FOLLOWED_ARTISTS_KEY, JSON.stringify(updated));
+    } catch {}
+  };
+
   const handleShare = async () => {
     try {
       await Share.share({ message: `Listen to ${name} on Luma` });
@@ -161,7 +188,7 @@ export default function ArtistScreen() {
         <View style={s.actionsRow}>
           <Pressable
             style={s.actionItem}
-            onPress={() => setFollowing((v) => !v)}
+            onPress={handleToggleFollow}
             accessibilityRole="button"
           >
             <Icon name={following ? 'checkmark' : 'add'} size={22} color={colors.onSurface} />

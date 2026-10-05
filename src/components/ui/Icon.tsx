@@ -43,6 +43,7 @@ export type IconName =
   | 'filter'
   | 'autoplay'
   | 'lock'
+  | 'lock-open'
   | 'storage'
   | 'retry'
   | 'album'
@@ -225,6 +226,10 @@ const LUMA_ICON_DEFS: Record<string, ShapeDef[]> = {
     { type: 'rect', x: 5, y: 10.5, width: 14, height: 9.5, rx: 2 },
     { type: 'path', d: 'M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5' },
   ],
+  'lock-open': [
+    { type: 'rect', x: 5, y: 10.5, width: 14, height: 9.5, rx: 2 },
+    { type: 'path', d: 'M8.5 10.5V8a3.5 3.5 0 0 1 7 0' },
+  ],
   'storage': [
     { type: 'rect', x: 4, y: 5, width: 16, height: 14, rx: 2 },
     { type: 'path', d: 'M4 14h16' },
@@ -253,6 +258,13 @@ const LUMA_ICON_DEFS: Record<string, ShapeDef[]> = {
   'heart-outline': [
     { type: 'path', d: 'M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z' },
   ],
+  'copy': [
+    { type: 'rect', x: 8, y: 8, width: 12, height: 12, rx: 2 },
+    { type: 'path', d: 'M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3' },
+  ],
+  'pencil': [
+    { type: 'path', d: 'M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z' },
+  ],
 };
 
 /** Normalize icon names from legacy Expo vector names to Luma design system names */
@@ -269,8 +281,8 @@ function normalizeIconName(name: string): string {
   // Playback & transport
   if (n === 'play' || n === 'play-outline' || n === 'play-circle') return 'play';
   if (n === 'pause' || n === 'pause-outline' || n === 'pause-circle') return 'pause';
-  if (n === 'play-skip-forward' || n === 'play-skip-forward-outline' || n === 'skip-forward') return 'skip-next';
-  if (n === 'play-skip-back' || n === 'play-skip-back-outline' || n === 'skip-back') return 'skip-previous';
+  if (n === 'play-skip-forward' || n === 'play-skip-forward-outline' || n === 'skip-forward' || n === 'play-forward') return 'skip-next';
+  if (n === 'play-skip-back' || n === 'play-skip-back-outline' || n === 'skip-back' || n === 'play-back') return 'skip-previous';
   if (n === 'shuffle' || n === 'shuffle-outline') return 'shuffle';
   if (n === 'repeat' || n === 'repeat-outline') return 'repeat';
   if (n === 'list' || n === 'list-outline' || n === 'queue-music') return 'queue';
@@ -280,13 +292,25 @@ function normalizeIconName(name: string): string {
   if (n === 'ellipsis-horizontal' || n === 'ellipsis-vertical' || n === 'more-horiz' || n === 'more-vert') return 'more';
   if (n === 'add' || n === 'add-circle' || n === 'add-outline') return 'plus';
   if (n === 'checkmark' || n === 'check') return 'check';
-  if (n === 'close' || n === 'close-outline') return 'close';
+  if (n === 'close' || n === 'close-outline' || n === 'close-circle' || n === 'close-circle-outline') return 'close';
   if (n === 'chevron-down' || n === 'arrow-down') return 'chevron-down';
   if (n === 'chevron-up' || n === 'arrow-up') return 'chevron-up';
   if (n === 'chevron-forward' || n === 'chevron-right' || n === 'arrow-forward') return 'chevron-right';
   if (n === 'chevron-back' || n === 'chevron-left' || n === 'arrow-back') return 'chevron-left';
-  if (n === 'arrow-down-circle' || n === 'cloud-download') return 'download';
-  if (n === 'checkmark-circle' || n === 'download-done') return 'download-done';
+  if (
+    n === 'checkmark-circle' ||
+    n === 'checkmark-circle-outline' ||
+    n === 'download-done' ||
+    n === 'download-done-outline'
+  ) return 'download-done';
+  if (
+    n === 'download' ||
+    n === 'download-outline' ||
+    n === 'arrow-down-circle' ||
+    n === 'arrow-down-circle-outline' ||
+    n === 'cloud-download' ||
+    n === 'cloud-download-outline'
+  ) return 'download';
   if (n === 'cloud-offline-outline' || n === 'cloud-offline') return 'cloud-off';
   if (n === 'warning' || n === 'alert-circle' || n === 'warning-outline') return 'warning';
   if (n === 'trash' || n === 'trash-outline') return 'trash';
@@ -301,6 +325,8 @@ function normalizeIconName(name: string): string {
   if (n === 'heart' || n === 'heart-fill' || n === 'heart-filled' || n === 'favorite') return 'heart';
   if (n === 'heart-outline' || n === 'favorite-outline') return 'heart-outline';
   if (n === 'refresh' || n === 'reload') return 'retry';
+  if (n === 'pencil' || n === 'edit' || n === 'create') return 'pencil';
+  if (n === 'copy' || n === 'duplicate') return 'copy';
 
   return n;
 }

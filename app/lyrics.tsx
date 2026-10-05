@@ -15,10 +15,10 @@ import { EmptyState } from '../src/components/ui/primitives';
 import { colors, r, t } from '../src/theme/theme';
 import { usePlaybackStore } from '../src/store/playbackStore';
 import { audioService } from '../src/audio/AudioService';
-import { hifiApiClient } from '../src/services/hifiApiClient';
 import { useLibraryStore } from '../src/store/libraryStore';
 import { useResponsive } from '../src/hooks/useResponsive';
-import { parseLyricsPayload, LyricLineItem } from '../src/services/lyricsParser';
+import { LyricLineItem, isArabicText } from '../src/services/lyricsParser';
+import { lyricsService } from '../src/services/lyricsService';
 
 export default function LyricsScreen() {
   const router = useRouter();
@@ -30,13 +30,14 @@ export default function LyricsScreen() {
   const [loading, setLoading] = useState(true);
   const [syncLocked, setSyncLocked] = useState(true);
   const scrollRef = useRef<ScrollView>(null);
+  const lineYRefs = useRef<Record<number, number>>({});
 
   const trackId = currentTrack?.id;
   const liked = trackId ? isFavorite(trackId) : false;
 
   useEffect(() => {
     let active = true;
-    if (!trackId) {
+    if (!currentTrack) {
       const timer = setTimeout(() => {
         if (!active) return;
         setItems([]);
@@ -49,11 +50,11 @@ export default function LyricsScreen() {
     }
 
     void (async () => {
+      setLoading(true);
       try {
-        const data = await hifiApiClient.getLyrics(trackId);
+        const res = await lyricsService.getLyrics(currentTrack, durationMs);
         if (!active) return;
-        const parsed = parseLyricsPayload(data);
-        setItems(parsed);
+        setItems(res.items);
       } catch {
         if (active) setItems([]);
       } finally {
@@ -64,7 +65,7 @@ export default function LyricsScreen() {
     return () => {
       active = false;
     };
-  }, [trackId]);
+  }, [currentTrack, durationMs]);
 
   /**
    * The active line is the last one whose timestamp has passed.
@@ -72,20 +73,25 @@ export default function LyricsScreen() {
   const synced = useMemo(() => items.some((item) => item.timeMs !== undefined), [items]);
 
   const activeIndex = useMemo(() => {
-    if (!synced) return -1;
+    if (!synced || items.length === 0) return -1;
     let active = -1;
     for (let i = 0; i < items.length; i += 1) {
       const time = items[i].timeMs;
       if (time === undefined) continue;
-      if (time <= positionMs) active = i;
-      else break;
+      if (time <= positionMs) {
+        active = i;
+      } else {
+        break;
+      }
     }
     return active;
   }, [items, positionMs, synced]);
 
   useEffect(() => {
     if (!syncLocked || activeIndex < 0 || !scrollRef.current) return;
-    scrollRef.current.scrollTo({ y: Math.max(0, activeIndex * 92 - 200), animated: true });
+    const y = lineYRefs.current[activeIndex];
+    const targetY = typeof y === 'number' ? Math.max(0, y - 180) : Math.max(0, activeIndex * 84 - 180);
+    scrollRef.current.scrollTo({ y: targetY, animated: true });
   }, [activeIndex, syncLocked]);
 
   const handleLinePress = (item: LyricLineItem) => {
@@ -106,6 +112,11 @@ export default function LyricsScreen() {
   };
 
   const goToPlayerTab = (tab: PlayerTab) => {
+    if (tab === 'lyrics') return;
+    if (tab === 'now-playing') {
+      router.push('/now-playing' as any);
+      return;
+    }
     router.push(`/${tab}` as any);
   };
 
@@ -142,7 +153,7 @@ export default function LyricsScreen() {
           accessibilityLabel={syncLocked ? 'Disable lyric sync' : 'Enable lyric sync'}
         >
           <Icon
-            name="lock"
+            name={syncLocked ? 'lock' : 'lock-open'}
             size={18}
             color={syncLocked ? colors.accent : colors.disabled}
           />
@@ -231,19 +242,34 @@ export default function LyricsScreen() {
             {items.map((item, index) => {
               const isActive = index === activeIndex;
               const isPast = activeIndex >= 0 && index < activeIndex;
+              const isArabic = item.isRtl ?? isArabicText(item.text);
 
               if (isActive) {
                 return (
                   <Pressable
                     key={item.id}
+                    onLayout={(e) => {
+                      lineYRefs.current[index] = e.nativeEvent.layout.y;
+                    }}
                     onPress={() => handleLinePress(item)}
-                    style={({ pressed }) => [s.activeLineWrap, pressed && s.pressed]}
+                    style={({ pressed }) => [
+                      s.activeLineWrap,
+                      isArabic && s.activeLineWrapArabic,
+                      pressed && s.pressed,
+                    ]}
                     accessibilityRole="button"
                     accessibilityLabel={`Now playing: ${item.text}. Tap to jump.`}
                   >
-                    <View style={s.activeLineBody}>
-                      <Text style={s.activeLineText}>{item.text}</Text>
-                      <View style={s.levelDots}>
+                    <View style={[s.activeLineBody, isArabic && s.activeLineBodyArabic]}>
+                      <Text
+                        style={[
+                          s.activeLineText,
+                          isArabic ? s.textArabic : s.textEnglish,
+                        ]}
+                      >
+                        {item.text}
+                      </Text>
+                      <View style={[s.levelDots, isArabic && s.levelDotsArabic]}>
                         <View style={[s.levelDot, s.levelDotFilled]} />
                         <View style={[s.levelDot, s.levelDotFilled]} />
                         <View style={s.levelDot} />
@@ -256,12 +282,25 @@ export default function LyricsScreen() {
               return (
                 <Pressable
                   key={item.id}
+                  onLayout={(e) => {
+                    lineYRefs.current[index] = e.nativeEvent.layout.y;
+                  }}
                   onPress={() => handleLinePress(item)}
-                  style={({ pressed }) => [s.lineWrap, pressed && s.pressed]}
+                  style={({ pressed }) => [
+                    s.lineWrap,
+                    isArabic && s.lineWrapArabic,
+                    pressed && s.pressed,
+                  ]}
                   accessibilityRole="button"
                   accessibilityLabel={`Lyric: ${item.text}. Tap to jump.`}
                 >
-                  <Text style={[s.lineText, isPast && s.lineTextPast]}>
+                  <Text
+                    style={[
+                      s.lineText,
+                      isPast && s.lineTextPast,
+                      isArabic ? s.textArabic : s.textEnglish,
+                    ]}
+                  >
                     {item.text}
                   </Text>
                 </Pressable>
@@ -311,37 +350,33 @@ const s = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     marginHorizontal: 16,
+    marginBottom: 8,
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: r.md,
-    backgroundColor: '#18181B',
+    backgroundColor: colors.surface1,
     borderWidth: 1,
-    borderColor: '#27272A',
-    position: 'relative',
+    borderColor: colors.divider,
     overflow: 'hidden',
-    maxWidth: 680,
-    alignSelf: 'center',
-    width: '92%',
+    position: 'relative',
   },
   contextMeta: {
     flex: 1,
-    minWidth: 0,
     gap: 2,
+    minWidth: 0,
   },
   contextTitle: {
-    ...t.body,
-    fontWeight: '600',
-    fontSize: 14,
+    ...t.bodyStrong,
     color: colors.textPrimary,
   },
   contextArtist: {
     ...t.caption,
-    fontSize: 12,
-    color: colors.textSecondary,
+    color: colors.textTertiary,
   },
   iconBtn: {
     width: 36,
     height: 36,
+    borderRadius: r.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -378,15 +413,11 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 16,
+    width: '100%',
   },
-  lineTime: {
-    ...t.monoMicro,
-    width: 40,
-    paddingTop: 3,
-    color: colors.textTertiary,
-  },
-  lineTimePast: {
-    color: colors.textPast,
+  lineWrapArabic: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'flex-start',
   },
   lineText: {
     flex: 1,
@@ -408,17 +439,17 @@ const s = StyleSheet.create({
     backgroundColor: colors.surface2,
     borderWidth: 1,
     borderColor: colors.divider,
+    width: '100%',
   },
-  activeTime: {
-    ...t.monoMicro,
-    width: 40,
-    paddingTop: 5,
-    color: colors.textPrimary,
-    fontWeight: '700',
+  activeLineWrapArabic: {
+    flexDirection: 'row-reverse',
   },
   activeLineBody: {
     flex: 1,
     gap: 8,
+  },
+  activeLineBodyArabic: {
+    alignItems: 'flex-end',
   },
   activeLineText: {
     ...t.title,
@@ -427,10 +458,26 @@ const s = StyleSheet.create({
     color: colors.textPrimary,
     fontWeight: '700',
   },
+
+  /* Arabic vs English typography */
+  textArabic: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
+    lineHeight: 34,
+  },
+  textEnglish: {
+    textAlign: 'left',
+    writingDirection: 'ltr',
+    lineHeight: 26,
+  },
+
   levelDots: {
     flexDirection: 'row',
     gap: 4,
     marginTop: 4,
+  },
+  levelDotsArabic: {
+    flexDirection: 'row-reverse',
   },
   levelDot: {
     width: 8,

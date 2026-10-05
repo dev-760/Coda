@@ -37,16 +37,6 @@ function getGreeting(): string {
   return 'GOOD EVENING';
 }
 
-function getFormattedDate(): string {
-  const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-  const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-  const d = new Date();
-  const day = days[d.getDay()];
-  const date = String(d.getDate()).padStart(2, '0');
-  const month = months[d.getMonth()];
-  return `${day} ${date} ${month}`;
-}
-
 export default function HomeScreen() {
   const router = useRouter();
   const { favorites, playlists, recentlyPlayed } = useLibraryStore();
@@ -148,17 +138,8 @@ export default function HomeScreen() {
               <AppLogo size={24} color={colors.accent} />
               <Text style={s.brandTitle}>LUMA</Text>
             </View>
-            <Text style={s.dateEyebrow}>{`${getGreeting()} · ${getFormattedDate()}`}</Text>
+            <Text style={s.dateEyebrow}>{getGreeting()}</Text>
           </View>
-          <Pressable
-            onPress={() => router.push('/settings' as any)}
-            hitSlop={10}
-            style={({ pressed }) => [s.settingsBtn, pressed && s.pressed]}
-            accessibilityRole="button"
-            accessibilityLabel="Open settings"
-          >
-            <Icon name="sliders" size={18} color={colors.onSurface} />
-          </Pressable>
         </View>
 
         {offline && (
@@ -331,16 +312,6 @@ const s = StyleSheet.create({
     fontWeight: '700',
     color: colors.onSurface,
     letterSpacing: 2,
-  },
-  settingsBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: r.full,
-    backgroundColor: '#18181B',
-    borderWidth: 1,
-    borderColor: '#27272A',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   dateEyebrow: {
     ...t.monoMicro,

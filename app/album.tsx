@@ -19,6 +19,7 @@ import { audioService } from '../src/audio/AudioService';
 import { useQueueStore, cacheTracks } from '../src/store/queueStore';
 import { Track } from '../src/providers/types';
 import { getAlbum } from '../src/services/catalogService';
+import { useLibraryStore } from '../src/store/libraryStore';
 import { useResponsive } from '../src/hooks/useResponsive';
 import { colors, FONTS } from '../src/theme/theme';
 
@@ -53,7 +54,8 @@ export default function AlbumScreen() {
   const [tracks, setTracks] = useState<Track[]>([]);
   const [state, setState] = useState<LoadState>(albumId ? 'loading' : 'notFound');
   const [optionsTrack, setOptionsTrack] = useState<Track | null>(null);
-  const [saved, setSaved] = useState(false);
+  const { favorites, addFavorite, removeFavorite } = useLibraryStore();
+  const isAlbumSaved = tracks.length > 0 && tracks.every((t) => favorites.some((f) => f.id === t.id));
 
   const load = useCallback(async () => {
     if (!albumId) {
@@ -104,6 +106,19 @@ export default function AlbumScreen() {
     try {
       await Share.share({ message: `Listen to "${albumTitle}" by ${albumArtist} on Luma` });
     } catch {}
+  };
+
+  const handleToggleSaveAlbum = async () => {
+    if (tracks.length === 0) return;
+    if (isAlbumSaved) {
+      for (const t of tracks) {
+        await removeFavorite(t.id);
+      }
+    } else {
+      for (const t of tracks) {
+        await addFavorite(t);
+      }
+    }
   };
 
   const openArtist = () => {
@@ -189,9 +204,9 @@ export default function AlbumScreen() {
         </View>
 
         <View style={s.actionsRow}>
-          <Pressable style={s.actionItem} onPress={() => setSaved((v) => !v)} accessibilityRole="button">
-            <Icon name={saved ? 'heart' : 'heart-outline'} size={24} color={colors.onSurface} />
-            <Text style={s.actionLabel}>{saved ? 'Added' : 'Add'}</Text>
+          <Pressable style={s.actionItem} onPress={handleToggleSaveAlbum} accessibilityRole="button">
+            <Icon name={isAlbumSaved ? 'heart' : 'heart-outline'} size={24} color={isAlbumSaved ? colors.accent : colors.onSurface} />
+            <Text style={s.actionLabel}>{isAlbumSaved ? 'Added' : 'Add'}</Text>
           </Pressable>
           <Pressable style={s.actionItem} onPress={handleShare} accessibilityRole="button">
             <Icon name="share-outline" size={24} color={colors.onSurface} />

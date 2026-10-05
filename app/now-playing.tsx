@@ -19,7 +19,6 @@ import { useQueueStore } from '../src/store/queueStore';
 import { useLibraryStore } from '../src/store/libraryStore';
 import { useDownloadStore } from '../src/downloads/downloadStore';
 import { useResponsive } from '../src/hooks/useResponsive';
-import { useSettingsStore } from '../src/store/settingsStore';
 import { colors, FONTS, r, t } from '../src/theme/theme';
 
 /** Elapsed time, or the countdown when counting back from the end. */
@@ -42,7 +41,6 @@ export default function NowPlayingScreen() {
   const isDownloaded = useDownloadStore((state) =>
     currentTrack ? state.isTrackDownloaded(currentTrack.id) : false,
   );
-  const hifiQuality = useSettingsStore((state) => state.audio.hifiAudioQuality);
   const { shuffle, toggleShuffle, repeat, setRepeat, context } = useQueueStore();
   const hasNext = useQueueStore((state) => state.upcomingCount() > 0);
 
@@ -98,19 +96,18 @@ export default function NowPlayingScreen() {
     }
   };
 
-  /** Short fidelity badge, e.g. FLAC 24/192 or AAC 320. */
-  const qualityBadge = (() => {
-    const q = hifiQuality ?? '';
-    if (/24/i.test(q)) return 'FLAC 24/192';
-    if (/lossless/i.test(q)) return 'FLAC 24/96';
-    if (/320/i.test(q)) return 'AAC 320';
-    return 'AAC 160';
+  const playingFromLabel = (() => {
+    if (context?.type === 'search') {
+      return 'PLAYING FROM SEARCH';
+    }
+    if (context?.name) {
+      return `PLAYING FROM ${context.name.toUpperCase()}`;
+    }
+    if (track?.album) {
+      return `PLAYING FROM ${track.album.toUpperCase()}`;
+    }
+    return 'PLAYING FROM QUEUE';
   })();
-
-  const bitrate = /24/i.test(hifiQuality ?? '') ? 2304 : /lossless/i.test(hifiQuality ?? '') ? 1411 : /320/i.test(hifiQuality ?? '') ? 320 : 160;
-  const playingFromLabel = context?.name
-    ? `PLAYING FROM ${context.name.toUpperCase()}`
-    : (track?.album ? `PLAYING FROM ${track.album.toUpperCase()}` : 'PLAYING FROM QUEUE');
 
   const renderTitleRow = () => (
     <View style={s.titleRow}>
@@ -260,17 +257,6 @@ export default function NowPlayingScreen() {
     </View>
   );
 
-  const renderDevicePill = () => (
-    <View style={s.devicePill}>
-      <View style={s.statusDot} />
-      <Text style={s.bitPerfectText}>BIT-PERFECT</Text>
-      <View style={s.deviceDivider} />
-      <Text style={s.deviceText}>{qualityBadge}</Text>
-      <View style={s.deviceDivider} />
-      <Text style={s.deviceText}>{`${bitrate} KBPS`}</Text>
-    </View>
-  );
-
   return (
     <SafeAreaView style={s.container} edges={['top']}>
       {/* Header: dismiss, 2-line context eyebrow + title, options */}
@@ -333,7 +319,6 @@ export default function NowPlayingScreen() {
               {renderTitleRow()}
               {renderScrubber()}
               {renderTransport()}
-              {renderDevicePill()}
             </View>
           </View>
         ) : (
@@ -359,7 +344,6 @@ export default function NowPlayingScreen() {
             {renderTitleRow()}
             {renderScrubber()}
             {renderTransport()}
-            {renderDevicePill()}
           </>
         )}
 
@@ -616,42 +600,6 @@ const s = StyleSheet.create({
     lineHeight: 8,
     color: colors.onAccent,
     fontWeight: '700',
-  },
-
-  devicePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: r.full,
-    backgroundColor: '#18181B',
-    borderWidth: 1,
-    borderColor: '#27272A',
-  },
-  deviceText: {
-    ...t.monoMicro,
-    fontSize: 11,
-    color: colors.textSecondary,
-    letterSpacing: 0.6,
-  },
-  deviceDivider: {
-    width: 1,
-    height: 10,
-    backgroundColor: '#27272A',
-  },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.accent,
-  },
-  bitPerfectText: {
-    ...t.monoMicro,
-    fontSize: 11,
-    color: colors.textPrimary,
-    fontWeight: '700',
-    letterSpacing: 0.8,
   },
 
   errorText: {

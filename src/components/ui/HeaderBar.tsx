@@ -23,8 +23,10 @@ export default function HeaderBar({
   const handleBack = () => {
     if (onBack) {
       onBack();
-    } else {
+    } else if (router.canGoBack()) {
       router.back();
+    } else {
+      router.navigate('/(tabs)');
     }
   };
 

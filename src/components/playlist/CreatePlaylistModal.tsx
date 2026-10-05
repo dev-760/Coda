@@ -8,6 +8,12 @@ interface CreatePlaylistModalProps {
   onClose: () => void;
   onCreate: (name: string, description?: string, color?: string, icon?: string) => Promise<void>;
   isLoading?: boolean;
+  initialPlaylist?: {
+    name: string;
+    description?: string;
+    color?: string;
+    icon?: string;
+  } | null;
 }
 
 /**
@@ -46,11 +52,30 @@ export const CreatePlaylistModal: React.FC<CreatePlaylistModalProps> = ({
   onClose,
   onCreate,
   isLoading = false,
+  initialPlaylist = null,
 }) => {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [selectedColor, setSelectedColor] = useState(COLORS[0]);
-  const [selectedIcon, setSelectedIcon] = useState(ICONS[0]);
+  const [name, setName] = useState(initialPlaylist?.name ?? '');
+  const [description, setDescription] = useState(initialPlaylist?.description ?? '');
+  const [selectedColor, setSelectedColor] = useState(initialPlaylist?.color ?? COLORS[0]);
+  const [selectedIcon, setSelectedIcon] = useState(initialPlaylist?.icon ?? ICONS[0]);
+
+  React.useEffect(() => {
+    if (!visible) return;
+    const timer = setTimeout(() => {
+      if (initialPlaylist) {
+        setName(initialPlaylist.name || '');
+        setDescription(initialPlaylist.description || '');
+        setSelectedColor(initialPlaylist.color || COLORS[0]);
+        setSelectedIcon(initialPlaylist.icon || ICONS[0]);
+      } else {
+        setName('');
+        setDescription('');
+        setSelectedColor(COLORS[0]);
+        setSelectedIcon(ICONS[0]);
+      }
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [visible, initialPlaylist]);
 
   const handleCreate = async () => {
     if (!name.trim()) {
@@ -60,13 +85,15 @@ export const CreatePlaylistModal: React.FC<CreatePlaylistModalProps> = ({
 
     try {
       await onCreate(name.trim(), description.trim(), selectedColor, selectedIcon);
-      setName('');
-      setDescription('');
-      setSelectedColor(COLORS[0]);
-      setSelectedIcon(ICONS[0]);
+      if (!initialPlaylist) {
+        setName('');
+        setDescription('');
+        setSelectedColor(COLORS[0]);
+        setSelectedIcon(ICONS[0]);
+      }
       onClose();
     } catch {
-      Alert.alert('Error', 'Failed to create playlist');
+      Alert.alert('Error', initialPlaylist ? 'Failed to update playlist' : 'Failed to create playlist');
     }
   };
 
@@ -80,7 +107,9 @@ export const CreatePlaylistModal: React.FC<CreatePlaylistModalProps> = ({
       <View style={s.overlay}>
         <View style={s.container}>
           <View style={s.header}>
-            <Text style={[t.titleLg, { color: colors.onSurface }]}>Create Playlist</Text>
+            <Text style={[t.titleLg, { color: colors.onSurface }]}>
+              {initialPlaylist ? 'Edit Playlist' : 'Create Playlist'}
+            </Text>
             <TouchableOpacity onPress={onClose} style={s.closeButton}>
               <Icon name="close" size={24} color={colors.onSurface} />
             </TouchableOpacity>
@@ -197,7 +226,9 @@ export const CreatePlaylistModal: React.FC<CreatePlaylistModalProps> = ({
               onPress={handleCreate}
               disabled={isLoading || !name.trim()}
             >
-              <Text style={[t.labelMd, { color: colors.onSurface }]}>Create</Text>
+              <Text style={[t.labelMd, { color: colors.onSurface }]}>
+                {initialPlaylist ? 'Save' : 'Create'}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Alert,
   Modal,
@@ -14,6 +14,7 @@ import { useRouter } from 'expo-router';
 import { Track } from '../../providers/types';
 import Icon from './Icon';
 import CoverThumb from './CoverThumb';
+import { AddToPlaylistModal } from '../playlist/AddToPlaylistModal';
 import { useLibraryStore } from '../../store/libraryStore';
 import { useQueueStore } from '../../store/queueStore';
 import { useDownloadStore } from '../../downloads/downloadStore';
@@ -68,6 +69,7 @@ export default function TrackOptionsMenu({
   track,
   onAddToPlaylist,
 }: TrackOptionsMenuProps) {
+  const [showAddToPlaylist, setShowAddToPlaylist] = useState(false);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { isFavorite, addFavorite, removeFavorite } = useLibraryStore();
@@ -140,12 +142,12 @@ export default function TrackOptionsMenu({
   };
 
   const handleAddToPlaylist = () => {
-    onClose();
     if (onAddToPlaylist) {
+      onClose();
       onAddToPlaylist(track);
       return;
     }
-    Alert.alert('Add to playlist', 'Open a playlist from your collection to add this track.');
+    setShowAddToPlaylist(true);
   };
 
   const handlePlayNext = () => {
@@ -176,7 +178,8 @@ export default function TrackOptionsMenu({
   })();
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <>
+      <Modal visible={visible && !showAddToPlaylist} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={s.overlay} onPress={onClose} accessibilityLabel="Close options" />
       <View style={s.sheet}>
         <View style={s.grabber} />
@@ -256,7 +259,7 @@ export default function TrackOptionsMenu({
               accessibilityLabel={isDownloaded ? 'Remove download' : 'Download for offline'}
             >
               <Icon
-                name={isDownloaded ? 'checkmark-circle' : 'arrow-down-circle-outline'}
+                name={isDownloaded ? 'download-done' : 'download'}
                 size={20}
                 color={isDownloaded ? '#FFFFFF' : colors.onSurface}
               />
@@ -302,7 +305,18 @@ export default function TrackOptionsMenu({
         </ScrollView>
       </View>
     </Modal>
-  );
+    {showAddToPlaylist && (
+      <AddToPlaylistModal
+        visible={showAddToPlaylist}
+        track={track}
+        onClose={() => {
+          setShowAddToPlaylist(false);
+          onClose();
+        }}
+      />
+    )}
+  </>
+);
 }
 
 const s = StyleSheet.create({

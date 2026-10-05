@@ -44,6 +44,8 @@ export default function SettingsScreen() {
   const router = useRouter();
   const { bottomBarClearance } = useResponsive();
   const settings = useSettingsStore();
+  const autoQueueEnabled = useListeningStore((state) => state.autoQueueEnabled);
+  const setAutoQueueEnabled = useListeningStore((state) => state.setAutoQueueEnabled);
   const downloads = useDownloadStore((state) => state.downloads);
   const deleteAllDownloads = useDownloadStore((state) => state.deleteAllDownloads);
 
@@ -61,8 +63,12 @@ export default function SettingsScreen() {
   );
 
   const setSleep = (value: number | 'end') => {
-    settings.setSleepTimerEnabled(true);
-    settings.setSleepTimerDuration(value);
+    if (settings.audio.sleepTimerEnabled && settings.audio.sleepTimerDuration === value) {
+      settings.setSleepTimerEnabled(false);
+    } else {
+      settings.setSleepTimerEnabled(true);
+      settings.setSleepTimerDuration(value);
+    }
   };
 
   const setSpeed = async (value: number) => {
@@ -193,9 +199,9 @@ export default function SettingsScreen() {
               <Text style={s.rowHint}>Keep playing similar tracks when queue finishes</Text>
             </View>
             <Toggle
-              value={useListeningStore.getState().autoQueueEnabled}
+              value={autoQueueEnabled}
               onChange={(next) => {
-                useListeningStore.setState({ autoQueueEnabled: next });
+                setAutoQueueEnabled(next);
                 autoQueueService.syncWithSetting();
               }}
               accessibilityLabel="Auto queue"
@@ -356,13 +362,22 @@ export default function SettingsScreen() {
                 Remove offline audio files to free storage
               </Text>
             </View>
-            <Button
-              variant="destructive"
-              label="CLEAR"
-              icon="trash"
-              size="sm"
-              onPress={handleClearCachePrompt}
-            />
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <Button
+                variant="secondary"
+                label="MANAGE"
+                size="sm"
+                icon="download"
+                onPress={() => router.push('/downloads' as any)}
+              />
+              <Button
+                variant="destructive"
+                label="CLEAR"
+                icon="trash"
+                size="sm"
+                onPress={handleClearCachePrompt}
+              />
+            </View>
           </View>
         </View>
 

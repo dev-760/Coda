@@ -76,6 +76,7 @@ export default function QueueScreen() {
     : '0:00';
 
   const goToPlayerTab = (tab: PlayerTab) => {
+    if (tab === 'queue') return;
     router.push(`/${tab}` as any);
   };
 
@@ -193,15 +194,19 @@ export default function QueueScreen() {
           <Icon name="chevron-down" size={24} color={colors.textPrimary} />
         </Pressable>
         <Text style={s.headerTitle}>QUEUE</Text>
-        <Pressable
-          onPress={() => currentTrack && setOptionsTrack(currentTrack)}
-          hitSlop={10}
-          style={({ pressed }) => [s.headerButton, pressed && s.pressed]}
-          accessibilityRole="button"
-          accessibilityLabel="Queue options"
-        >
-          <Icon name="more" size={20} color={colors.textPrimary} />
-        </Pressable>
+        {currentTrack ? (
+          <Pressable
+            onPress={() => setOptionsTrack(currentTrack)}
+            hitSlop={10}
+            style={({ pressed }) => [s.headerButton, pressed && s.pressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Queue options"
+          >
+            <Icon name="more" size={20} color={colors.textPrimary} />
+          </Pressable>
+        ) : (
+          <View style={s.headerButton} />
+        )}
       </View>
 
       <ScrollView
@@ -286,7 +291,11 @@ export default function QueueScreen() {
         <View style={s.section}>
           <View style={s.sectionHeaderRow}>
             <Text style={s.sectionEyebrow}>
-              {context?.name ? `PLAYING FROM: ${context.name.toUpperCase()}` : 'UP NEXT'}
+              {context?.type === 'search'
+                ? 'PLAYING FROM: SEARCH'
+                : context?.name
+                ? `PLAYING FROM: ${context.name.toUpperCase()}`
+                : 'UP NEXT'}
             </Text>
             {contextTier.length > 0 && (
               <Text style={s.sectionCount}>
