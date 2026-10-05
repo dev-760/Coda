@@ -54,7 +54,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 10,
     paddingHorizontal: 20,
-    backgroundColor: colors.background,
+    backgroundColor: colors.surfaceDeep,
   },
   track: {
     flexDirection: 'row',

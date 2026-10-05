@@ -69,6 +69,9 @@ const s = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     marginBottom: 8,
+    backgroundColor: colors.surfaceDeep,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.divider,
   },
   left: {
     width: 44,
@@ -99,5 +102,9 @@ const s = StyleSheet.create({
     borderColor: colors.divider,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: colors.ink,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
   },
 });

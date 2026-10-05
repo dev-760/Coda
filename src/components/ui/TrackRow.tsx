@@ -154,11 +154,16 @@ const s = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 8,
     borderRadius: r.md,
+    backgroundColor: colors.surfaceDeep,
   },
   rowActive: {
-    backgroundColor: colors.surface1,
+    backgroundColor: colors.surface2,
     borderWidth: 1,
-    borderColor: colors.divider,
+    borderColor: colors.accent,
+    shadowColor: colors.accent,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
   },
   rowDisabled: {
     opacity: 0.5,

@@ -76,8 +76,8 @@ const styles = StyleSheet.create({
   glow: {
     shadowColor: '#B8B8C0',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
+    shadowOpacity: 0.45,
+    shadowRadius: 16,
   },
 });
 

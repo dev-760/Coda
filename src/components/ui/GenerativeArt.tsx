@@ -215,8 +215,8 @@ const styles = StyleSheet.create({
     borderColor: colors.accent,
     shadowColor: colors.accent,
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowOpacity: 0.55,
+    shadowRadius: 16,
+    elevation: 6,
   },
 });
