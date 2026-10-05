@@ -4,15 +4,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Icon from '../../src/components/ui/Icon';
 import CoverThumb from '../../src/components/ui/CoverThumb';
-import { GenerativeArt } from '../../src/components/ui/GenerativeArt';
 import { TrackRow } from '../../src/components/ui/TrackRow';
 import {
   Button,
-  OfflinePill,
   SegmentedControl,
   Banner,
   EmptyState,
-  StorageBar,
 } from '../../src/components/ui/primitives';
 import TrackOptionsMenu from '../../src/components/ui/TrackOptionsMenu';
 import { CreatePlaylistModal } from '../../src/components/playlist/CreatePlaylistModal';
@@ -36,8 +33,7 @@ export default function LibraryScreen() {
   const currentTrack = usePlaybackStore((state) => state.currentTrack);
   const isPlaying = usePlaybackStore((state) => state.isPlaying);
   const offlineOnly = useSettingsStore((state) => state.offlineMode ?? false);
-  const setOfflineMode = useSettingsStore((state) => state.setOfflineMode);
-  const { bottomBarClearance } = useResponsive();
+  const { gutter, maxContentWidth, bottomBarClearance } = useResponsive();
 
   const [view, setView] = useState<SubView>('playlists');
   const [albumFilter, setAlbumFilter] = useState('');
@@ -50,8 +46,6 @@ export default function LibraryScreen() {
     () => downloads.filter((item) => item.status === 'completed'),
     [downloads],
   );
-
-  const totalSavedCount = favorites.length + playlists.reduce((acc, p) => acc + p.tracks.length, 0);
 
   /** Saved albums derived from favorite tracks and playlists */
   const savedAlbums = useMemo(() => {
@@ -104,22 +98,26 @@ export default function LibraryScreen() {
     await audioService.playTrack(playlist.tracks[0]);
   };
 
-  // Convert downloaded bytes into GB for storage bar
-  const totalDownloadBytes = completedDownloads.reduce((sum, item) => sum + (item.downloadedBytes || 0), 0);
-  const usedGb = totalDownloadBytes / 1_000_000_000;
-  const totalCapacityGb = Math.max(64, Math.ceil(usedGb + 10));
-
   const segments = [
     { key: 'playlists' as SubView, label: 'Playlists', count: playlists.length },
-    { key: 'tracks' as SubView, label: 'Saved Tracks', count: favorites.length },
-    { key: 'albums' as SubView, label: 'Saved Albums', count: savedAlbums.length },
+    { key: 'tracks' as SubView, label: 'Tracks', count: favorites.length },
+    { key: 'albums' as SubView, label: 'Albums', count: savedAlbums.length },
     { key: 'downloads' as SubView, label: 'Downloads', count: completedDownloads.length },
   ];
 
   return (
     <SafeAreaView style={s.container} edges={['top']}>
       <ScrollView
-        contentContainerStyle={[s.content, { paddingBottom: bottomBarClearance }]}
+        contentContainerStyle={[
+          s.content,
+          {
+            paddingHorizontal: gutter,
+            paddingBottom: bottomBarClearance,
+            maxWidth: maxContentWidth,
+            alignSelf: 'center',
+            width: '100%',
+          },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         {/* Top Header */}
@@ -441,12 +439,12 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-    paddingVertical: 8,
-    paddingHorizontal: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
     borderRadius: r.lg,
-    backgroundColor: colors.surface1,
+    backgroundColor: '#18181B',
     borderWidth: 1,
-    borderColor: colors.divider,
+    borderColor: '#27272A',
   },
   mediaMeta: {
     flex: 1,
@@ -476,9 +474,9 @@ const s = StyleSheet.create({
     height: 44,
     paddingHorizontal: 14,
     borderRadius: 12,
-    backgroundColor: colors.surface2,
+    backgroundColor: '#18181B',
     borderWidth: 1,
-    borderColor: colors.divider,
+    borderColor: '#27272A',
   },
   filterInput: {
     flex: 1,

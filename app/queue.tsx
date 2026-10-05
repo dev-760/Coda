@@ -1,20 +1,20 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Icon from '../src/components/ui/Icon';
 import CoverThumb from '../src/components/ui/CoverThumb';
-import LevelMeter from '../src/components/ui/LevelMeter';
+import { LevelMeter } from '../src/components/ui/LevelMeter';
 import { Button, EmptyState, Banner } from '../src/components/ui/primitives';
 import TrackOptionsMenu from '../src/components/ui/TrackOptionsMenu';
 import PlayerTabBar, { PlayerTab } from '../src/components/ui/PlayerTabBar';
 import { useQueueStore, getCachedTrack, cacheTracks, QueueEntry } from '../src/store/queueStore';
 import { usePlaybackStore } from '../src/store/playbackStore';
 import { useDownloadStore } from '../src/downloads/downloadStore';
-import { useSettingsStore } from '../src/store/settingsStore';
 import { audioService } from '../src/audio/AudioService';
 import { Track } from '../src/providers/types';
-import { colors, FONTS, r, t } from '../src/theme/theme';
+import { useResponsive } from '../src/hooks/useResponsive';
+import { colors, r, t } from '../src/theme/theme';
 
 const formatMs = (ms: number) => {
   if (!Number.isFinite(ms) || ms <= 0) return '0:00';
@@ -24,19 +24,9 @@ const formatMs = (ms: number) => {
   return `${m}:${s}`;
 };
 
-/** Total runtime of a list, e.g. "1H 48M". */
-function totalRuntime(tracks: Track[]): string {
-  const ms = tracks.reduce((sum, track) => sum + (track.durationMs ?? 0), 0);
-  if (ms <= 0) return '';
-  const minutes = Math.floor(ms / 60_000);
-  const hours = Math.floor(minutes / 60);
-  if (hours === 0) return `${minutes}M`;
-  const rest = minutes % 60;
-  return rest === 0 ? `${hours}H` : `${hours}H ${rest}M`;
-}
-
 export default function QueueScreen() {
   const router = useRouter();
+  const { gutter, maxContentWidth } = useResponsive();
   const entries = useQueueStore((state) => state.entries);
   const currentIndex = useQueueStore((state) => state.currentIndex);
   const context = useQueueStore((state) => state.context);
@@ -46,7 +36,6 @@ export default function QueueScreen() {
   const positionMs = usePlaybackStore((state) => state.positionMs);
   const currentTrack = usePlaybackStore((state) => state.currentTrack);
   const isDownloaded = useDownloadStore((state) => state.isTrackDownloaded);
-  const hifiQuality = useSettingsStore((state) => state.audio.hifiAudioQuality);
 
   const [optionsTrack, setOptionsTrack] = useState<Track | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -75,12 +64,11 @@ export default function QueueScreen() {
     [upcomingItems],
   );
 
-  const allTracks = useMemo(() => {
+  useEffect(() => {
     const resolved = entries
       .map((entry) => getCachedTrack(entry.trackId))
       .filter((track): track is Track => Boolean(track));
     cacheTracks(resolved);
-    return resolved;
   }, [entries]);
 
   const currentPosition = currentTrack?.durationMs
@@ -216,7 +204,18 @@ export default function QueueScreen() {
         </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[
+          s.content,
+          {
+            paddingHorizontal: gutter,
+            maxWidth: maxContentWidth,
+            alignSelf: 'center',
+            width: '100%',
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
 
         {notice && (
           <Banner
@@ -412,9 +411,9 @@ const s = StyleSheet.create({
     gap: 12,
     padding: 12,
     borderRadius: r.md,
-    backgroundColor: colors.surface1,
+    backgroundColor: '#18181B',
     borderWidth: 1,
-    borderColor: colors.divider,
+    borderColor: '#27272A',
   },
   currentMeta: {
     flex: 1,
@@ -451,9 +450,9 @@ const s = StyleSheet.create({
 
   listCard: {
     borderRadius: r.md,
-    backgroundColor: colors.surface1,
+    backgroundColor: '#18181B',
     borderWidth: 1,
-    borderColor: colors.divider,
+    borderColor: '#27272A',
     overflow: 'hidden',
   },
   rowItem: {

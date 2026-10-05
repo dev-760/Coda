@@ -40,34 +40,6 @@ const BROWSE_GENRES = [
   { name: 'Soundtracks & Score', query: 'Soundtrack' },
 ] as const;
 
-/** Honest curated style seeds without fictional runtimes or track counts. */
-const EXPLORE_STYLES = [
-  {
-    id: 'ambient-drone',
-    title: 'Ambient & Deep Drone',
-    blurb: 'Atmospheric textures, modular soundscapes and slow synth beds',
-    query: 'Ambient Drone',
-  },
-  {
-    id: 'lofi-downtempo',
-    title: 'Lo-Fi & Downtempo',
-    blurb: 'Tape-warm beats, gentle Rhodes chords and relaxed rhythms',
-    query: 'Lo-Fi Downtempo',
-  },
-  {
-    id: 'modern-classical',
-    title: 'Modern Classical',
-    blurb: 'Acoustic piano, chamber strings and contemporary minimalism',
-    query: 'Modern Classical',
-  },
-  {
-    id: 'techno-dub',
-    title: 'Dub Techno & Club',
-    blurb: 'Echoed chords, filtered percussion and late-night movement',
-    query: 'Dub Techno',
-  },
-] as const;
-
 type SearchTab = 'Top' | 'Tracks' | 'Artists' | 'Albums';
 
 interface Results {
@@ -101,9 +73,13 @@ function countLabel(tab: SearchTab, results: Results): string {
 
 export default function SearchScreen() {
   const router = useRouter();
-  const { bottomBarClearance } = useResponsive();
+  const { gutter, maxContentWidth, bottomBarClearance, width } = useResponsive();
   const inputRef = useRef<TextInput>(null);
   const { searchHistory, addToSearchHistory, clearSearchHistory } = useLibraryStore();
+
+  const numCols = width >= 900 ? 4 : width >= 600 ? 3 : 2;
+  const contentInnerWidth = Math.min(width, maxContentWidth) - gutter * 2;
+  const tileWidth = Math.floor((contentInnerWidth - (numCols - 1) * 12) / numCols);
 
   const [query, setQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
@@ -234,16 +210,18 @@ export default function SearchScreen() {
     results.tracks.length > 0 || results.artists.length > 0 || results.albums.length > 0;
   const hasLiveResults = hasAnyResults && query.trim().length > 0;
 
-  const emptyTabCopy: Record<SearchTab, string> = {
-    Top: 'No results for this search. Try another spelling or a different term.',
-    Tracks: 'No matching tracks.',
-    Artists: 'No matching artists.',
-    Albums: 'No matching albums.',
-  };
-
   const renderLanding = () => (
     <ScrollView
-      contentContainerStyle={[s.content, { paddingBottom: bottomBarClearance }]}
+      contentContainerStyle={[
+        s.content,
+        {
+          paddingHorizontal: gutter,
+          paddingBottom: bottomBarClearance,
+          maxWidth: maxContentWidth,
+          alignSelf: 'center',
+          width: '100%',
+        },
+      ]}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
     >
@@ -291,13 +269,13 @@ export default function SearchScreen() {
             <Pressable
               key={genre.query}
               onPress={() => runSearch(genre.query)}
-              style={({ pressed }) => [s.genreTile, pressed && s.pressed]}
+              style={({ pressed }) => [s.genreTile, { width: tileWidth }, pressed && s.pressed]}
               accessibilityRole="button"
               accessibilityLabel={`Browse ${genre.name}`}
             >
               <GenerativeArt
                 seedKey={genre.name}
-                size={160}
+                size={tileWidth}
                 borderRadius={12}
               />
               <View style={s.genreTag}>
@@ -338,7 +316,16 @@ export default function SearchScreen() {
 
   const renderSuggestions = () => (
     <ScrollView
-      contentContainerStyle={[s.content, { paddingBottom: bottomBarClearance }]}
+      contentContainerStyle={[
+        s.content,
+        {
+          paddingHorizontal: gutter,
+          paddingBottom: bottomBarClearance,
+          maxWidth: maxContentWidth,
+          alignSelf: 'center',
+          width: '100%',
+        },
+      ]}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
     >
@@ -442,7 +429,16 @@ export default function SearchScreen() {
 
   const renderResults = () => (
     <ScrollView
-      contentContainerStyle={[s.content, { paddingBottom: bottomBarClearance }]}
+      contentContainerStyle={[
+        s.content,
+        {
+          paddingHorizontal: gutter,
+          paddingBottom: bottomBarClearance,
+          maxWidth: maxContentWidth,
+          alignSelf: 'center',
+          width: '100%',
+        },
+      ]}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
     >
@@ -659,6 +655,9 @@ const s = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 8,
+    maxWidth: 720,
+    alignSelf: 'center',
+    width: '100%',
   },
   pressed: {
     opacity: 0.7,
@@ -677,9 +676,9 @@ const s = StyleSheet.create({
     height: 48,
     paddingHorizontal: 16,
     borderRadius: 12,
-    backgroundColor: colors.surface2,
+    backgroundColor: '#18181B',
     borderWidth: 1,
-    borderColor: colors.divider,
+    borderColor: '#27272A',
   },
   input: {
     flex: 1,
@@ -815,25 +814,24 @@ const s = StyleSheet.create({
     justifyContent: 'space-between',
   },
   genreTile: {
-    width: '48%',
     aspectRatio: 1,
     borderRadius: r.lg,
     overflow: 'hidden',
     position: 'relative',
-    backgroundColor: colors.surface1,
+    backgroundColor: '#18181B',
     borderWidth: 1,
-    borderColor: colors.divider,
+    borderColor: '#27272A',
   },
   genreTag: {
     position: 'absolute',
     left: 10,
     bottom: 10,
-    backgroundColor: colors.background,
+    backgroundColor: '#141416',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: colors.divider,
+    borderColor: '#27272A',
   },
   genreTagText: {
     ...t.captionStrong,
@@ -842,9 +840,9 @@ const s = StyleSheet.create({
   editorialCard: {
     padding: 16,
     borderRadius: r.lg,
-    backgroundColor: colors.surface1,
+    backgroundColor: '#18181B',
     borderWidth: 1,
-    borderColor: colors.divider,
+    borderColor: '#27272A',
     gap: 8,
   },
   editorialArt: {

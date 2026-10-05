@@ -128,9 +128,9 @@ const s = StyleSheet.create({
   },
   container: {
     height: 64,
-    backgroundColor: colors.surface2,
+    backgroundColor: '#18181B',
     borderWidth: 1,
-    borderColor: colors.divider,
+    borderColor: '#27272A',
     borderRadius: r.lg,
     flexDirection: 'row',
     alignItems: 'center',
@@ -138,6 +138,11 @@ const s = StyleSheet.create({
     paddingRight: 6,
     overflow: 'hidden',
     position: 'relative',
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
   },
   touchableArea: {
     flex: 1,

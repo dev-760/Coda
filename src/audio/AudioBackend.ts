@@ -15,6 +15,10 @@ export interface AudioBackendEvents {
    * for those, so the store has to follow it rather than assume it is right.
    */
   onPlayingChanged: ((isPlaying: boolean) => void) | null;
+  /** Next track triggered from lock screen, notification shade or media button. */
+  onNext?: (() => void) | null;
+  /** Previous track triggered from lock screen, notification shade or media button. */
+  onPrevious?: (() => void) | null;
 }
 
 export interface AudioBackend {

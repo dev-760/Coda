@@ -57,6 +57,12 @@ class AudioService {
       usePlaybackStore.getState().setError(message);
       usePlaybackStore.getState().setPlaying(false);
     };
+    this.backend.events.onNext = () => {
+      void this.playNextInQueue();
+    };
+    this.backend.events.onPrevious = () => {
+      void this.playPrevious();
+    };
 
     await this.applyPlaybackSpeed();
   }

@@ -3,7 +3,7 @@ import {
   setAudioModeAsync,
   setIsAudioActiveAsync,
 } from 'expo-audio';
-import type { AudioPlayer, AudioSource, AudioStatus } from 'expo-audio';
+import type { AudioPlayer, AudioSource } from 'expo-audio';
 import { AudioBackend, AudioBackendEvents } from './AudioBackend';
 import { StreamInfo, Track } from '../providers/types';
 import { logger } from '../logging/Logger';
@@ -76,7 +76,16 @@ export class ExpoAudioBackend implements AudioBackend {
     const player = this.player;
     if (!player) return;
 
-    this.statusSubscription = player.addListener('playbackStatusUpdate', (status: AudioStatus) => {
+    this.statusSubscription = player.addListener('playbackStatusUpdate', (status: any) => {
+      if (status.remoteAction === 'next') {
+        this.events.onNext?.();
+        return;
+      }
+      if (status.remoteAction === 'previous') {
+        this.events.onPrevious?.();
+        return;
+      }
+
       if (status.didJustFinish) {
         this.reportEnd();
         return;
@@ -117,7 +126,7 @@ export class ExpoAudioBackend implements AudioBackend {
     this.player.updateLockScreenMetadata({
       title: track.title,
       artist: track.artist,
-      albumTitle: track.album || 'Luma Lossless',
+      albumTitle: track.album ? `${track.album} • Luma` : 'Luma Lossless',
       artworkUrl: track.coverUrl ?? track.artwork,
     });
   }
@@ -141,7 +150,7 @@ export class ExpoAudioBackend implements AudioBackend {
         ? {
             title: track.title,
             artist: track.artist,
-            albumTitle: track.album || 'Luma Lossless',
+            albumTitle: track.album ? `${track.album} • Luma` : 'Luma Lossless',
             artworkUrl: track.coverUrl ?? track.artwork,
           }
         : undefined,

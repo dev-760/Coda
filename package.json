@@ -9,7 +9,8 @@
     "web": "expo start --web",
     "test": "jest",
     "typecheck": "tsc --noEmit",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "postinstall": "node scripts/patch-expo-audio.js"
   },
   "jest": {
     "preset": "jest-expo",

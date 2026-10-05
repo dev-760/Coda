@@ -15,9 +15,7 @@ import CoverThumb from '../../src/components/ui/CoverThumb';
 import { LevelMeter } from '../../src/components/ui/LevelMeter';
 import {
   Button,
-  Chip,
   Banner,
-  EmptyState,
   SectionHeader,
 } from '../../src/components/ui/primitives';
 import TrackOptionsMenu from '../../src/components/ui/TrackOptionsMenu';
@@ -32,7 +30,12 @@ import { subscribeToConnectivity } from '../../src/services/connectivity';
 import { useResponsive } from '../../src/hooks/useResponsive';
 import { colors, r, t } from '../../src/theme/theme';
 
-const GENRE_CHIPS = ['All', 'Lossless 24/96', 'Electronic', 'Ambient', 'Dub Techno', 'Classical', 'Post-Punk'] as const;
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'GOOD MORNING';
+  if (hour < 18) return 'GOOD AFTERNOON';
+  return 'GOOD EVENING';
+}
 
 function getFormattedDate(): string {
   const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
@@ -52,12 +55,11 @@ export default function HomeScreen() {
   const isPlaying = usePlaybackStore((state) => state.isPlaying);
   const positionMs = usePlaybackStore((state) => state.positionMs);
   const durationMs = usePlaybackStore((state) => state.durationMs);
-  const { bottomBarClearance } = useResponsive();
+  const { gutter, maxContentWidth, bottomBarClearance } = useResponsive();
 
   const [optionsTrack, setOptionsTrack] = useState<Track | null>(null);
   const [offline, setOffline] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedGenre, setSelectedGenre] = useState<string>('All');
 
   useEffect(() => subscribeToConnectivity((isConnected) => setOffline(!isConnected)), []);
 
@@ -121,13 +123,19 @@ export default function HomeScreen() {
     }
   };
 
-  const hasContent =
-    favorites.length > 0 || playlists.length > 0 || recentlyPlayed.length > 0 || heavyRotation.length > 0;
-
   return (
     <SafeAreaView style={s.container} edges={['top']}>
       <ScrollView
-        contentContainerStyle={[s.content, { paddingBottom: bottomBarClearance }]}
+        contentContainerStyle={[
+          s.content,
+          {
+            paddingHorizontal: gutter,
+            paddingBottom: bottomBarClearance,
+            maxWidth: maxContentWidth,
+            alignSelf: 'center',
+            width: '100%',
+          },
+        ]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.onSurface} />
@@ -135,10 +143,22 @@ export default function HomeScreen() {
       >
         {/* Top Header */}
         <View style={s.headerRow}>
-          <View style={s.brandLine}>
-            <AppLogo size={22} color={colors.accent} />
-            <Text style={s.dateEyebrow}>{getFormattedDate()}</Text>
+          <View style={s.brandGroup}>
+            <View style={s.brandLine}>
+              <AppLogo size={24} color={colors.accent} />
+              <Text style={s.brandTitle}>LUMA</Text>
+            </View>
+            <Text style={s.dateEyebrow}>{`${getGreeting()} · ${getFormattedDate()}`}</Text>
           </View>
+          <Pressable
+            onPress={() => router.push('/settings' as any)}
+            hitSlop={10}
+            style={({ pressed }) => [s.settingsBtn, pressed && s.pressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Open settings"
+          >
+            <Icon name="sliders" size={18} color={colors.onSurface} />
+          </Pressable>
         </View>
 
         {offline && (
@@ -295,15 +315,32 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 6,
+    paddingVertical: 8,
   },
-  headerTitles: {
+  brandGroup: {
     gap: 4,
   },
   brandLine: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
+  },
+  brandTitle: {
+    ...t.title,
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.onSurface,
+    letterSpacing: 2,
+  },
+  settingsBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: r.full,
+    backgroundColor: '#18181B',
+    borderWidth: 1,
+    borderColor: '#27272A',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   dateEyebrow: {
     ...t.monoMicro,
@@ -330,10 +367,15 @@ const s = StyleSheet.create({
   heroCard: {
     padding: 16,
     borderRadius: r.lg,
-    backgroundColor: colors.surface1,
+    backgroundColor: '#18181B',
     borderWidth: 1,
-    borderColor: colors.divider,
+    borderColor: '#27272A',
     gap: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 6,
   },
   heroEyebrowRow: {
     flexDirection: 'row',
@@ -393,7 +435,8 @@ const s = StyleSheet.create({
     height: 44,
     borderRadius: r.full,
     borderWidth: 1,
-    borderColor: colors.divider,
+    borderColor: '#27272A',
+    backgroundColor: '#18181B',
     alignItems: 'center',
     justifyContent: 'center',
   },

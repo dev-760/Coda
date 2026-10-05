@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   Alert,
-  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -10,6 +9,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Track } from '../../providers/types';
 import Icon from './Icon';
@@ -69,6 +69,7 @@ export default function TrackOptionsMenu({
   onAddToPlaylist,
 }: TrackOptionsMenuProps) {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { isFavorite, addFavorite, removeFavorite } = useLibraryStore();
   const downloadStatus = useDownloadStore((state) =>
     track ? state.getDownloadStatus(track.id)?.status ?? null : null,
@@ -147,6 +148,11 @@ export default function TrackOptionsMenu({
     Alert.alert('Add to playlist', 'Open a playlist from your collection to add this track.');
   };
 
+  const handlePlayNext = () => {
+    useQueueStore.getState().playNext(track);
+    onClose();
+  };
+
   const handleAddToQueue = () => {
     useQueueStore.getState().addToQueue(track);
     onClose();
@@ -169,7 +175,6 @@ export default function TrackOptionsMenu({
     return 'AAC 160';
   })();
 
-
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={s.overlay} onPress={onClose} accessibilityLabel="Close options" />
@@ -177,7 +182,7 @@ export default function TrackOptionsMenu({
         <View style={s.grabber} />
         {/* Track header */}
         <View style={s.trackHeader}>
-          <CoverThumb uri={track.coverUrl} size={48} borderRadius={8} />
+          <CoverThumb uri={track.coverUrl} size={50} borderRadius={10} />
           <View style={s.trackMeta}>
             <View style={s.trackTitleLine}>
               <Text numberOfLines={1} style={s.trackTitle}>{track.title}</Text>
@@ -192,21 +197,32 @@ export default function TrackOptionsMenu({
           </View>
         </View>
 
-        <ScrollView style={s.body} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={s.body}
+          contentContainerStyle={[
+            s.bodyContent,
+            { paddingBottom: Math.max(insets.bottom, 20) + 24 },
+          ]}
+          showsVerticalScrollIndicator={false}
+        >
           {/* Quick actions */}
           <View style={s.quickRow}>
             <Pressable
               onPress={handleToggleCollection}
-              style={({ pressed }) => [s.quickAction, pressed && s.pressed]}
+              style={({ pressed }) => [
+                s.quickAction,
+                inCollection && s.quickActionActive,
+                pressed && s.pressed,
+              ]}
               accessibilityRole="button"
               accessibilityLabel={inCollection ? 'Remove from favorites' : 'Favorite'}
             >
               <Icon
                 name={inCollection ? 'heart' : 'heart-outline'}
-                size={18}
-                color={colors.onSurface}
+                size={20}
+                color={inCollection ? '#FFFFFF' : colors.onSurface}
               />
-              <Text style={s.quickLabel}>FAVORITE</Text>
+              <Text style={[s.quickLabel, inCollection && s.quickLabelActive]}>FAVORITE</Text>
             </Pressable>
 
             <Pressable
@@ -215,7 +231,7 @@ export default function TrackOptionsMenu({
               accessibilityRole="button"
               accessibilityLabel="Add to playlist"
             >
-              <Icon name="list" size={18} color={colors.onSurface} />
+              <Icon name="list" size={20} color={colors.onSurface} />
               <Text style={s.quickLabel}>ADD TO…</Text>
             </Pressable>
 
@@ -225,25 +241,37 @@ export default function TrackOptionsMenu({
               accessibilityRole="button"
               accessibilityLabel="Share"
             >
-              <Icon name="share-outline" size={18} color={colors.onSurface} />
+              <Icon name="share-outline" size={20} color={colors.onSurface} />
               <Text style={s.quickLabel}>SHARE</Text>
             </Pressable>
 
             <Pressable
               onPress={handleDownload}
-              style={({ pressed }) => [s.quickAction, pressed && s.pressed]}
+              style={({ pressed }) => [
+                s.quickAction,
+                isDownloaded && s.quickActionActive,
+                pressed && s.pressed,
+              ]}
               accessibilityRole="button"
               accessibilityLabel={isDownloaded ? 'Remove download' : 'Download for offline'}
             >
               <Icon
                 name={isDownloaded ? 'checkmark-circle' : 'arrow-down-circle-outline'}
-                size={18}
-                color={colors.onSurface}
+                size={20}
+                color={isDownloaded ? '#FFFFFF' : colors.onSurface}
               />
-              <Text style={s.quickLabel}>OFFLINE</Text>
+              <Text style={[s.quickLabel, isDownloaded && s.quickLabelActive]}>OFFLINE</Text>
             </Pressable>
           </View>
 
+          <Text style={s.sectionLabel}>QUEUE &amp; PLAYBACK</Text>
+          <OptionRow
+            icon="play-forward"
+            label="Play Next"
+            detail="Play immediately after current track"
+            onPress={handlePlayNext}
+            trailing={<Icon name="add" size={18} color={colors.onSurfaceVariant} />}
+          />
           <OptionRow
             icon="list"
             label="Add to Up Next Queue"
@@ -271,8 +299,7 @@ export default function TrackOptionsMenu({
             detail={`Produced by ${track.artist}`}
             onPress={handleCredits}
           />
-
-          </ScrollView>
+        </ScrollView>
       </View>
     </Modal>
   );
@@ -281,29 +308,34 @@ export default function TrackOptionsMenu({
 const s = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0, 0, 0, 0.72)',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
   },
   sheet: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    maxHeight: '92%',
-    paddingTop: 10,
-    paddingHorizontal: 16,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    maxHeight: '90%',
+    paddingTop: 12,
+    paddingHorizontal: 20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     borderTopWidth: 1,
-    borderTopColor: colors.divider,
+    borderTopColor: '#27272A',
     backgroundColor: '#18181B',
+    elevation: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -6 },
+    shadowOpacity: 0.5,
+    shadowRadius: 16,
   },
   grabber: {
-    width: 40,
+    width: 38,
     height: 4,
     borderRadius: 2,
-    backgroundColor: colors.disabled,
+    backgroundColor: '#3F3F46',
     alignSelf: 'center',
-    marginBottom: 14,
+    marginBottom: 16,
   },
   pressed: {
     opacity: 0.7,
@@ -312,23 +344,16 @@ const s = StyleSheet.create({
   trackHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 14,
     paddingBottom: 16,
-  },
-  art: {
-    width: 48,
-    height: 48,
-    borderRadius: r.sm,
-    backgroundColor: colors.surfaceContainer,
-  },
-  artFallback: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    marginBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#27272A',
   },
   trackMeta: {
     flex: 1,
     minWidth: 0,
-    gap: 2,
+    gap: 3,
   },
   trackTitleLine: {
     flexDirection: 'row',
@@ -337,11 +362,11 @@ const s = StyleSheet.create({
   },
   trackTitle: {
     fontFamily: FONTS.contentSemiBold,
-    fontSize: 15,
-    lineHeight: 20,
+    fontSize: 16,
+    lineHeight: 22,
     fontWeight: '600',
     flexShrink: 1,
-    color: colors.onSurface,
+    color: '#F4F4F5',
   },
   favDot: {
     width: 6,
@@ -351,70 +376,91 @@ const s = StyleSheet.create({
   },
   trackArtist: {
     ...t.bodySm,
-    color: colors.outlineText,
+    fontSize: 13,
+    color: '#A1A1AA',
   },
 
   body: {
-    paddingBottom: 24,
+    flexGrow: 0,
+  },
+  bodyContent: {
+    paddingTop: 4,
   },
 
   quickRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginBottom: 8,
+    gap: 10,
+    marginBottom: 16,
   },
   quickAction: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 12,
-    borderRadius: r.md,
-    backgroundColor: colors.surface1,
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: '#222226',
     borderWidth: 1,
-    borderColor: colors.divider,
+    borderColor: '#2E2E33',
+  },
+  quickActionActive: {
+    backgroundColor: '#2E2E38',
+    borderColor: '#3F3F46',
   },
   quickLabel: {
     ...t.monoMicro,
     fontSize: 10,
-    color: colors.outlineText,
+    fontWeight: '600',
+    color: '#A1A1AA',
+    letterSpacing: 0.5,
+  },
+  quickLabelActive: {
+    color: '#FFFFFF',
   },
 
   sectionLabel: {
     ...t.label,
-    color: colors.outlineText,
-    marginTop: 20,
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#71717A',
+    letterSpacing: 1,
+    marginTop: 18,
     marginBottom: 8,
   },
 
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 14,
     minHeight: 56,
+    paddingVertical: 4,
   },
   rowIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: r.md,
+    width: 40,
+    height: 40,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surface1,
+    backgroundColor: '#222226',
     borderWidth: 1,
-    borderColor: colors.divider,
+    borderColor: '#2E2E33',
   },
   rowText: {
     flex: 1,
     minWidth: 0,
-    gap: 2,
+    gap: 3,
   },
   rowLabel: {
-    ...t.bodyStrong,
-    color: colors.onSurface,
+    fontFamily: FONTS.contentMedium,
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: '500',
+    color: '#FAFAFA',
   },
   rowDetail: {
     ...t.caption,
-    color: colors.outlineText,
+    fontSize: 12,
+    color: '#A1A1AA',
   },
 
   formatBadge: {
@@ -422,19 +468,14 @@ const s = StyleSheet.create({
     height: 24,
     justifyContent: 'center',
     borderRadius: r.full,
-    backgroundColor: colors.surface1,
+    backgroundColor: '#222226',
     borderWidth: 1,
-    borderColor: colors.divider,
-  },
-  formatBadgeActive: {
-    backgroundColor: colors.accent,
+    borderColor: '#2E2E33',
   },
   formatText: {
     ...t.monoMicro,
-    color: colors.onSurface,
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#D4D4D8',
   },
-  formatTextActive: {
-    color: colors.onPrimary,
-  },
-
-  });
+});

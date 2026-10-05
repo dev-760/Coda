@@ -62,16 +62,19 @@ export function useResponsive() {
   const gutter =
     sizeClass === 'compact' ? 20 : sizeClass === 'regular' ? 28 : 40;
 
-  /** Content stops growing past this, so tablets do not get comic-book rows. */
   const maxContentWidth = sizeClass === 'large' ? 720 : Number.POSITIVE_INFINITY;
 
+  const isShortScreen = height < 720;
+
   /**
-   * Square artwork edge length. Derived from the shorter axis so it still fits
-   * when the device rotates or the window is short.
+   * Square artwork edge length. Derived from available horizontal and vertical budget
+   * so it fits without scrolling when the device rotates or the window is short.
    */
   const artworkSize = (max: number) => {
-    const available = Math.min(width - gutter * 2, height * 0.42);
-    return Math.round(Math.min(Math.max(available, 120), max));
+    const verticalBudget = isLandscape ? height * 0.68 : Math.max(160, height - 420);
+    const horizontalBudget = isLandscape ? width * 0.45 : width - gutter * 2;
+    const available = Math.min(horizontalBudget, verticalBudget);
+    return Math.round(Math.min(Math.max(available, 140), max));
   };
 
   /** Columns for a grid that stays usable at any width. */
@@ -86,13 +89,14 @@ export function useResponsive() {
     scale,
     fontScale: boundedFontScale,
     isLandscape,
+    isShortScreen,
     sizeClass,
     gutter,
     maxContentWidth,
     artworkSize,
     gridColumns,
     round,
-      /** Safe-area aware clearance for lists sitting under the fixed bars. */
-      bottomBarClearance: bottomBarClearance(resolveTabBarInset(insets.bottom, Platform.OS)),
-    };
-  }
+    /** Safe-area aware clearance for lists sitting under the fixed bars. */
+    bottomBarClearance: bottomBarClearance(resolveTabBarInset(insets.bottom, Platform.OS)),
+  };
+}

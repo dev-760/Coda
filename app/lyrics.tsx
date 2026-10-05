@@ -12,23 +12,17 @@ import Icon from '../src/components/ui/Icon';
 import CoverThumb from '../src/components/ui/CoverThumb';
 import PlayerTabBar, { PlayerTab } from '../src/components/ui/PlayerTabBar';
 import { EmptyState } from '../src/components/ui/primitives';
-import { colors, FONTS, r, t } from '../src/theme/theme';
+import { colors, r, t } from '../src/theme/theme';
 import { usePlaybackStore } from '../src/store/playbackStore';
 import { audioService } from '../src/audio/AudioService';
 import { hifiApiClient } from '../src/services/hifiApiClient';
 import { useLibraryStore } from '../src/store/libraryStore';
+import { useResponsive } from '../src/hooks/useResponsive';
 import { parseLyricsPayload, LyricLineItem } from '../src/services/lyricsParser';
-
-const formatTime = (ms: number) => {
-  if (!Number.isFinite(ms) || ms < 0) return '0:00';
-  const total = Math.floor(ms / 1000);
-  const m = Math.floor(total / 60);
-  const s = (total % 60).toString().padStart(2, '0');
-  return `${m}:${s}`;
-};
 
 export default function LyricsScreen() {
   const router = useRouter();
+  const { gutter, maxContentWidth } = useResponsive();
   const { currentTrack, isPlaying, positionMs, durationMs } = usePlaybackStore();
   const { isFavorite, addFavorite, removeFavorite } = useLibraryStore();
 
@@ -182,7 +176,7 @@ export default function LyricsScreen() {
           accessibilityLabel={liked ? 'Remove from saved' : 'Save track'}
         >
           <Icon
-            name={liked ? 'check' : 'plus'}
+            name={liked ? 'heart' : 'heart-outline'}
             size={18}
             color={liked ? colors.accent : colors.textTertiary}
           />
@@ -210,7 +204,15 @@ export default function LyricsScreen() {
 
       <ScrollView
         ref={scrollRef}
-        contentContainerStyle={s.content}
+        contentContainerStyle={[
+          s.content,
+          {
+            paddingHorizontal: gutter,
+            maxWidth: maxContentWidth,
+            alignSelf: 'center',
+            width: '100%',
+          },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         {/* Lyric lines */}
@@ -312,11 +314,14 @@ const s = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: r.md,
-    backgroundColor: colors.surface1,
+    backgroundColor: '#18181B',
     borderWidth: 1,
-    borderColor: colors.divider,
+    borderColor: '#27272A',
     position: 'relative',
     overflow: 'hidden',
+    maxWidth: 680,
+    alignSelf: 'center',
+    width: '92%',
   },
   contextMeta: {
     flex: 1,

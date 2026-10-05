@@ -1,14 +1,13 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Icon from '../src/components/ui/Icon';
-import AppLogo from '../src/components/ui/AppLogo';
-import { Toggle, SignalPathDiagram, StorageBar, Button } from '../src/components/ui/primitives';
+import { AppLogo } from '../src/components/ui/AppLogo';
+import { Toggle, Button } from '../src/components/ui/primitives';
 import { useSettingsStore, DownloadQuality } from '../src/store/settingsStore';
 import { useListeningStore } from '../src/store/listeningStore';
 import { useDownloadStore } from '../src/downloads/downloadStore';
-import { downloadStorage } from '../src/downloads/downloadStorage';
 import { autoQueueService } from '../src/services/autoQueueService';
 import { audioService } from '../src/audio/AudioService';
 import { useResponsive } from '../src/hooks/useResponsive';
@@ -48,20 +47,6 @@ export default function SettingsScreen() {
   const downloads = useDownloadStore((state) => state.downloads);
   const deleteAllDownloads = useDownloadStore((state) => state.deleteAllDownloads);
 
-  const [freeStorageBytes, setFreeStorageBytes] = useState<number | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    void downloadStorage.getFreeStorageBytes().then((bytes) => {
-      if (active && bytes > 0) {
-        setFreeStorageBytes(bytes);
-      }
-    });
-    return () => {
-      active = false;
-    };
-  }, []);
-
   const totalBytes = useMemo(
     () => downloads.reduce((sum, item) => sum + (item.downloadedBytes || 0), 0),
     [downloads],
@@ -74,10 +59,6 @@ export default function SettingsScreen() {
     () => downloads.filter((item) => item.status === 'failed').length,
     [downloads],
   );
-
-  const usedGb = totalBytes / 1_000_000_000;
-  const freeGb = freeStorageBytes !== null ? freeStorageBytes / 1_000_000_000 : null;
-  const totalCapacityGb = freeStorageBytes !== null ? (totalBytes + freeStorageBytes) / 1_000_000_000 : 64;
 
   const setSleep = (value: number | 'end') => {
     settings.setSleepTimerEnabled(true);
@@ -358,9 +339,9 @@ export default function SettingsScreen() {
               <Text style={s.statValue}>{completedCount}</Text>
             </View>
             <View style={s.statCell}>
-              <Text style={s.statLabel}>FREE SPACE</Text>
+              <Text style={s.statLabel}>STATUS</Text>
               <Text style={s.statValue}>
-                {freeGb !== null ? `${freeGb.toFixed(1)} GB` : 'Available'}
+                {failedCount > 0 ? `${failedCount} Failed` : 'Optimal'}
               </Text>
             </View>
           </View>
@@ -409,7 +390,7 @@ export default function SettingsScreen() {
         {/* Footer Brand Showcase */}
         <View style={s.footer}>
           <AppLogo size={36} showText={true} />
-          <Text style={s.footerSub}>MONOCHROME INK &amp; SILVER AUDIO SYSTEM</Text>
+          <Text style={s.footerSub}>LUMA</Text>
           <Text style={s.footerVersion}>VERSION {APP_VERSION}</Text>
         </View>
       </ScrollView>
