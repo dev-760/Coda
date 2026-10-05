@@ -14,6 +14,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { audioService } from '../../src/audio/AudioService';
 import Icon from '../../src/components/ui/Icon';
 import CoverThumb from '../../src/components/ui/CoverThumb';
+import { GenerativeArt } from '../../src/components/ui/GenerativeArt';
+import { TrackRow } from '../../src/components/ui/TrackRow';
+import { Chip, EmptyState } from '../../src/components/ui/primitives';
 import TrackOptionsMenu from '../../src/components/ui/TrackOptionsMenu';
 import { useResponsive } from '../../src/hooks/useResponsive';
 import { CatalogAlbum, CatalogArtist } from '../../src/providers/catalogTypes';
@@ -310,7 +313,7 @@ export default function SearchScreen() {
         </ScrollView>
       </View>
 
-      {/* Genre grid */}
+      {/* Genre grid matching showcase card/genre */}
       <View style={s.block}>
         <View style={s.blockHeader}>
           <View style={s.blockHeaderText}>
@@ -328,11 +331,43 @@ export default function SearchScreen() {
               accessibilityRole="button"
               accessibilityLabel={`Browse ${genre.name}`}
             >
-              <Text style={s.genreName} numberOfLines={2}>{genre.name}</Text>
-              <Icon name="chevron-forward" size={16} color={colors.outlineText} />
+              <GenerativeArt
+                seedKey={genre.name}
+                size={160}
+                borderRadius={12}
+              />
+              <View style={s.genreTag}>
+                <Text style={s.genreTagText} numberOfLines={1}>{genre.name}</Text>
+              </View>
             </Pressable>
           ))}
         </View>
+      </View>
+
+      {/* Editorial Feature matching showcase card/editorial */}
+      <View style={s.block}>
+        <Text style={s.blockLabel}>FEATURES</Text>
+        <Pressable
+          onPress={() => runSearch('Dub Techno')}
+          style={({ pressed }) => [s.editorialCard, pressed && s.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Scene report feature"
+        >
+          <GenerativeArt
+            seedKey="editorial-feature"
+            size={340}
+            borderRadius={12}
+            style={s.editorialArt}
+          />
+          <Text style={s.editorialKicker}>SCENE REPORT</Text>
+          <Text style={s.editorialTitle}>
+            Basement frequencies: inside Tbilisi’s dub techno revival
+          </Text>
+          <Text style={s.editorialSummary}>
+            Six producers, one shared rehearsal room and a sound built for concrete.
+          </Text>
+          <Text style={s.editorialMeta}>12 MIN READ · 14 TRACKS</Text>
+        </Pressable>
       </View>
     </ScrollView>
   );
@@ -452,17 +487,13 @@ export default function SearchScreen() {
           const isActive = activeTab === tab;
           const count = countLabel(tab, results);
           return (
-            <Pressable
+            <Chip
               key={tab}
-              style={[s.tabPill, isActive && s.tabPillActive]}
+              label={tab}
+              selected={isActive}
+              count={count ? Number(count) : undefined}
               onPress={() => setActiveTab(tab)}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: isActive }}
-              accessibilityLabel={count ? `${tab}, ${count} results` : tab}
-            >
-              <Text style={[s.tabPillText, isActive && s.tabPillTextActive]}>{tab}</Text>
-              {!!count && <Text style={[s.tabPillCount, isActive && s.tabPillCountActive]}>{count}</Text>}
-            </Pressable>
+            />
           );
         })}
       </ScrollView>
@@ -470,24 +501,27 @@ export default function SearchScreen() {
       {loading && <ActivityIndicator color={colors.onSurface} style={s.loader} />}
 
       {error ? (
-        <View style={s.stateBlock}>
-          <Icon name="cloud-offline-outline" size={24} color={colors.outlineText} />
-          <Text style={s.stateText}>{error}</Text>
-          <Pressable style={s.stateAction} onPress={handleRetry} accessibilityRole="button">
-            <Text style={s.stateActionText}>Try again</Text>
-          </Pressable>
-        </View>
+        <EmptyState
+          icon="cloud-off"
+          title="Search connection stalled"
+          body={error}
+          actionLabel="Try again"
+          onAction={handleRetry}
+        />
       ) : !loading && !hasAnyResults ? (
-        <View style={s.stateBlock}>
-          <Icon name="search" size={24} color={colors.outline} />
-          <Text style={s.stateText}>{emptyTabCopy[activeTab]}</Text>
-        </View>
+        <EmptyState
+          icon="search"
+          title={`No results for “${query.trim()}”`}
+          body="Check spelling or try exploring by genre tags like Dub Techno."
+          actionLabel="Clear search"
+          onAction={handleCancelSearch}
+        />
       ) : (
         <>
           {showTracks && results.tracks.length > 0 && (
             <View style={s.block}>
               <View style={s.blockHeader}>
-                <Text style={s.blockTitle}>Tracks</Text>
+                <Text style={s.blockTitle}>{`Tracks · ${results.tracks.length}`}</Text>
                 <Pressable
                   onPress={() => playMany(results.tracks)}
                   style={({ pressed }) => [s.inlineAction, pressed && s.pressed]}
@@ -499,38 +533,13 @@ export default function SearchScreen() {
                 </Pressable>
               </View>
               {results.tracks.map((track) => (
-                <View key={track.id} style={s.resultRow}>
-                  <Pressable
-                    onPress={() => playOne(track)}
-                    onLongPress={() => setOptionsTrack(track)}
-                    style={({ pressed }) => [s.resultMain, pressed && s.pressed]}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Play ${track.title} by ${track.artist}`}
-                  >
-                    <CoverThumb
-                      uri={track.coverUrl}
-                      size={44}
-                      borderRadius={r.sm}
-                      style={s.resultArt}
-                    />
-                    <View style={s.resultMeta}>
-                      <Text style={s.resultText} numberOfLines={1}>{track.title}</Text>
-                      <Text style={s.resultSub} numberOfLines={1}>
-                        {track.artist}
-                        {track.album ? ` • ${track.album}` : ''}
-                        {track.durationMs ? ` • ${formatDuration(track.durationMs)}` : ''}
-                      </Text>
-                    </View>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => setOptionsTrack(track)}
-                    hitSlop={12}
-                    style={s.rowMore}
-                    accessibilityLabel={`More options for ${track.title}`}
-                  >
-                    <Icon name="ellipsis-horizontal" size={16} color={colors.outlineText} />
-                  </Pressable>
-                </View>
+                <TrackRow
+                  key={track.id}
+                  track={track}
+                  onPress={() => playOne(track)}
+                  onLongPress={() => setOptionsTrack(track)}
+                  onMore={() => setOptionsTrack(track)}
+                />
               ))}
             </View>
           )}
@@ -701,24 +710,25 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    height: 44,
-    paddingHorizontal: 14,
-    borderRadius: r.md,
-    backgroundColor: colors.surfaceContainer,
+    height: 48,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: colors.surface2,
+    borderWidth: 1,
+    borderColor: colors.divider,
   },
   input: {
     flex: 1,
-    fontFamily: FONTS.regular,
-    fontSize: 14,
+    ...t.body,
     color: colors.onSurface,
   },
   cancelBtn: {
     minHeight: 44,
     justifyContent: 'center',
-    paddingHorizontal: 4,
+    paddingHorizontal: 8,
   },
   cancelText: {
-    ...t.labelMd,
+    ...t.captionStrong,
     color: colors.onSurfaceVariant,
   },
   circleBtn: {
@@ -727,7 +737,9 @@ const s = StyleSheet.create({
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surfaceContainer,
+    backgroundColor: colors.surface2,
+    borderWidth: 1,
+    borderColor: colors.divider,
   },
 
   rail: {
@@ -835,23 +847,62 @@ const s = StyleSheet.create({
   genreGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: 12,
+    justifyContent: 'space-between',
   },
   genreTile: {
     width: '48%',
-    minHeight: 52,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderRadius: r.md,
-    backgroundColor: colors.surfaceVariant,
+    aspectRatio: 1,
+    borderRadius: r.lg,
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: colors.surface1,
+    borderWidth: 1,
+    borderColor: colors.divider,
   },
-  genreName: {
-    ...t.bodyMd,
+  genreTag: {
+    position: 'absolute',
+    left: 10,
+    bottom: 10,
+    backgroundColor: colors.background,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.divider,
+  },
+  genreTagText: {
+    ...t.captionStrong,
     color: colors.onSurface,
-    flex: 1,
+  },
+  editorialCard: {
+    padding: 16,
+    borderRadius: r.lg,
+    backgroundColor: colors.surface1,
+    borderWidth: 1,
+    borderColor: colors.divider,
+    gap: 8,
+  },
+  editorialArt: {
+    width: '100%',
+    height: 160,
+    marginBottom: 4,
+  },
+  editorialKicker: {
+    ...t.label,
+    color: colors.textSecondary,
+  },
+  editorialTitle: {
+    ...t.headline,
+    color: colors.onSurface,
+  },
+  editorialSummary: {
+    ...t.caption,
+    color: colors.onSurfaceVariant,
+  },
+  editorialMeta: {
+    ...t.monoMicro,
+    color: colors.textTertiary,
   },
 
   viewAllResultsBtn: {

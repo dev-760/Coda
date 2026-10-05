@@ -7,28 +7,22 @@ import { resolveTabBarInset, TAB_BAR_HEIGHT } from '../../hooks/useResponsive';
 import { colors, t } from '../../theme/theme';
 
 /**
- * Bottom navigation.
- *
- * Four equal tabs, each an icon with its label beneath it. Settings is a tab
- * here rather than a header affordance, so it is reachable from every screen
- * without each one repeating it.
+ * Bottom navigation faithfully matching Luma Design System showcase:
+ * Surface-1 on Ink background with 1px hairline divider top border,
+ * active dot indicator, and bespoke monoline icons.
  */
-
-const INACTIVE = colors.outlineText;
-const ACTIVE = colors.onSurface;
 
 interface TabItem {
   href: string;
   label: string;
   icon: string;
-  activeIcon: string;
 }
 
 const TABS: TabItem[] = [
-  { href: '/', label: 'Home', icon: 'grid-outline', activeIcon: 'grid' },
-  { href: '/search', label: 'Explore', icon: 'compass-outline', activeIcon: 'compass' },
-  { href: '/library', label: 'Collection', icon: 'albums-outline', activeIcon: 'albums' },
-  { href: '/settings', label: 'Settings', icon: 'options-outline', activeIcon: 'options' },
+  { href: '/', label: 'Home', icon: 'home' },
+  { href: '/search', label: 'Explore', icon: 'explore' },
+  { href: '/library', label: 'Collection', icon: 'collection' },
+  { href: '/settings', label: 'Settings', icon: 'sliders' },
 ];
 
 function isActivePath(pathname: string, href: string): boolean {
@@ -55,13 +49,14 @@ export default function TabBar() {
             accessibilityLabel={tab.label}
           >
             <Icon
-              name={focused ? tab.activeIcon : tab.icon}
+              name={tab.icon}
               size={22}
-              color={focused ? ACTIVE : INACTIVE}
+              color={focused ? colors.accent : colors.textTertiary}
             />
             <Text style={[s.label, focused && s.labelActive]} numberOfLines={1}>
               {tab.label}
             </Text>
+            <View style={[s.dot, focused && s.dotActive]} />
           </Pressable>
         );
       })}
@@ -74,22 +69,34 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.background,
-    borderTopColor: colors.surfaceContainer,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    paddingTop: 10,
+    borderTopColor: colors.divider,
+    borderTopWidth: 1,
+    paddingTop: 8,
   },
   tab: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
-    minHeight: 44,
+    gap: 3,
+    minHeight: 46,
   },
   label: {
-    ...t.micro,
-    color: INACTIVE,
+    ...t.caption,
+    fontSize: 11,
+    color: colors.textTertiary,
   },
   labelActive: {
-    color: ACTIVE,
+    color: colors.onSurface,
+    fontWeight: '600',
+  },
+  dot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'transparent',
+    marginTop: 1,
+  },
+  dotActive: {
+    backgroundColor: colors.accent,
   },
 });

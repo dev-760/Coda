@@ -2,7 +2,7 @@ import React from 'react';
 import { View, StyleSheet, Pressable, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import Icon from './Icon';
-import { colors } from '../../theme/theme';
+import { colors, t } from '../../theme/theme';
 
 interface HeaderBarProps {
   showBack?: boolean;
@@ -79,8 +79,7 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
-    fontSize: 18,
-    fontWeight: '700',
+    ...t.title,
     color: colors.onSurface,
   },
   right: {
@@ -93,7 +92,9 @@ const s = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.surfaceContainerHigh,
+    backgroundColor: colors.surface2,
+    borderWidth: 1,
+    borderColor: colors.divider,
     alignItems: 'center',
     justifyContent: 'center',
   },

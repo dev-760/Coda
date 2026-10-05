@@ -1,9 +1,19 @@
 import React, { useMemo, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Icon from '../../src/components/ui/Icon';
-import { Pill, Toggle } from '../../src/components/ui/primitives';
+import CoverThumb from '../../src/components/ui/CoverThumb';
+import { GenerativeArt } from '../../src/components/ui/GenerativeArt';
+import { TrackRow } from '../../src/components/ui/TrackRow';
+import {
+  Button,
+  OfflinePill,
+  SegmentedControl,
+  Banner,
+  EmptyState,
+  StorageBar,
+} from '../../src/components/ui/primitives';
 import TrackOptionsMenu from '../../src/components/ui/TrackOptionsMenu';
 import { CreatePlaylistModal } from '../../src/components/playlist/CreatePlaylistModal';
 import { PlaylistActionsModal } from '../../src/components/playlist/PlaylistActionsModal';
@@ -14,69 +24,38 @@ import { useQueueStore, cacheTracks } from '../../src/store/queueStore';
 import { useSettingsStore } from '../../src/store/settingsStore';
 import { audioService } from '../../src/audio/AudioService';
 import { Track } from '../../src/providers/types';
-import { colors, FONTS, r, t } from '../../src/theme/theme';
+import { useResponsive } from '../../src/hooks/useResponsive';
+import { colors, r, t } from '../../src/theme/theme';
 
-/**
- * Collection holds one subview at a time, chosen by the pill row rather than a
- * menu that pushes a second screen. Playlists, Albums and Tracks stay as tabs
- * so switching is instant, and the download count sits alongside them.
- */
-type SubView = 'playlists' | 'albums' | 'tracks';
-
-const SUBVIEWS: { key: SubView; label: string }[] = [
-  { key: 'playlists', label: 'Playlists' },
-  { key: 'albums', label: 'Albums' },
-  { key: 'tracks', label: 'Tracks' },
-];
-
-type SortMode = 'recent' | 'alpha' | 'count';
-
-const SORT_LABELS: Record<SortMode, string> = {
-  recent: 'Recently Added',
-  alpha: 'Alphabetical',
-  count: 'Most Tracks',
-};
-
-function formatDuration(durationMs: number): string {
-  const totalSeconds = Math.round(durationMs / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = String(totalSeconds % 60).padStart(2, '0');
-  return `${minutes}:${seconds}`;
-}
+type SubView = 'playlists' | 'tracks' | 'albums' | 'downloads';
 
 export default function LibraryScreen() {
   const router = useRouter();
-  const { playlists, favorites, createPlaylist } = useLibraryStore();
+  const { playlists, favorites, createPlaylist, deletePlaylist, duplicatePlaylist } = useLibraryStore();
   const downloads = useDownloadStore((state) => state.downloads);
   const currentTrack = usePlaybackStore((state) => state.currentTrack);
   const isPlaying = usePlaybackStore((state) => state.isPlaying);
   const offlineOnly = useSettingsStore((state) => state.offlineMode ?? false);
   const setOfflineMode = useSettingsStore((state) => state.setOfflineMode);
+  const { bottomBarClearance } = useResponsive();
 
   const [view, setView] = useState<SubView>('playlists');
-  const [sort, setSort] = useState<SortMode>('recent');
   const [albumFilter, setAlbumFilter] = useState('');
   const [createVisible, setCreateVisible] = useState(false);
   const [actionsVisible, setActionsVisible] = useState(false);
   const [selectedPlaylist, setSelectedPlaylist] = useState<any>(null);
   const [optionsTrack, setOptionsTrack] = useState<Track | null>(null);
 
-  const completedCount = useMemo(
-    () => downloads.filter((item) => item.status === 'completed').length,
+  const completedDownloads = useMemo(
+    () => downloads.filter((item) => item.status === 'completed'),
     [downloads],
   );
 
-  /**
-   * Albums are derived from tracks the user actually saved, so the grid only
-   * ever shows real, reachable albums rather than a hardcoded sample.
-   */
+  const totalSavedCount = favorites.length + playlists.reduce((acc, p) => acc + p.tracks.length, 0);
+
+  /** Saved albums derived from favorite tracks and playlists */
   const savedAlbums = useMemo(() => {
-    const byKey = new Map<string, {
-      id: string;
-      title: string;
-      artist: string;
-      coverUrl: string;
-    }>();
+    const byKey = new Map<string, { id: string; title: string; artist: string; coverUrl: string }>();
 
     const consider = (track: Track) => {
       if (!track.album) return;
@@ -107,14 +86,6 @@ export default function LibraryScreen() {
     );
   }, [savedAlbums, albumFilter]);
 
-  /** Curations, ordered by the active sort mode. */
-  const sortedLists = useMemo(() => {
-    const lists = [...playlists];
-    if (sort === 'alpha') return lists.sort((a, b) => a.name.localeCompare(b.name));
-    if (sort === 'count') return lists.sort((a, b) => b.tracks.length - a.tracks.length);
-    return lists;
-  }, [playlists, sort]);
-
   const playTrack = async (track: Track, context: Track[], index: number, name: string) => {
     if (context.length === 0) return;
     cacheTracks(context);
@@ -133,253 +104,185 @@ export default function LibraryScreen() {
     await audioService.playTrack(playlist.tracks[0]);
   };
 
-  const cycleSort = () => {
-    setSort((prev) => (prev === 'recent' ? 'alpha' : prev === 'alpha' ? 'count' : 'recent'));
-  };
+  // Convert downloaded bytes into GB for storage bar
+  const totalDownloadBytes = completedDownloads.reduce((sum, item) => sum + (item.downloadedBytes || 0), 0);
+  const usedGb = totalDownloadBytes / 1_000_000_000;
+  const totalCapacityGb = Math.max(64, Math.ceil(usedGb + 10));
+
+  const segments = [
+    { key: 'playlists' as SubView, label: 'Playlists', count: playlists.length },
+    { key: 'tracks' as SubView, label: 'Saved Tracks', count: favorites.length },
+    { key: 'albums' as SubView, label: 'Saved Albums', count: savedAlbums.length },
+    { key: 'downloads' as SubView, label: 'Downloads', count: completedDownloads.length },
+  ];
 
   return (
     <SafeAreaView style={s.container} edges={['top']}>
-      <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
-        {/* Pinned subview pills, with downloads as the fourth */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.rail}>
-          {SUBVIEWS.map((item) => (
-            <Pill
-              key={item.key}
-              label={item.label}
-              selected={view === item.key}
-              onPress={() => setView(item.key)}
-            />
-          ))}
-          <Pill
-            label="Downloads"
-            icon={completedCount > 0 ? 'ellipse' : undefined}
-            onPress={() => router.push('/downloads' as any)}
-            accessibilityLabel={`Downloads, ${completedCount} on this device`}
-          />
-        </ScrollView>
-
-        {/* Quick actions */}
-        <View style={s.actionBar}>
-          <Pressable
-            onPress={cycleSort}
-            style={({ pressed }) => [s.sortButton, pressed && s.pressed]}
-            accessibilityRole="button"
-            accessibilityLabel={`Sort: ${SORT_LABELS[sort]}. Tap to change.`}
-          >
-            <Icon name="swap-vertical" size={14} color={colors.onSurfaceVariant} />
-            <Text style={s.sortText}>{SORT_LABELS[sort]}</Text>
-          </Pressable>
-
-          <Pressable
-            onPress={() => router.push('/(tabs)/search' as any)}
-            style={({ pressed }) => [s.circleButton, pressed && s.pressed]}
-            accessibilityRole="button"
-            accessibilityLabel="Search your library"
-          >
-            <Icon name="search" size={16} color={colors.onSurfaceVariant} />
-          </Pressable>
-
-          <Pressable
-            onPress={() => setCreateVisible(true)}
-            style={({ pressed }) => [s.primaryButton, pressed && s.pressed]}
-            accessibilityRole="button"
-            accessibilityLabel="New playlist"
-          >
-            <Icon name="add" size={16} color={colors.onPrimary} />
-            <Text style={s.primaryText}>New Playlist</Text>
-          </Pressable>
-        </View>
-
-        {/* Offline mode */}
-        <View style={s.offlineRow}>
-          <View style={s.offlineIcon}>
-            <Icon name="cloud-offline-outline" size={18} color={colors.onSurface} />
-          </View>
-          <View style={s.offlineMeta}>
-            <Text style={s.offlineTitle}>Offline Mode</Text>
-            <Text style={s.offlineBody}>Only play downloaded music</Text>
-          </View>
-          <Toggle
-            value={offlineOnly}
-            onChange={(next) => setOfflineMode(next)}
-            accessibilityLabel="Offline mode"
-          />
-        </View>
-
-        {/* Curations */}
-        <View style={s.block}>
-          <View style={s.blockHeader}>
-            <Text style={s.blockTitle}>Playlists</Text>
-            <Text style={s.blockCount}>
-              {playlists.length} {playlists.length === 1 ? 'playlist' : 'playlists'}
+      <ScrollView
+        contentContainerStyle={[s.content, { paddingBottom: bottomBarClearance }]}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Top Header matching Luma showcase Collection */}
+        <View style={s.headerRow}>
+          <View style={s.headerTitles}>
+            <Text style={s.eyebrow}>
+              {`${totalSavedCount} SAVED · ${completedDownloads.length} OFFLINE`}
             </Text>
+            <Text style={s.screenTitle}>Collection</Text>
           </View>
-
-          {sortedLists.length === 0 ? (
-            <View style={s.emptyBlock}>
-              <Text style={s.emptyText}>
-                No curations yet. Create a playlist, or favorite a track to seed one.
-              </Text>
-              <Pressable
-                onPress={() => setCreateVisible(true)}
-                style={({ pressed }) => [s.primaryButton, pressed && s.pressed]}
-                accessibilityRole="button"
-                accessibilityLabel="Create your first playlist"
-              >
-                <Text style={s.primaryText}>Create new</Text>
-              </Pressable>
-            </View>
-          ) : (
-            <View style={s.list}>
-              {sortedLists.map((playlist) => (
-                <Pressable
-                  key={playlist.id}
-                  onPress={() => void playPlaylist(playlist)}
-                  style={({ pressed }) => [s.row, pressed && s.pressed]}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Play ${playlist.name}, ${playlist.tracks.length} tracks`}
-                >
-                  {playlist.coverUrl ? (
-                    <Image source={{ uri: playlist.coverUrl }} style={s.rowArt} />
-                  ) : (
-                    <View style={[s.rowArt, s.rowArtFallback]}>
-                      <Icon name="heart" size={18} color={colors.onSurface} />
-                    </View>
-                  )}
-                  <View style={s.rowMeta}>
-                    <Text numberOfLines={1} style={s.rowTitle}>{playlist.name}</Text>
-                    <Text style={s.rowSub}>
-                      {playlist.tracks.length} {playlist.tracks.length === 1 ? 'track' : 'tracks'}
-                    </Text>
-                  </View>
-                  <Pressable
-                    onPress={() => {
-                      setSelectedPlaylist(playlist);
-                      setActionsVisible(true);
-                    }}
-                    hitSlop={8}
-                    style={s.rowMore}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Options for ${playlist.name}`}
-                  >
-                    <Icon name="chevron-forward" size={16} color={colors.outlineText} />
-                  </Pressable>
-                </Pressable>
-              ))}
-            </View>
-          )}
         </View>
 
-        {/* Favorite tracks */}
-        <View style={s.block}>
-          <View style={s.blockHeader}>
-            <Text style={s.blockTitle}>Favorite Tracks</Text>
-            {favorites.length > 0 && (
-              <Pressable
-                onPress={() => setView('tracks')}
-                hitSlop={10}
-                style={({ pressed }) => [s.blockAction, pressed && s.pressed]}
-                accessibilityRole="button"
-                accessibilityLabel="View all favorite tracks"
-              >
-                <Text style={s.blockCount}>VIEW ALL</Text>
-              </Pressable>
+        {/* Collection Controls from showcase */}
+        <View style={s.controlsRow}>
+          <OfflinePill
+            isOffline={offlineOnly}
+            onToggle={() => setOfflineMode(!offlineOnly)}
+          />
+        </View>
+
+        <SegmentedControl
+          segments={segments}
+          selected={view}
+          onSelect={(key) => setView(key)}
+        />
+
+        {offlineOnly && (
+          <Banner
+            type="offline"
+            title="Offline Mode Active"
+            body="Showing music saved on this device. Downloads remain playable."
+          />
+        )}
+
+        {/* 1. PLAYLISTS VIEW */}
+        {view === 'playlists' && (
+          <View style={s.viewSection}>
+            <View style={s.sectionActionRow}>
+              <Text style={s.sectionCount}>
+                {`${playlists.length} ${playlists.length === 1 ? 'PLAYLIST' : 'PLAYLISTS'}`}
+              </Text>
+              <Button
+                label="New playlist"
+                variant="secondary"
+                icon="plus"
+                onPress={() => setCreateVisible(true)}
+              />
+            </View>
+
+            {playlists.length === 0 ? (
+              <EmptyState
+                icon="playlist"
+                title="No playlists yet"
+                body="Group tracks for a mood, a place or a label. Playlists sync to every device."
+                actionLabel="New playlist"
+                onAction={() => setCreateVisible(true)}
+              />
+            ) : (
+              <View style={s.mediaList}>
+                {playlists.map((playlist) => (
+                  <Pressable
+                    key={playlist.id}
+                    onPress={() => void playPlaylist(playlist)}
+                    style={({ pressed }) => [s.mediaRow, pressed && s.pressed]}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Play playlist ${playlist.name}`}
+                  >
+                    <CoverThumb
+                      uri={playlist.coverUrl}
+                      size={56}
+                      borderRadius={12}
+                    />
+                    <View style={s.mediaMeta}>
+                      <Text numberOfLines={1} style={s.mediaTitle}>
+                        {playlist.name}
+                      </Text>
+                      <Text numberOfLines={1} style={s.mediaSub}>
+                        {`Playlist · ${playlist.tracks.length} ${
+                          playlist.tracks.length === 1 ? 'track' : 'tracks'
+                        }`}
+                      </Text>
+                    </View>
+                    <Pressable
+                      onPress={() => {
+                        setSelectedPlaylist(playlist);
+                        setActionsVisible(true);
+                      }}
+                      hitSlop={10}
+                      style={s.moreBtn}
+                    >
+                      <Icon name="chevron-right" size={18} color={colors.textTertiary} />
+                    </Pressable>
+                  </Pressable>
+                ))}
+              </View>
             )}
           </View>
+        )}
 
-          {favorites.length === 0 ? (
-            <Text style={s.emptyText}>
-              No favorite tracks yet. Tap the heart on any track to add one.
+        {/* 2. SAVED TRACKS VIEW */}
+        {view === 'tracks' && (
+          <View style={s.viewSection}>
+            <Text style={s.sectionCount}>
+              {`${favorites.length} TRACKS · RECENTLY ADDED`}
             </Text>
-          ) : (
-            <View style={s.list}>
-              {favorites.map((track, index) => {
-                const isCurrent = currentTrack?.id === track.id;
-                return (
-                  <View key={track.id} style={s.row}>
-                    {isCurrent ? (
-                      <View style={s.liveArt}>
-                        <Icon
-                          name={isPlaying ? 'stats-chart' : 'pause'}
-                          size={16}
-                          color={colors.onSurface}
-                        />
-                      </View>
-                    ) : (
-                      <Text style={s.rowIndex}>{String(index + 1).padStart(2, '0')}</Text>
-                    )}
-                    <Pressable
-                      onPress={() => void playTrack(track, favorites, index, 'Favorites')}
+
+            {favorites.length === 0 ? (
+              <EmptyState
+                icon="plus"
+                title="No saved tracks"
+                body="Tap the pin on any track and it lands here, newest first."
+                actionLabel="Explore music"
+                onAction={() => router.push('/search' as any)}
+              />
+            ) : (
+              <View style={s.tracksList}>
+                {favorites.map((track, index) => {
+                  const isCurrent = currentTrack?.id === track.id;
+                  return (
+                    <TrackRow
+                      key={track.id}
+                      track={track}
+                      index={index}
+                      isActive={isCurrent}
+                      isPlaying={isCurrent && isPlaying}
+                      onPress={() => void playTrack(track, favorites, index, 'Saved Tracks')}
                       onLongPress={() => setOptionsTrack(track)}
-                      style={({ pressed }) => [s.rowMain, pressed && s.pressed]}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Play ${track.title} by ${track.artist}`}
-                    >
-                      <View style={s.rowMeta}>
-                        <Text numberOfLines={1} style={s.rowTitle}>{track.title}</Text>
-                        <View style={s.rowSubLine}>
-                          <Text style={s.rowSub} numberOfLines={1}>{track.artist}</Text>
-                          {downloads.some(
-                            (item) => item.trackId === track.id && item.status === 'completed',
-                          ) && (
-                            <Icon name="arrow-down-circle" size={13} color={colors.outlineText} />
-                          )}
-                        </View>
-                      </View>
-                    </Pressable>
-                    <Text style={s.rowDuration}>
-                      {track.durationMs ? formatDuration(track.durationMs) : '--:--'}
-                    </Text>
-                    <Pressable
-                      onPress={() => setOptionsTrack(track)}
-                      hitSlop={8}
-                      style={s.rowMore}
-                      accessibilityRole="button"
-                      accessibilityLabel={`More options for ${track.title}`}
-                    >
-                      <Icon name="ellipsis-vertical" size={16} color={colors.outlineText} />
-                    </Pressable>
-                  </View>
-                );
-              })}
-            </View>
-          )}
-        </View>
+                      onMore={() => setOptionsTrack(track)}
+                    />
+                  );
+                })}
+              </View>
+            )}
+          </View>
+        )}
 
-        {/* Albums, shown when their tab is selected */}
+        {/* 3. SAVED ALBUMS VIEW */}
         {view === 'albums' && (
-          <View style={s.block}>
-            <View style={s.blockHeader}>
-              <Text style={s.blockTitle}>Albums</Text>
-              <Text style={s.blockCount}>{filteredAlbums.length}</Text>
-            </View>
-
-            <View style={s.filterBar}>
-              <Icon name="search" size={16} color={colors.outlineText} />
+          <View style={s.viewSection}>
+            <View style={s.searchFilterBox}>
+              <Icon name="search" size={16} color={colors.textTertiary} />
               <TextInput
                 style={s.filterInput}
-                placeholder="Filter albums"
-                placeholderTextColor={colors.outlineText}
+                placeholder="Filter saved albums"
+                placeholderTextColor={colors.textTertiary}
                 value={albumFilter}
                 onChangeText={setAlbumFilter}
               />
               {!!albumFilter && (
-                <Pressable
-                  onPress={() => setAlbumFilter('')}
-                  hitSlop={8}
-                  accessibilityLabel="Clear filter"
-                >
-                  <Icon name="close" size={16} color={colors.outlineText} />
+                <Pressable onPress={() => setAlbumFilter('')} hitSlop={8}>
+                  <Icon name="close" size={16} color={colors.textSecondary} />
                 </Pressable>
               )}
             </View>
 
             {filteredAlbums.length === 0 ? (
-              <Text style={s.emptyText}>
-                {savedAlbums.length === 0
-                  ? 'No saved albums yet. Favorite a track and its album shows up here.'
-                  : 'No albums match that filter.'}
-              </Text>
+              <EmptyState
+                icon="album"
+                title="No saved albums"
+                body="Save whole records to keep sequencing and liner notes together."
+                actionLabel="Browse labels"
+                onAction={() => router.push('/search' as any)}
+              />
             ) : (
               <View style={s.albumGrid}>
                 {filteredAlbums.map((album) => (
@@ -395,19 +298,21 @@ export default function LibraryScreen() {
                         },
                       })
                     }
-                    style={({ pressed }) => [pressed && s.pressed]}
+                    style={({ pressed }) => [s.albumGridCard, pressed && s.pressed]}
                     accessibilityRole="button"
                     accessibilityLabel={`Open album ${album.title} by ${album.artist}`}
                   >
-                    {album.coverUrl ? (
-                      <Image source={{ uri: album.coverUrl }} style={s.albumCover} />
-                    ) : (
-                      <View style={[s.albumCover, s.rowArtFallback]}>
-                        <Icon name="albums-outline" size={24} color={colors.outlineText} />
-                      </View>
-                    )}
-                    <Text numberOfLines={1} style={s.albumTitle}>{album.title}</Text>
-                    <Text numberOfLines={1} style={s.albumArtist}>{album.artist}</Text>
+                    <CoverThumb
+                      uri={album.coverUrl}
+                      size={160}
+                      borderRadius={12}
+                    />
+                    <Text numberOfLines={1} style={s.albumTitle}>
+                      {album.title}
+                    </Text>
+                    <Text numberOfLines={1} style={s.albumArtist}>
+                      {album.artist}
+                    </Text>
                   </Pressable>
                 ))}
               </View>
@@ -415,46 +320,78 @@ export default function LibraryScreen() {
           </View>
         )}
 
-        {/* Tracks view reuses the recent list above, so it only needs a marker. */}
-        {view === 'tracks' && favorites.length === 0 && (
-          <Text style={s.emptyText}>
-            No tracks saved yet. Tap the heart on any track to add one.
-          </Text>
+        {/* 4. DOWNLOADS VIEW */}
+        {view === 'downloads' && (
+          <View style={s.viewSection}>
+            <StorageBar
+              usedGb={usedGb}
+              totalGb={totalCapacityGb}
+              isLow={usedGb > totalCapacityGb * 0.9}
+            />
+
+            {completedDownloads.length === 0 ? (
+              <EmptyState
+                icon="download"
+                title="Nothing downloaded yet"
+                body="Download albums and playlists to listen without a connection, at full quality."
+                actionLabel="Browse Explore"
+                onAction={() => router.push('/search' as any)}
+              />
+            ) : (
+              <View style={s.tracksList}>
+                <Text style={s.sectionCount}>
+                  {`ON THIS DEVICE · ${completedDownloads.length} TRACKS`}
+                </Text>
+                {completedDownloads.map((item, index) => {
+                  const track: Track = item.track;
+                  const isCurrent = currentTrack?.id === track.id;
+                  return (
+                    <TrackRow
+                      key={item.trackId}
+                      track={track}
+                      index={index}
+                      isActive={isCurrent}
+                      isPlaying={isCurrent && isPlaying}
+                      onPress={() => {
+                        const allTracks = completedDownloads.map((d) => d.track);
+                        void playTrack(track, allTracks, index, 'Downloads');
+                      }}
+                      onLongPress={() => setOptionsTrack(track)}
+                      onMore={() => setOptionsTrack(track)}
+                    />
+                  );
+                })}
+              </View>
+            )}
+          </View>
         )}
       </ScrollView>
 
+      {/* Modals */}
       <CreatePlaylistModal
         visible={createVisible}
-        onClose={() => setCreateVisible(false)}
-        onCreate={async (name, desc) => {
-          await createPlaylist(name, desc);
+        onCreate={async (name, description, color, icon) => {
+          await createPlaylist(name, description, color, icon);
           setCreateVisible(false);
         }}
+        onClose={() => setCreateVisible(false)}
       />
 
       <PlaylistActionsModal
         visible={actionsVisible}
-        onClose={() => setActionsVisible(false)}
         playlist={selectedPlaylist}
-        onPlay={() => {
-          if (selectedPlaylist?.tracks?.length) {
-            cacheTracks(selectedPlaylist.tracks);
-            useQueueStore.getState().playContext(selectedPlaylist.tracks, 0, {
-              type: 'playlist',
-              id: selectedPlaylist.id,
-              name: selectedPlaylist.name,
-            });
-            void audioService.playTrack(selectedPlaylist.tracks[0]);
-          }
-        }}
+        onClose={() => setActionsVisible(false)}
         onDelete={() => {
-          if (selectedPlaylist) {
-            useLibraryStore.getState().deletePlaylist(selectedPlaylist.id);
-            setActionsVisible(false);
+          if (selectedPlaylist) void deletePlaylist(selectedPlaylist.id);
+        }}
+        onDuplicate={() => {
+          if (selectedPlaylist) void duplicatePlaylist(selectedPlaylist.id);
+        }}
+        onPlay={() => {
+          if (selectedPlaylist && selectedPlaylist.tracks.length > 0) {
+            void playPlaylist(selectedPlaylist);
           }
         }}
-        onDuplicate={() => {}}
-        onEdit={() => {}}
       />
 
       <TrackOptionsMenu
@@ -471,218 +408,97 @@ const s = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  pressed: {
-    opacity: 0.7,
-  },
   content: {
-    paddingHorizontal: 16,
-      paddingTop: 16,
-    paddingBottom: 144,
+    paddingHorizontal: 20,
+    paddingTop: 12,
     gap: 20,
   },
-  rail: {
-    gap: 8,
-    paddingRight: 16,
+  pressed: {
+    opacity: 0.75,
   },
-
-  actionBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  sortButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    height: 36,
-    paddingHorizontal: 16,
-    borderRadius: r.pill,
-    backgroundColor: colors.surfaceContainer,
-  },
-  sortText: {
-    ...t.labelMd,
-    color: colors.textSoft,
-  },
-  circleButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceContainer,
-  },
-  primaryButton: {
-    marginLeft: 'auto',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    height: 36,
-    paddingHorizontal: 16,
-    borderRadius: r.pill,
-    backgroundColor: colors.onSurface,
-  },
-  primaryText: {
-    ...t.labelMd,
-    color: colors.onPrimary,
-  },
-
-  offlineRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 12,
-    borderRadius: r.lg,
-    backgroundColor: colors.surfaceVariant,
-  },
-  offlineIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceContainerLow,
-  },
-  offlineMeta: {
-    flex: 1,
-    minWidth: 0,
-    gap: 2,
-  },
-  offlineTitle: {
-    ...t.titleMd,
-    color: colors.onSurface,
-  },
-  offlineBody: {
-    ...t.bodyMd,
-    color: colors.outlineText,
-  },
-
-  block: {
-    gap: 12,
-  },
-  blockHeader: {
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
+    paddingVertical: 6,
   },
-  blockHeaderText: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  headerTitles: {
+    gap: 4,
   },
-  blockTitle: {
-    ...t.title,
+  eyebrow: {
+    ...t.monoMicro,
+    color: colors.textTertiary,
+  },
+  screenTitle: {
+    ...t.display,
     color: colors.onSurface,
   },
-  blockLabel: {
-    ...t.labelSm,
-    color: colors.outlineText,
+  controlsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  blockCount: {
-    ...t.labelSm,
-      color: colors.onSurfaceVariant,
+  viewSection: {
+    gap: 16,
   },
-    blockAction: {
-      minHeight: 44,
-      justifyContent: 'center',
-    },
-  offlineDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.onSurface,
+  sectionActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  sectionCount: {
+    ...t.label,
+    color: colors.textTertiary,
   },
 
-  list: {
+  mediaList: {
     gap: 8,
   },
-  row: {
+  mediaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    minHeight: 64,
-    padding: 8,
+    gap: 14,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
     borderRadius: r.lg,
-    backgroundColor: colors.surfaceVariant,
+    backgroundColor: colors.surface1,
+    borderWidth: 1,
+    borderColor: colors.divider,
   },
-  rowMain: {
+  mediaMeta: {
     flex: 1,
     minWidth: 0,
-    minHeight: 48,
-    justifyContent: 'center',
+    gap: 3,
   },
-  rowArt: {
-    width: 48,
-    height: 48,
-    borderRadius: r.sm,
-    backgroundColor: colors.surfaceContainer,
-  },
-  rowArtFallback: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceContainerLow,
-  },
-  rowIndex: {
-    ...t.labelSm,
-    width: 28,
-    textAlign: 'center',
-    color: colors.outlineText,
-  },
-  liveArt: {
-    width: 48,
-    height: 48,
-    borderRadius: r.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceContainerLow,
-  },
-  rowMeta: {
-    flex: 1,
-    minWidth: 0,
-    gap: 2,
-  },
-  rowSubLine: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  rowTitle: {
-    fontFamily: FONTS.contentSemiBold,
-    fontSize: 15,
-    lineHeight: 20,
-    fontWeight: '600',
-    flexShrink: 1,
+  mediaTitle: {
+    ...t.bodyStrong,
     color: colors.onSurface,
   },
-  rowSub: {
-    ...t.bodyMd,
-    flexShrink: 1,
-    color: colors.outlineText,
-  },
-  rowDuration: {
-    ...t.mono,
-    fontSize: 10,
+  mediaSub: {
+    ...t.caption,
     color: colors.onSurfaceVariant,
   },
-  rowMore: {
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
+  moreBtn: {
+    padding: 8,
   },
 
-  filterBar: {
+  tracksList: {
+    gap: 4,
+  },
+
+  searchFilterBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     height: 44,
-    paddingHorizontal: 12,
-    borderRadius: r.md,
-    backgroundColor: colors.surfaceContainer,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    backgroundColor: colors.surface2,
+    borderWidth: 1,
+    borderColor: colors.divider,
   },
   filterInput: {
     flex: 1,
-    fontSize: 14,
+    ...t.body,
     color: colors.onSurface,
   },
 
@@ -690,33 +506,19 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 16,
+    justifyContent: 'space-between',
   },
-  albumCover: {
-    width: '100%',
-    aspectRatio: 1,
-    borderRadius: r.md,
-    backgroundColor: colors.surfaceContainer,
+  albumGridCard: {
+    width: '47%',
+    gap: 6,
   },
   albumTitle: {
-    ...t.body,
+    ...t.bodyStrong,
     color: colors.onSurface,
-    marginTop: 6,
+    marginTop: 4,
   },
   albumArtist: {
-    ...t.bodySm,
-    color: colors.outlineText,
-  },
-
-  emptyBlock: {
-    alignItems: 'flex-start',
-    gap: 12,
-    padding: 16,
-    borderRadius: r.lg,
-    backgroundColor: colors.surfaceVariant,
-  },
-  emptyText: {
-    ...t.bodyMd,
-    color: colors.outlineText,
-    lineHeight: 18,
+    ...t.caption,
+    color: colors.onSurfaceVariant,
   },
 });

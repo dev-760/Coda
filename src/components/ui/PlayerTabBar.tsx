@@ -3,14 +3,6 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, r, t } from '../../theme/theme';
 
-/**
- * The segmented control shared by Now Playing, Lyrics and Queue.
- *
- * The mockups put these three on one surface with a single control switching
- * between them, so it navigates between routes rather than hiding tabs inside
- * one screen. The active segment inverts to a white pill.
- */
-
 export type PlayerTab = 'now-playing' | 'lyrics' | 'queue';
 
 const TABS: { key: PlayerTab; label: string }[] = [
@@ -62,33 +54,35 @@ const s = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 12,
     paddingHorizontal: 24,
-    backgroundColor: colors.surfaceDeep,
+    backgroundColor: colors.background,
   },
   track: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
-    padding: 4,
-    borderRadius: r.pill,
-    backgroundColor: colors.surfaceContainerHigh,
+    gap: 3,
+    padding: 3,
+    borderRadius: r.full,
+    backgroundColor: colors.surface1,
+    borderWidth: 1,
+    borderColor: colors.divider,
   },
   segment: {
     flex: 1,
-    height: 40,
+    height: 38,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: r.pill,
+    borderRadius: r.full,
     paddingHorizontal: 16,
   },
   segmentActive: {
-    backgroundColor: colors.onSurface,
+    backgroundColor: colors.accent,
   },
   pressed: {
-    opacity: 0.7,
+    opacity: 0.75,
   },
   label: {
-    ...t.labelMd,
-    fontSize: 14,
+    ...t.label,
+    fontSize: 11,
     color: colors.onSurfaceVariant,
   },
   labelActive: {

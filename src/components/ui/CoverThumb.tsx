@@ -1,8 +1,7 @@
 import React, { memo, useMemo } from 'react';
-import { Image, View, StyleSheet, ImageStyle, StyleProp } from 'react-native';
-import Icon from './Icon';
+import { Image, StyleSheet, ImageStyle, StyleProp } from 'react-native';
 import { withCoverSize } from '../../providers/mappers';
-import { colors } from '../../theme/theme';
+import { GenerativeArt, GenerativePattern } from './GenerativeArt';
 
 interface CoverThumbProps {
   uri?: string | null;
@@ -13,6 +12,9 @@ interface CoverThumbProps {
   /** Scales the displayed artwork, e.g. 2 for @2x screens. */
   pixelRatio?: number;
   fallbackIconSize?: number;
+  glow?: boolean;
+  showGlow?: boolean;
+  pattern?: GenerativePattern;
 }
 
 /**
@@ -31,11 +33,14 @@ function pickSize(edge: number): string {
 function CoverThumbComponent({
   uri,
   size,
-  borderRadius = 4,
+  borderRadius = 8,
   style,
   pixelRatio = 2,
-  fallbackIconSize,
+  glow = false,
+  showGlow = false,
+  pattern,
 }: CoverThumbProps) {
+  const isGlowing = glow || showGlow;
   const source = useMemo(() => {
     const resolved = withCoverSize(uri, pickSize(size * pixelRatio));
     return resolved ? { uri: resolved } : null;
@@ -43,32 +48,36 @@ function CoverThumbComponent({
 
   if (!source) {
     return (
-      <View
-        style={[
-          styles.placeholder,
-          { width: size, height: size, borderRadius },
-          style as StyleProp<ImageStyle>,
-        ]}
-      >
-        <Icon name="musical-notes" size={fallbackIconSize ?? Math.round(size * 0.42)} color={colors.onSurfaceVariant} />
-      </View>
+      <GenerativeArt
+        seedKey={uri || size}
+        pattern={pattern}
+        size={size}
+        borderRadius={borderRadius}
+        glow={isGlowing}
+        style={style as any}
+      />
     );
   }
 
   return (
     <Image
       source={source}
-      style={[{ width: size, height: size, borderRadius }, style]}
+      style={[
+        { width: size, height: size, borderRadius },
+        glow && styles.glow,
+        style,
+      ]}
       accessibilityIgnoresInvertColors
     />
   );
 }
 
 const styles = StyleSheet.create({
-  placeholder: {
-    backgroundColor: colors.surfaceContainer,
-    alignItems: 'center',
-    justifyContent: 'center',
+  glow: {
+    shadowColor: '#B8B8C0',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
   },
 });
 

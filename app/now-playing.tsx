@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,6 +9,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Icon from '../src/components/ui/Icon';
+import CoverThumb from '../src/components/ui/CoverThumb';
+import { PlayButton, QualityBadge } from '../src/components/ui/primitives';
 import TrackOptionsMenu from '../src/components/ui/TrackOptionsMenu';
 import PlayerTabBar, { PlayerTab } from '../src/components/ui/PlayerTabBar';
 import { usePlaybackStore } from '../src/store/playbackStore';
@@ -33,7 +34,7 @@ function formatMs(ms: number): string {
 export default function NowPlayingScreen() {
   const router = useRouter();
   const { artworkSize } = useResponsive();
-  const artSize = artworkSize(340);
+  const artSize = artworkSize(330);
 
   const { currentTrack, isPlaying, positionMs, durationMs, error, isLoading } = usePlaybackStore();
   const { isFavorite, addFavorite, removeFavorite } = useLibraryStore();
@@ -41,7 +42,7 @@ export default function NowPlayingScreen() {
     currentTrack ? state.isTrackDownloaded(currentTrack.id) : false,
   );
   const hifiQuality = useSettingsStore((state) => state.audio.hifiAudioQuality);
-  const { shuffle, toggleShuffle, repeat, setRepeat } = useQueueStore();
+  const { shuffle, toggleShuffle, repeat, setRepeat, entries, currentIndex, context } = useQueueStore();
   const hasNext = useQueueStore((state) => state.upcomingCount() > 0);
 
   const [optionsVisible, setOptionsVisible] = useState(false);
@@ -105,9 +106,16 @@ export default function NowPlayingScreen() {
     return 'AAC 160';
   })();
 
+  const trackIndexStr = (currentIndex >= 0 ? currentIndex + 1 : 1).toString().padStart(2, '0');
+  const totalTracksStr = Math.max(entries.length, 1).toString().padStart(2, '0');
+  const bitrate = /24/i.test(hifiQuality ?? '') ? 2304 : /lossless/i.test(hifiQuality ?? '') ? 1411 : /320/i.test(hifiQuality ?? '') ? 320 : 160;
+  const playingFromLabel = context?.name
+    ? `PLAYING FROM ${context.name.toUpperCase()}`
+    : (track?.album ? `PLAYING FROM ${track.album.toUpperCase()}` : 'PLAYING FROM QUEUE');
+
   return (
     <SafeAreaView style={s.container} edges={['top']}>
-      {/* Header: dismiss, centred title, options */}
+      {/* Header: dismiss, 2-line context eyebrow + title, options */}
       <View style={s.header}>
         <Pressable
           onPress={handleDismiss}
@@ -116,9 +124,14 @@ export default function NowPlayingScreen() {
           accessibilityRole="button"
           accessibilityLabel="Close player"
         >
-          <Icon name="chevron-down" size={26} color={colors.onSurface} />
+          <Icon name="chevron-down" size={24} color={colors.textPrimary} />
         </Pressable>
-        <Text style={s.headerTitle}>NOW PLAYING</Text>
+
+        <View style={s.headerCenter}>
+          <Text style={s.headerEyebrow} numberOfLines={1}>{playingFromLabel}</Text>
+          <Text style={s.headerSubtitle} numberOfLines={1}>{track?.album ?? 'Library'}</Text>
+        </View>
+
         <Pressable
           onPress={() => setOptionsVisible(true)}
           hitSlop={16}
@@ -126,7 +139,7 @@ export default function NowPlayingScreen() {
           accessibilityRole="button"
           accessibilityLabel="Track options"
         >
-          <Icon name="ellipsis-horizontal" size={20} color={colors.onSurface} />
+          <Icon name="more" size={20} color={colors.textPrimary} />
         </Pressable>
       </View>
 
@@ -134,54 +147,63 @@ export default function NowPlayingScreen() {
         contentContainerStyle={s.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Artwork showcase: a framed, inset panel rather than a bare image */}
-        <View style={[s.artFrame, { width: artSize + 24, height: artSize + 24 }]}>
-          {track?.coverUrl || track?.artwork ? (
-            <Image
-              source={{ uri: (track.coverUrl ?? track.artwork) as string }}
-              style={s.artwork}
-              resizeMode="cover"
-            />
-          ) : (
-            <View style={[s.artwork, s.artworkFallback]}>
-              <Icon name="musical-notes" size={44} color={colors.outlineText} />
-            </View>
-          )}
+        {/* Technical Readout & Format badge row */}
+        <View style={s.readoutRow}>
+          <Text style={s.readoutText}>
+            TRACK {trackIndexStr}/{totalTracksStr} · {bitrate} KBPS
+          </Text>
+          <QualityBadge format={qualityBadge} />
+        </View>
+
+        {/* Artwork showcase */}
+        <View style={[s.artContainer, { width: artSize + 16, height: artSize + 16 }]}>
+          <CoverThumb
+            uri={track?.coverUrl ?? track?.artwork}
+            pattern="wave"
+            size={artSize}
+            borderRadius={r.md}
+            showGlow={isPlaying}
+          />
 
           {isDownloaded && (
-            <View style={s.offlineBadge}>
-              <Icon name="arrow-down-circle" size={12} color={colors.onSurface} />
+            <View style={s.downloadedBadge}>
+              <Icon name="download-done" size={12} color={colors.accent} />
+              <Text style={s.downloadedText}>OFFLINE</Text>
             </View>
           )}
         </View>
 
-        {/* Title block with like button */}
+        {/* Title & Artist row with Like/Pin button */}
         <View style={s.titleRow}>
           <View style={s.titleMeta}>
-            <Text style={s.trackTitle} numberOfLines={2}>{track?.title ?? 'Nothing playing'}</Text>
+            <Text style={s.trackTitle} numberOfLines={1}>{track?.title ?? 'Nothing playing'}</Text>
             <Text style={s.trackArtist} numberOfLines={1}>
-              {track ? [track.artist, track.album].filter(Boolean).join(' • ') : 'Pick a track to begin'}
+              {track ? [track.artist, track.album].filter(Boolean).join(' · ') : 'Pick a track to begin'}
             </Text>
           </View>
           {!!track && (
             <Pressable
               onPress={handleToggleFavorite}
               hitSlop={8}
-              style={({ pressed }) => [s.likeButton, pressed && s.pressed]}
+              style={({ pressed }) => [
+                s.likeButton,
+                liked && s.likeButtonActive,
+                pressed && s.pressed,
+              ]}
               accessibilityRole="button"
-              accessibilityLabel={liked ? 'Remove from favorites' : 'Add to favorites'}
+              accessibilityLabel={liked ? 'Remove from saved' : 'Save track'}
               accessibilityState={{ selected: liked }}
             >
               <Icon
-                name={liked ? 'heart' : 'heart-outline'}
-                size={22}
-                color={colors.onSurface}
+                name={liked ? 'check' : 'plus'}
+                size={20}
+                color={liked ? colors.onAccent : colors.textPrimary}
               />
             </Pressable>
           )}
         </View>
 
-        {/* Scrubber with elapsed on the left and remaining on the right */}
+        {/* Scrubber */}
         <Pressable
           style={s.scrubArea}
           hitSlop={12}
@@ -218,47 +240,50 @@ export default function NowPlayingScreen() {
             <View style={[s.scrubKnob, { left: `${progress * 100}%` }]} />
           </View>
           <View style={s.timeRow}>
-            <Text style={s.time}>{durationMs > 0 ? formatMs(positionMs) : '--:--'}</Text>
-            <Text style={s.time}>{durationMs > 0 ? `-${formatMs(remainingMs)}` : '--:--'}</Text>
+            <Text style={s.time}>{durationMs > 0 ? formatMs(positionMs) : '0:00'}</Text>
+            <Text style={s.time}>{durationMs > 0 ? `-${formatMs(remainingMs)}` : '0:00'}</Text>
           </View>
         </Pressable>
 
-        {/* Transport */}
+        {/* Transport Controls */}
         <View style={s.transport}>
           <Pressable
             onPress={toggleShuffle}
-            hitSlop={8}
+            hitSlop={10}
             style={({ pressed }) => [s.transportButton, pressed && s.pressed]}
             accessibilityRole="button"
             accessibilityLabel="Shuffle"
             accessibilityState={{ selected: shuffle }}
           >
-            <Icon name="shuffle" size={20} color={shuffle ? colors.onSurface : colors.outlineText} />
+            <Icon
+              name="shuffle"
+              size={20}
+              color={shuffle ? colors.accent : colors.disabled}
+            />
+            {shuffle && <View style={s.activeDot} />}
           </Pressable>
 
           <Pressable
             onPress={handlePrevious}
-            hitSlop={8}
+            hitSlop={10}
             style={({ pressed }) => [s.transportButton, pressed && s.pressed]}
             accessibilityRole="button"
             accessibilityLabel="Previous track"
           >
-            <Icon name="play-skip-back" size={28} color={colors.onSurface} />
+            <Icon name="skip-previous" size={26} color={colors.textPrimary} />
           </Pressable>
 
-          <Pressable
+          <PlayButton
+            size={72}
+            isPlaying={isPlaying}
+            showGlow={isPlaying}
             onPress={handleTogglePlay}
-            style={({ pressed }) => [s.playButton, pressed && s.pressed]}
-            accessibilityRole="button"
-            accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
             disabled={!track}
-          >
-            <Icon name={isPlaying ? 'pause' : 'play'} size={30} color={colors.onPrimary} />
-          </Pressable>
+          />
 
           <Pressable
             onPress={handleNext}
-            hitSlop={8}
+            hitSlop={10}
             disabled={!hasNext}
             style={({ pressed }) => [s.transportButton, pressed && s.pressed]}
             accessibilityRole="button"
@@ -266,40 +291,47 @@ export default function NowPlayingScreen() {
             accessibilityState={{ disabled: !hasNext }}
           >
             <Icon
-              name="play-skip-forward"
-              size={28}
-              color={hasNext ? colors.onSurface : colors.surfaceContainerHighest}
+              name="skip-next"
+              size={26}
+              color={hasNext ? colors.textPrimary : colors.disabled}
             />
           </Pressable>
 
           <Pressable
             onPress={handleRepeat}
-            hitSlop={8}
+            hitSlop={10}
             style={({ pressed }) => [s.transportButton, pressed && s.pressed]}
             accessibilityRole="button"
             accessibilityLabel="Repeat"
             accessibilityState={{ selected: repeat !== 'off' }}
           >
             <Icon
-              name={repeat === 'one' ? 'repeat' : 'repeat-outline'}
+              name="repeat"
               size={20}
-              color={repeat !== 'off' ? colors.onSurface : colors.outlineText}
+              color={repeat !== 'off' ? colors.accent : colors.disabled}
             />
+            {repeat !== 'off' && (
+              <View style={s.activeDot}>
+                {repeat === 'one' && <Text style={s.repeatOneText}>1</Text>}
+              </View>
+            )}
           </Pressable>
         </View>
 
-        {!!track && (
-          <View style={s.qualityStrip}>
-            <View style={s.qualityDot} />
-            <Text style={s.qualityText}>{qualityBadge} • Lossless Audio</Text>
-            {isDownloaded && <Text style={s.downloadedBadgeText}>• Downloaded</Text>}
-          </View>
-        )}
+        {/* Output Device Pill */}
+        <View style={s.devicePill}>
+          <Icon name="output" size={14} color={colors.textTertiary} />
+          <Text style={s.deviceText}>USB DAC · DIRECT</Text>
+          <View style={s.deviceDivider} />
+          <View style={s.statusDot} />
+          <Text style={s.bitPerfectText}>BIT-PERFECT</Text>
+        </View>
 
         {!!error && <Text style={s.errorText}>{error}</Text>}
-        {isLoading && <Text style={s.statusText}>Loading…</Text>}
+        {isLoading && <Text style={s.statusText}>Buffering audio stream…</Text>}
       </ScrollView>
 
+      {/* Capsule tab bar */}
       <PlayerTabBar active="now-playing" onSelect={goToPlayerTab} />
 
       <TrackOptionsMenu
@@ -314,69 +346,98 @@ export default function NowPlayingScreen() {
 const s = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.surfaceDeep,
+    backgroundColor: colors.ink,
   },
   pressed: {
     opacity: 0.7,
   },
   content: {
-    paddingHorizontal: 32,
+    paddingHorizontal: 24,
     paddingBottom: 24,
-    gap: 24,
+    gap: 20,
+    alignItems: 'center',
   },
 
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingVertical: 12,
   },
   headerButton: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
+    borderRadius: r.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTitle: {
-    ...t.titleMd,
-    color: colors.onSurface,
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    gap: 2,
+  },
+  headerEyebrow: {
+    ...t.label,
+    color: colors.textTertiary,
+  },
+  headerSubtitle: {
+    ...t.caption,
+    color: colors.textPrimary,
+    fontWeight: '600',
   },
 
-  artFrame: {
-    alignSelf: 'center',
-    padding: 10,
-    borderRadius: r.lg,
-    backgroundColor: colors.surfaceVariant,
-    borderWidth: 1,
-    borderColor: colors.surfaceContainerHighest,
-  },
-  artwork: {
+  readoutRow: {
     width: '100%',
-    height: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 4,
+  },
+  readoutText: {
+    ...t.monoMicro,
+    color: colors.textTertiary,
+  },
+
+  artContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: r.md,
-    backgroundColor: colors.surfaceContainer,
+    backgroundColor: colors.surface1,
+    borderWidth: 1,
+    borderColor: colors.divider,
+    position: 'relative',
   },
-  artworkFallback: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  offlineBadge: {
+  downloadedBadge: {
     position: 'absolute',
-    top: 20,
-    right: 20,
-    width: 24,
-    height: 24,
-    borderRadius: r.pill,
+    top: 14,
+    right: 14,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(14, 14, 17, 0.9)',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: r.full,
+    backgroundColor: 'rgba(20, 20, 22, 0.85)',
+    borderWidth: 1,
+    borderColor: colors.divider,
+  },
+  downloadedText: {
+    ...t.monoMicro,
+    fontSize: 10,
+    color: colors.textSecondary,
+    letterSpacing: 0.5,
   },
 
   titleRow: {
+    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     gap: 16,
+    paddingHorizontal: 4,
   },
   titleMeta: {
     flex: 1,
@@ -384,47 +445,52 @@ const s = StyleSheet.create({
     gap: 4,
   },
   trackTitle: {
-    fontFamily: FONTS.semiBold,
-    fontSize: 26,
-    lineHeight: 32,
-    fontWeight: '600',
-    letterSpacing: -0.5,
-    color: colors.onSurface,
+    ...t.title,
+    color: colors.textPrimary,
   },
   trackArtist: {
-    ...t.body,
-    color: colors.outlineText,
+    ...t.headline,
+    color: colors.textSecondary,
   },
   likeButton: {
-    width: 48,
-    height: 48,
-    borderRadius: r.pill,
+    width: 44,
+    height: 44,
+    borderRadius: r.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surfaceContainer,
+    backgroundColor: colors.surface2,
+    borderWidth: 1,
+    borderColor: colors.divider,
+  },
+  likeButtonActive: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
   },
 
   scrubArea: {
+    width: '100%',
     gap: 8,
+    paddingVertical: 6,
   },
   scrubTrack: {
     height: 3,
-    borderRadius: r.pill,
-    backgroundColor: colors.surfaceContainerHigh,
+    borderRadius: r.full,
+    backgroundColor: colors.surface2,
+    position: 'relative',
   },
   scrubFill: {
     height: 3,
-    borderRadius: r.pill,
-    backgroundColor: colors.onSurface,
+    borderRadius: r.full,
+    backgroundColor: colors.accent,
   },
   scrubKnob: {
     position: 'absolute',
-    top: -4.5,
-    width: 12,
-    height: 12,
-    marginLeft: -6,
-    borderRadius: 6,
-    backgroundColor: colors.onSurface,
+    top: -3.5,
+    width: 10,
+    height: 10,
+    marginLeft: -5,
+    borderRadius: 5,
+    backgroundColor: colors.accent,
   },
   timeRow: {
     flexDirection: 'row',
@@ -432,68 +498,84 @@ const s = StyleSheet.create({
     justifyContent: 'space-between',
   },
   time: {
-    fontFamily: FONTS.regular,
-    fontSize: 11,
-    lineHeight: 14,
-    color: colors.outlineText,
-    fontVariant: ['tabular-nums'],
+    ...t.monoMicro,
+    color: colors.textTertiary,
   },
 
   transport: {
+    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
   },
   transportButton: {
-    width: 44,
-    height: 44,
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  activeDot: {
+    position: 'absolute',
+    bottom: 6,
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  playButton: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.onSurface,
+  repeatOneText: {
+    fontFamily: FONTS.mono,
+    fontSize: 7,
+    lineHeight: 8,
+    color: colors.onAccent,
+    fontWeight: '700',
   },
 
-  qualityStrip: {
-    alignSelf: 'center',
+  devicePill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingHorizontal: 12,
-    height: 28,
-    borderRadius: r.pill,
-    backgroundColor: colors.surfaceContainer,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: r.full,
+    backgroundColor: colors.surface1,
     borderWidth: 1,
-    borderColor: colors.surfaceContainerHighest,
+    borderColor: colors.divider,
   },
-  qualityDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.onSurface,
+  deviceText: {
+    ...t.monoMicro,
+    color: colors.textTertiary,
+    letterSpacing: 0.5,
   },
-  qualityText: {
-    ...t.micro,
-    color: colors.onSurfaceVariant,
-    letterSpacing: 0.3,
+  deviceDivider: {
+    width: 1,
+    height: 10,
+    backgroundColor: colors.divider,
   },
-  downloadedBadgeText: {
-    ...t.micro,
-    color: colors.onSurface,
-    fontWeight: '600',
+  statusDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: colors.accent,
+  },
+  bitPerfectText: {
+    ...t.monoMicro,
+    color: colors.textSecondary,
+    letterSpacing: 0.5,
   },
 
   errorText: {
-    ...t.bodyMd,
-    color: colors.error,
+    ...t.body,
+    color: colors.textSecondary,
+    textAlign: 'center',
   },
   statusText: {
-    ...t.bodyMd,
-    color: colors.outlineText,
+    ...t.caption,
+    color: colors.textTertiary,
+    textAlign: 'center',
   },
 });

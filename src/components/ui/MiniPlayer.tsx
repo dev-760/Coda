@@ -1,11 +1,13 @@
 import React from 'react';
-import { View, Text, StyleSheet, Pressable, Image } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { usePlaybackStore } from '../../store/playbackStore';
 import { useQueueStore } from '../../store/queueStore';
 import { audioService } from '../../audio/AudioService';
 import Icon from './Icon';
-import { colors, FONTS } from '../../theme/theme';
+import CoverThumb from './CoverThumb';
+import { LevelMeter } from './LevelMeter';
+import { colors, r, t } from '../../theme/theme';
 
 /**
  * Subscribes to playback position on its own so the tick-driven re-render stops
@@ -27,13 +29,10 @@ export default function MiniPlayer() {
   const currentTrack = usePlaybackStore((state) => state.currentTrack);
   const isPlaying = usePlaybackStore((state) => state.isPlaying);
   const durationMs = usePlaybackStore((state) => state.durationMs);
-  // Only the progress bar reads these, and it lives in its own component. If
-  // this subscribed to them, the whole player would re-render on every tick.
   const hasNext = useQueueStore((state) => state.upcomingCount() > 0);
 
   const handleTogglePlay = async () => {
     if (!currentTrack) return;
-
     if (isPlaying) {
       await audioService.pause();
     } else {
@@ -54,89 +53,91 @@ export default function MiniPlayer() {
   }
 
   return (
-    <View style={s.container}>
-      <Pressable
-        style={({ pressed }) => [s.touchableArea, pressed && { opacity: 0.85 }]}
-        onPress={handleOpenNowPlaying}
-        accessibilityRole="button"
-        accessibilityLabel={`Now playing: ${currentTrack.title} by ${currentTrack.artist}`}
-        accessibilityHint="Opens the full screen player"
-      >
-        {/* Thumbnail */}
-        {currentTrack.coverUrl ? (
-          <Image source={{ uri: currentTrack.coverUrl }} style={s.artwork} />
-        ) : (
-          <View style={[s.artwork, s.artPlaceholder]}>
-            <Icon name="musical-notes" size={20} color={colors.onSurfaceVariant} />
+    <View style={s.dockWrapper}>
+      <View style={s.container}>
+        <Pressable
+          style={({ pressed }) => [s.touchableArea, pressed && { opacity: 0.85 }]}
+          onPress={handleOpenNowPlaying}
+          accessibilityRole="button"
+          accessibilityLabel={`Now playing: ${currentTrack.title} by ${currentTrack.artist}. Double tap to open player.`}
+        >
+          {/* 40px Thumbnail with glow when playing */}
+          <CoverThumb
+            uri={currentTrack.coverUrl}
+            size={40}
+            borderRadius={8}
+            glow={isPlaying}
+          />
+
+          {/* Titles */}
+          <View style={s.info}>
+            <Text numberOfLines={1} style={s.title}>
+              {currentTrack.title}
+            </Text>
+            <Text numberOfLines={1} style={s.artist}>
+              {currentTrack.artist}
+            </Text>
+          </View>
+        </Pressable>
+
+        {/* Level meter when playing */}
+        {isPlaying && (
+          <View style={s.meterWrapper}>
+            <LevelMeter isPlaying={isPlaying} height={14} barWidth={3} gap={2} />
           </View>
         )}
 
-        {/* Info */}
-        <View style={s.info}>
-          <Text numberOfLines={1} style={s.title}>
-            {currentTrack.title}
-          </Text>
-          <Text numberOfLines={1} style={s.artist}>
-            {currentTrack.artist}
-          </Text>
+        {/* Controls */}
+        <View style={s.controls}>
+          <Pressable
+            onPress={handleTogglePlay}
+            style={({ pressed }) => [s.controlBtn, pressed && { opacity: 0.6 }]}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
+          >
+            <Icon name={isPlaying ? 'pause' : 'play'} size={22} color={colors.accent} />
+          </Pressable>
+          <Pressable
+            onPress={handleNext}
+            style={({ pressed }) => [s.controlBtn, pressed && { opacity: 0.6 }]}
+            hitSlop={8}
+            disabled={!hasNext}
+            accessibilityRole="button"
+            accessibilityLabel="Next track"
+            accessibilityState={{ disabled: !hasNext }}
+          >
+            <Icon
+              name="skip-next"
+              size={20}
+              color={hasNext ? colors.onSurface : colors.disabled}
+            />
+          </Pressable>
         </View>
-      </Pressable>
 
-      {/* Controls with accessible 44px+ hit areas and scale response */}
-      <View style={s.controls}>
-        <Pressable
-          onPress={handleTogglePlay}
-          style={({ pressed }) => [s.controlBtn, pressed && { opacity: 0.6 }]}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
-        >
-          <Icon name={isPlaying ? 'pause' : 'play'} size={24} color={colors.onSurface} />
-        </Pressable>
-        <Pressable
-          onPress={handleNext}
-          style={({ pressed }) => [s.controlBtn, pressed && { opacity: 0.6 }]}
-          hitSlop={8}
-          disabled={!hasNext}
-          accessibilityRole="button"
-          accessibilityLabel="Next track"
-          accessibilityState={{ disabled: !hasNext }}
-        >
-          <Icon
-            name="play-skip-forward"
-            size={22}
-            color={hasNext ? colors.onSurface : colors.surfaceContainerHighest}
-          />
-        </Pressable>
+        <MiniProgress durationMs={durationMs} />
       </View>
-
-      <MiniProgress durationMs={durationMs} />
     </View>
   );
 }
 
 const s = StyleSheet.create({
+  dockWrapper: {
+    paddingHorizontal: 8,
+    paddingBottom: 6,
+  },
   container: {
-    height: 60,
-    backgroundColor: colors.surfaceContainer,
-    borderTopWidth: 1,
-    borderTopColor: colors.surfaceContainerHigh,
+    height: 64,
+    backgroundColor: colors.surface2,
+    borderWidth: 1,
+    borderColor: colors.divider,
+    borderRadius: r.lg,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    justifyContent: 'space-between',
-  },
-  progressTrack: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 2,
-    backgroundColor: colors.surfaceContainerHighest,
-  },
-  progressFill: {
-    height: 2,
-    backgroundColor: colors.accent,
+    paddingLeft: 12,
+    paddingRight: 6,
+    overflow: 'hidden',
+    position: 'relative',
   },
   touchableArea: {
     flex: 1,
@@ -146,43 +147,45 @@ const s = StyleSheet.create({
     gap: 12,
     marginRight: 8,
   },
-  artwork: {
-    width: 44,
-    height: 44,
-    borderRadius: 6,
-    backgroundColor: colors.surfaceContainerHigh,
-  },
-  artPlaceholder: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   info: {
     flex: 1,
     minWidth: 0,
-    justifyContent: 'center',
+    gap: 2,
   },
   title: {
-    fontFamily: FONTS.display,
-    fontSize: 14,
-    fontWeight: '700',
+    ...t.bodyStrong,
     color: colors.onSurface,
   },
   artist: {
-    fontSize: 12,
+    ...t.caption,
     color: colors.onSurfaceVariant,
-    marginTop: 2,
+  },
+  meterWrapper: {
+    paddingHorizontal: 8,
+    justifyContent: 'center',
   },
   controls: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingRight: 4,
+    gap: 4,
   },
   controlBtn: {
-    width: 44,
-    height: 44,
+    width: 40,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: r.full,
+  },
+  progressTrack: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 2,
+    backgroundColor: colors.divider,
+  },
+  progressFill: {
+    height: 2,
+    backgroundColor: colors.accent,
   },
 });
-

@@ -1,16 +1,19 @@
 import React from 'react';
-import { Image, Pressable, StyleSheet, Text, View, ViewStyle, StyleProp } from 'react-native';
+import { Pressable, StyleSheet, Text, View, ViewStyle, StyleProp } from 'react-native';
 import Icon from './Icon';
-import { colors, FONTS, r, t } from '../../theme/theme';
+import CoverThumb from './CoverThumb';
+import { LevelMeter } from './LevelMeter';
+import { colors, r, t } from '../../theme/theme';
 import { Track } from '../../providers/types';
 import { useDownloadStore } from '../../downloads/downloadStore';
 
 /**
- * The catalog row used across Collection, Home, Queue and Search.
- *
- * Tracks carry an `isActive` flag rather than each screen re-deriving playback
- * state, so a row can be rendered without pulling the playback store into
- * screens that only need the list.
+ * The catalog track row faithfully built from the Luma Design System showcase:
+ * - 64px row height
+ * - Level meter on playing track
+ * - 48px cover artwork with glow when playing
+ * - Monoline indicator icons (download, more)
+ * - Tabular mono-micro duration
  */
 export function TrackRow({
   track,
@@ -21,90 +24,125 @@ export function TrackRow({
   onLongPress,
   onMore,
   meta,
+  showHandle = false,
+  showArt = true,
+  disabled = false,
   style,
 }: {
   track: Track;
-  /** Optional leading index, shown in Queue. */
   index?: number;
   isActive?: boolean;
   isPlaying?: boolean;
   onPress?: () => void;
   onLongPress?: () => void;
   onMore?: () => void;
-  /** Overrides the default "Artist • Album" line. */
   meta?: string;
+  showHandle?: boolean;
+  showArt?: boolean;
+  disabled?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
-  // Subscribed per row so a download finishing does not re-render the list.
-  const isDownloaded = useDownloadStore((state) => state.downloads.some(
-    (item) => item.trackId === track.id && item.status === 'completed',
-  ));
+  const isDownloaded = useDownloadStore((state) =>
+    state.downloads.some((item) => item.trackId === track.id && item.status === 'completed'),
+  );
 
-  const subtitle = meta ?? [track.artist, track.album].filter(Boolean).join(' • ');
+  const durationStr = meta ?? (track.durationMs ? formatTrackDuration(track.durationMs) : '');
 
   return (
     <Pressable
       onPress={onPress}
       onLongPress={onLongPress}
-      style={({ pressed }) => [s.row, isActive && s.rowActive, pressed && s.pressed, style]}
+      disabled={disabled}
+      style={({ pressed }) => [
+        s.row,
+        isActive && s.rowActive,
+        disabled && s.rowDisabled,
+        pressed && !disabled && s.pressed,
+        style,
+      ]}
       accessibilityRole="button"
-      accessibilityLabel={`${track.title} by ${track.artist}`}
-      accessibilityHint={isDownloaded ? 'Available offline' : undefined}
+      accessibilityLabel={`${isActive ? 'Now playing, ' : ''}${track.title} by ${track.artist}`}
     >
-      {index !== undefined ? (
-        <View style={s.indexSlot}>
-          {isActive ? (
-            <Icon
-              name={isPlaying ? 'pause' : 'play'}
-              size={13}
-              color={colors.onSurface}
-            />
-          ) : (
-            <Text style={s.index}>{index + 1}</Text>
-          )}
-        </View>
-      ) : null}
-
-      {track.coverUrl ? (
-        <Image source={{ uri: track.coverUrl }} style={s.artwork} />
-      ) : (
-        <View style={[s.artwork, s.artworkFallback]}>
-          <Icon name="musical-note" size={16} color={colors.outlineText} />
+      {showHandle && (
+        <View style={s.handleSlot}>
+          <Icon name="drag-handle" size={18} color={colors.textTertiary} />
         </View>
       )}
 
-      <View style={s.meta}>
-        <View style={s.titleRow}>
-          <Text numberOfLines={1} style={[s.title, isActive && s.titleActive]}>
-            {track.title}
-          </Text>
-          {isDownloaded && (
-            <Icon
-              name="arrow-down-circle"
-              size={13}
-              color={colors.outlineText}
-              style={s.downloadedMark}
-            />
+      {index !== undefined && (
+        <View style={s.indexSlot}>
+          {isActive ? (
+            <LevelMeter isPlaying={isPlaying} height={14} barWidth={3} gap={2} />
+          ) : (
+            <Text style={s.indexText}>
+              {String(index + 1).padStart(2, '0')}
+            </Text>
           )}
         </View>
-        <Text numberOfLines={1} style={s.subtitle}>
-          {subtitle}
+      )}
+
+      {showArt && (
+        <CoverThumb
+          uri={track.coverUrl}
+          size={44}
+          borderRadius={8}
+          glow={isActive}
+        />
+      )}
+
+      <View style={s.metaSlot}>
+        <Text
+          numberOfLines={1}
+          style={[
+            isActive ? t.bodyStrong : t.body,
+            { color: disabled ? colors.disabled : colors.onSurface },
+          ]}
+        >
+          {track.title}
+        </Text>
+        <Text
+          numberOfLines={1}
+          style={[
+            t.caption,
+            { color: disabled ? colors.disabled : colors.onSurfaceVariant },
+          ]}
+        >
+          {disabled ? `${track.artist} · Unavailable offline` : track.artist}
         </Text>
       </View>
 
-      {!!onMore && (
+      {isDownloaded && !disabled && (
+        <View style={s.indicatorSlot}>
+          <Icon name="download-done" size={16} color={colors.accent} />
+        </View>
+      )}
+
+      {!!durationStr && (
+        <Text style={[s.durationText, disabled && { color: colors.disabled }]}>
+          {durationStr}
+        </Text>
+      )}
+
+      {!!onMore && !disabled && (
         <Pressable
           onPress={onMore}
           hitSlop={8}
-          style={({ pressed }) => [s.more, pressed && s.pressed]}
+          style={({ pressed }) => [s.moreBtn, pressed && s.pressed]}
           accessibilityRole="button"
           accessibilityLabel={`More options for ${track.title}`}
         >
-          <Icon name="ellipsis-horizontal" size={16} color={colors.outlineText} />
+          <Icon name="more" size={18} color={colors.textSecondary} />
         </Pressable>
       )}
     </Pressable>
   );
+}
+
+function formatTrackDuration(durationMs: number): string {
+  const totalSeconds = Math.round(durationMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = String(totalSeconds % 60).padStart(2, '0');
+  return `${minutes}:${seconds}`;
 }
 
 const s = StyleSheet.create({
@@ -112,69 +150,50 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    minHeight: 56,
-    paddingVertical: 6,
+    minHeight: 60,
+    paddingVertical: 8,
     paddingHorizontal: 8,
     borderRadius: r.md,
   },
   rowActive: {
-    backgroundColor: colors.surfaceContainerLow,
+    backgroundColor: colors.surface1,
+    borderWidth: 1,
+    borderColor: colors.divider,
+  },
+  rowDisabled: {
+    opacity: 0.5,
   },
   pressed: {
-    opacity: 0.7,
+    opacity: 0.75,
   },
-  indexSlot: {
+  handleSlot: {
     width: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  index: {
-    ...t.labelSm,
-    color: colors.outlineText,
-    fontVariant: ['tabular-nums'],
-  },
-  artwork: {
-    width: 44,
-    height: 44,
-    borderRadius: r.sm,
-    backgroundColor: colors.surfaceContainer,
-  },
-  artworkFallback: {
+  indexSlot: {
+    width: 24,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  meta: {
+  indexText: {
+    ...t.monoMicro,
+    color: colors.textTertiary,
+  },
+  metaSlot: {
     flex: 1,
     minWidth: 0,
-    gap: 2,
+    gap: 3,
   },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+  indicatorSlot: {
+    paddingHorizontal: 4,
   },
-  title: {
-    // Catalog content, so Inter rather than the Geist chrome face.
-    fontFamily: FONTS.contentSemiBold,
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '600',
-    color: colors.onSurface,
-    flexShrink: 1,
+  durationText: {
+    ...t.monoMicro,
+    color: colors.textTertiary,
   },
-  titleActive: {
-    color: colors.onSurface,
-  },
-  downloadedMark: {
-    flexShrink: 0,
-  },
-  subtitle: {
-    ...t.bodyMd,
-    color: colors.outlineText,
-  },
-  more: {
-    width: 44,
-    height: 44,
+  moreBtn: {
+    padding: 6,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -1,65 +1,40 @@
 import React from 'react';
-import { View, ViewStyle } from 'react-native';
-import Svg, { Circle, Rect } from 'react-native-svg';
+import { View, ViewStyle, StyleProp } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 import { colors } from '../../theme/theme';
 
 /**
- * The Luma waveform mark.
+ * The official Luma Eclipse mark.
  *
- * Drawn as vector rather than shipped as a bitmap so it stays crisp from a 20px
- * tab bar to a 1024px splash, and so it can be themed. The bar geometry is
- * measured from the source artwork, on a 0..100 viewBox centred on 48,48.
+ * Source: Luma Design System showcase:
+ * A thick ring with an opening at the upper right; a detached dot of light sits in the gap.
+ * Reads cleanly from 16px to 1024px.
  */
 interface AppLogoProps {
   size?: number;
-  /** Main mark colour. */
+  /** Main mark colour. Defaults to Silver (#B8B8C0). */
   color?: string;
-  /** Ring colour. Defaults to a dimmer token so the mark reads first. */
-  ringColor?: string;
-  style?: ViewStyle;
+  showText?: boolean;
+  style?: StyleProp<ViewStyle>;
 }
 
-// x centre, half width, half height, on a 0..100 box.
-const BARS: { x: number; hw: number; hh: number }[] = [
-  { x: 28.5, hw: 5.5, hh: 2.0 },
-  { x: 37.6, hw: 2.1, hh: 17.4 },
-  { x: 48.0, hw: 2.05, hh: 30.9 },
-  { x: 59.6, hw: 2.05, hh: 13.6 },
-  { x: 71.05, hw: 2.05, hh: 5.9 },
-];
-
-const RING_RADIUS = 45.5;
-const RING_WIDTH = 1.6;
-const CENTER = 48;
+const ECLIPSE_PATH =
+  'M793.91 409.39A300 300 0 1 1 614.61 230.09L580.4 324.06A200 200 0 1 0 699.94 443.6ZM636.78 335.22A52 52 0 1 0 740.78 335.22A52 52 0 1 0 636.78 335.22Z';
 
 export function AppLogo({
-  size = 26,
-  color = colors.inverseSurface,
-  ringColor = colors.surfaceContainerHighest,
+  size = 28,
+  color = colors.accent,
+  showText = false,
   style,
 }: AppLogoProps) {
   return (
-    <View style={[{ width: size, height: size }, style]}>
-      <Svg width={size} height={size} viewBox="0 0 100 100">
-        <Circle
-          cx={CENTER}
-          cy={CENTER}
-          r={RING_RADIUS}
-          stroke={ringColor}
-          strokeWidth={RING_WIDTH}
-          fill="none"
+    <View style={[{ alignItems: 'center', justifyContent: 'center', gap: 6 }, style]}>
+      <Svg width={size} height={size} viewBox="0 0 1024 1024">
+        <Path
+          d={ECLIPSE_PATH}
+          fill={color}
+          fillRule="evenodd"
         />
-        {BARS.map((bar) => (
-          <Rect
-            key={bar.x}
-            x={bar.x - bar.hw}
-            y={CENTER - bar.hh}
-            width={bar.hw * 2}
-            height={bar.hh * 2}
-            rx={Math.min(bar.hw, bar.hh)}
-            fill={color}
-          />
-        ))}
       </Svg>
     </View>
   );

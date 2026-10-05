@@ -8,11 +8,11 @@ interface PlaylistActionsModalProps {
   visible: boolean;
   onClose: () => void;
   playlist: Playlist | null;
-  onEdit: () => void;
-  onDuplicate: () => void;
-  onDelete: () => void;
+  onEdit?: () => void;
+  onDuplicate?: () => void;
+  onDelete?: () => void;
   onShare?: () => void;
-  onPlay: () => void;
+  onPlay?: () => void;
   onShufflePlay?: () => void;
 }
 
@@ -41,7 +41,7 @@ export const PlaylistActionsModal: React.FC<PlaylistActionsModalProps> = ({
           text: 'Delete',
           style: 'destructive',
           onPress: () => {
-            onDelete();
+            onDelete?.();
             onClose();
           },
         },
@@ -50,14 +50,14 @@ export const PlaylistActionsModal: React.FC<PlaylistActionsModalProps> = ({
   };
 
   const actions = [
-    {
+    onPlay ? {
       icon: 'play',
       label: 'Play Now',
       onPress: () => {
         onPlay();
         onClose();
       },
-    },
+    } : null,
     onShufflePlay ? {
       icon: 'shuffle',
       label: 'Shuffle Play',
@@ -66,22 +66,22 @@ export const PlaylistActionsModal: React.FC<PlaylistActionsModalProps> = ({
         onClose();
       },
     } : null,
-    {
+    onEdit ? {
       icon: 'pencil',
       label: 'Edit',
       onPress: () => {
         onEdit();
         onClose();
       },
-    },
-    {
+    } : null,
+    onDuplicate ? {
       icon: 'copy',
       label: 'Duplicate',
       onPress: () => {
         onDuplicate();
         onClose();
       },
-    },
+    } : null,
     onShare ? {
       icon: 'share',
       label: 'Share',
@@ -90,12 +90,12 @@ export const PlaylistActionsModal: React.FC<PlaylistActionsModalProps> = ({
         onClose();
       },
     } : null,
-    {
+    onDelete ? {
       icon: 'trash',
       label: 'Delete',
       onPress: handleDelete,
       destructive: true,
-    },
+    } : null,
   ].filter((action): action is NonNullable<typeof action> => action !== null);
 
   return (

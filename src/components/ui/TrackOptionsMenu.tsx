@@ -13,6 +13,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Track } from '../../providers/types';
 import Icon from './Icon';
+import CoverThumb from './CoverThumb';
 import { useLibraryStore } from '../../store/libraryStore';
 import { useQueueStore } from '../../store/queueStore';
 import { useDownloadStore } from '../../downloads/downloadStore';
@@ -173,15 +174,10 @@ export default function TrackOptionsMenu({
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={s.overlay} onPress={onClose} accessibilityLabel="Close options" />
       <View style={s.sheet}>
+        <View style={s.grabber} />
         {/* Track header */}
         <View style={s.trackHeader}>
-          {track.coverUrl ? (
-            <Image source={{ uri: track.coverUrl }} style={s.art} />
-          ) : (
-            <View style={[s.art, s.artFallback]}>
-              <Icon name="musical-note" size={18} color={colors.outlineText} />
-            </View>
-          )}
+          <CoverThumb uri={track.coverUrl} size={48} borderRadius={8} />
           <View style={s.trackMeta}>
             <View style={s.trackTitleLine}>
               <Text numberOfLines={1} style={s.trackTitle}>{track.title}</Text>
@@ -293,11 +289,21 @@ const s = StyleSheet.create({
     left: 0,
     right: 0,
     maxHeight: '92%',
-    paddingTop: 16,
+    paddingTop: 10,
     paddingHorizontal: 16,
-    borderTopLeftRadius: r.lg,
-    borderTopRightRadius: r.lg,
-    backgroundColor: colors.surfaceVariant,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    borderTopWidth: 1,
+    borderTopColor: colors.divider,
+    backgroundColor: colors.surface2,
+  },
+  grabber: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.disabled,
+    alignSelf: 'center',
+    marginBottom: 14,
   },
   pressed: {
     opacity: 0.7,
@@ -364,16 +370,18 @@ const s = StyleSheet.create({
     gap: 6,
     paddingVertical: 12,
     borderRadius: r.md,
-    backgroundColor: colors.surfaceContainer,
+    backgroundColor: colors.surface1,
+    borderWidth: 1,
+    borderColor: colors.divider,
   },
   quickLabel: {
-    fontSize: 9,
-    letterSpacing: 0.4,
+    ...t.monoMicro,
+    fontSize: 10,
     color: colors.outlineText,
   },
 
   sectionLabel: {
-    ...t.labelSm,
+    ...t.label,
     color: colors.outlineText,
     marginTop: 20,
     marginBottom: 8,
@@ -388,10 +396,12 @@ const s = StyleSheet.create({
   rowIcon: {
     width: 36,
     height: 36,
-    borderRadius: r.sm,
+    borderRadius: r.md,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surfaceContainer,
+    backgroundColor: colors.surface1,
+    borderWidth: 1,
+    borderColor: colors.divider,
   },
   rowText: {
     flex: 1,
@@ -399,28 +409,29 @@ const s = StyleSheet.create({
     gap: 2,
   },
   rowLabel: {
-    ...t.titleMd,
+    ...t.bodyStrong,
     color: colors.onSurface,
   },
   rowDetail: {
-      ...t.bodySm,
-      color: colors.outlineText,
-    },
+    ...t.caption,
+    color: colors.outlineText,
+  },
 
-    formatBadge: {
+  formatBadge: {
     paddingHorizontal: 10,
-    height: 22,
+    height: 24,
     justifyContent: 'center',
-    borderRadius: r.sm,
-    backgroundColor: colors.surfaceContainerHighest,
+    borderRadius: r.full,
+    backgroundColor: colors.surface1,
+    borderWidth: 1,
+    borderColor: colors.divider,
   },
   formatBadgeActive: {
-    backgroundColor: colors.onSurface,
+    backgroundColor: colors.accent,
   },
   formatText: {
-    fontSize: 9,
-    letterSpacing: 0.4,
-    color: colors.onSurfaceVariant,
+    ...t.monoMicro,
+    color: colors.onSurface,
   },
   formatTextActive: {
     color: colors.onPrimary,

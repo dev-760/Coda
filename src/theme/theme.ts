@@ -1,126 +1,146 @@
 // theme.ts — Luma design tokens.
 //
-// Rebuilt from the eight current Figma specs. The previous theme used a
-// steel/warm-grey palette with Space Grotesk and Courier Prime; this spec uses
-// a neutral near-black base with Geist for UI chrome and Inter for content, so
-// the whole scale below comes from the new screens rather than being adapted.
+// Generated from the official Luma Design System showcase:
+// https://design-system-rho-dusky.vercel.app/
+//
+// Monochrome Ink and Silver system for a lyrics-first music player:
+// Ink (#141416) canvas with Silver (#B8B8C0) opacity ladder.
 
-/** Base canvas. Screens using the flat `#131316` surface stop here. */
-const BASE = '#131316';
-/** Deeper canvas, used by full-bleed player surfaces. */
-const BASE_DEEP = '#0E0E11';
-const RAISED = '#2A2A2D';
-const RAISED_ALT = '#353438';
-const SUBTLE = '#1B1B1E';
-const SUBTLE_ALT = '#1F1F22';
-const HAIRLINE = '#444748';
+export const INK = '#141416';
+export const SILVER = '#B8B8C0';
+
+/** Official showcase color tokens */
+export const lumaTokens = {
+  ink: INK,
+  silver: SILVER,
+  bg: INK,
+  surface1: 'rgba(184, 184, 192, 0.05)', // Cards, rows, tab bar
+  surface2: 'rgba(184, 184, 192, 0.09)', // Sheets, chips, inputs
+  divider: 'rgba(184, 184, 192, 0.14)',  // 1px lines, tile borders, progress track
+  textPrimary: SILVER,                   // Titles, body, active lyric (~9.3:1)
+  textSecondary: 'rgba(184, 184, 192, 0.80)', // Captions, artist names (~6.4:1)
+  textTertiary: 'rgba(184, 184, 192, 0.65)',  // Metadata, never below 12pt (~4.6:1)
+  textPast: 'rgba(184, 184, 192, 0.45)',      // Past lyric lines only
+  disabled: 'rgba(184, 184, 192, 0.35)',      // Disabled controls
+  glow: 'rgba(184, 184, 192, 0.20)',          // Color of active glow effect
+  accent: SILVER,                             // Playing item, progress, primary actions
+  onAccent: INK,                              // Text and icons on Silver fills
+  error: '#FFB4AB',
+  errorContainer: '#DC2626',
+  success: '#3DA35D',
+} as const;
 
 export const colors = {
   // Canvas
-  background: BASE,
-  surface: BASE,
-  surfaceDeep: BASE_DEEP,
-  surfaceContainerLowest: BASE_DEEP,
-  surfaceContainerLow: RAISED,
-  surfaceContainer: RAISED,
-  surfaceContainerHigh: RAISED_ALT,
-  surfaceContainerHighest: RAISED_ALT,
-  surfaceVariant: SUBTLE_ALT,
-  surfaceSubtle: SUBTLE,
-  surfaceBright: RAISED_ALT,
+  background: lumaTokens.bg,
+  surface: lumaTokens.bg,
+  surfaceDeep: INK,
+  surfaceContainerLowest: INK,
+  surfaceContainerLow: lumaTokens.surface1,
+  surfaceContainer: lumaTokens.surface1,
+  surfaceContainerHigh: lumaTokens.surface2,
+  surfaceContainerHighest: lumaTokens.surface2,
+  surfaceVariant: lumaTokens.surface2,
+  surfaceSubtle: lumaTokens.surface1,
+  surfaceBright: lumaTokens.surface2,
 
-  /** Track titles and other content set in Inter. */
-  onSurface: '#FFFFFF',
-  /** Supporting copy and metadata. */
-  onSurfaceVariant: '#C6C6CF',
-  /** De-emphasised labels, counters and timestamps. */
-  outlineText: '#C4C7C8',
+  // Direct token names matching showcase
+  surface1: lumaTokens.surface1,
+  surface2: lumaTokens.surface2,
+  divider: lumaTokens.divider,
+  glow: lumaTokens.glow,
+  textPast: lumaTokens.textPast,
 
-  // Line work
-  outline: '#8E9192',
-  outlineVariant: HAIRLINE,
+  /** Silver 100% — Track titles, body and active lyric. */
+  onSurface: lumaTokens.textPrimary,
+  textPrimary: lumaTokens.textPrimary,
 
-  // Text tints seen on player surfaces
-  textSoft: '#E4E1E6',
-  textMuted: '#C6C6C7',
+  /** Silver 80% — Supporting copy, artist names and captions. */
+  onSurfaceVariant: lumaTokens.textSecondary,
+  textSecondary: lumaTokens.textSecondary,
 
-  // Primary chrome. The spec inverts rather than tints: a selected pill is a
-  // solid white pill with dark text, never a coloured one.
-  primary: '#FFFFFF',
-  onPrimary: BASE_DEEP,
-  primaryContainer: RAISED,
-  onPrimaryContainer: '#E4E1E6',
+  /** Silver 65% — De-emphasised labels, counters and timestamps. */
+  outlineText: lumaTokens.textTertiary,
+  textTertiary: lumaTokens.textTertiary,
 
-  secondary: '#C4C7C8',
-  onSecondary: BASE_DEEP,
-  secondaryContainer: RAISED_ALT,
-  onSecondaryContainer: '#E4E1E6',
+  // Line work (14% Silver)
+  outline: lumaTokens.divider,
+  outlineVariant: lumaTokens.divider,
 
-  tertiary: '#8E9192',
-  onTertiary: BASE_DEEP,
-  tertiaryContainer: SUBTLE_ALT,
-  onTertiaryContainer: '#C6C6CF',
+  // Text tints
+  textSoft: lumaTokens.textPrimary,
+  textMuted: lumaTokens.textSecondary,
+  disabled: lumaTokens.disabled,
 
-  // Feedback. #FFB4AB is the spec's error tint; errorContainer keeps the
-  // stronger red for surfaces behind that text.
-  error: '#FFB4AB',
-  onError: BASE_DEEP,
-  errorContainer: '#DC2626',
+  // Primary chrome. Inverts rather than tints: solid Silver fill with Ink text
+  primary: lumaTokens.accent,
+  onPrimary: lumaTokens.onAccent,
+  primaryContainer: lumaTokens.surface2,
+  onPrimaryContainer: lumaTokens.textPrimary,
+
+  secondary: lumaTokens.textSecondary,
+  onSecondary: lumaTokens.onAccent,
+  secondaryContainer: lumaTokens.surface2,
+  onSecondaryContainer: lumaTokens.textPrimary,
+
+  tertiary: lumaTokens.textTertiary,
+  onTertiary: lumaTokens.onAccent,
+  tertiaryContainer: lumaTokens.surface1,
+  onTertiaryContainer: lumaTokens.textSecondary,
+
+  // Feedback
+  error: lumaTokens.error,
+  onError: lumaTokens.onAccent,
+  errorContainer: lumaTokens.errorContainer,
   onErrorContainer: '#FFE9E7',
 
-  success: '#3DA35D',
+  success: lumaTokens.success,
   onSuccess: '#04180C',
 
-  inverseSurface: '#F3F5F8',
-  inverseOnSurface: BASE_DEEP,
-  inversePrimary: RAISED,
+  inverseSurface: lumaTokens.accent,
+  inverseOnSurface: lumaTokens.onAccent,
+  inversePrimary: lumaTokens.surface2,
 
-  surfaceDim: BASE_DEEP,
+  surfaceDim: INK,
 
-  /**
-   * Playback indicator. The spec's active accent is a warm white rather than a
-   * hue, so this is the on-surface token and states read through weight.
-   */
-  accent: '#FFFFFF',
+  /** Active playback accent is solid Silver. */
+  accent: lumaTokens.accent,
+  onAccent: lumaTokens.onAccent,
+  ink: INK,
+  silver: SILVER,
 } as const;
 
 export const sp = { xs: 4, sm: 8, md: 16, lg: 24, xl: 40, xxl: 64 } as const;
+export const SPACING_SCALE = [4, 8, 12, 16, 20, 24, 32, 40, 48] as const;
+
 export const r = {
   sm: 4,
   md: 8,
   lg: 12,
-  /** Legacy alias for the old 16px step, kept while screens migrate. */
-  xl: 16,
-  /** Pills and circular controls are fully rounded in the spec. */
+  xl: 20,
+  sheet: 20,
   pill: 9999,
   full: 999,
 } as const;
 
-/**
- * The two families, declared before the scale below so every token can bind a
- * family. Names are the expo-google-fonts export names, which is also what the
- * web build registers them as.
- *
- * Previously the `t` tokens carried no family at all, so every heading silently
- * fell back to the platform UI font and the Geist install appeared unused.
- */
+export const RADIUS_TOKENS = {
+  chip: 8,
+  card: 12,
+  sheet: 20,
+  full: 999,
+} as const;
+
 export const FONTS = {
-  // Geist, UI chrome
   regular: 'Geist_400Regular',
   medium: 'Geist_500Medium',
   semiBold: 'Geist_600SemiBold',
   bold: 'Geist_700Bold',
 
-  // Inter, catalog content
   content: 'Inter_400Regular',
   contentMedium: 'Inter_500Medium',
   contentSemiBold: 'Inter_600SemiBold',
   contentBold: 'Inter_700Bold',
 
-  /**
-   * Legacy names still referenced by screens that have not been rebuilt.
-   * `display` maps to Geist so headings pick up the new face immediately.
-   */
   display: 'Geist_600SemiBold',
   displayMedium: 'Geist_500Medium',
   displayBold: 'Geist_700Bold',
@@ -130,55 +150,64 @@ export const FONTS = {
 } as const;
 
 /**
- * Type scale taken from the specs, where 11px and 12px carry nearly all body
- * copy and 18px is the section-heading size.
- *
- * Every entry names its family explicitly: Geist for UI, Inter for content, so
- * a token can be spread into a style without also guessing a font.
+ * Type scale directly from the Luma showcase:
+ * - display: 32/36, tracking -1, semibold
+ * - title: 22/28, tracking -0.5, semibold
+ * - headline: 17/24, tracking 0, semibold
+ * - body: 15/22, tracking 0, regular
+ * - bodyStrong: 15/22, tracking 0, semibold
+ * - caption: 13/18, tracking 0, regular
+ * - captionStrong: 13/18, tracking 0, semibold
+ * - micro: 12/16, tracking 0, medium
+ * - label: 12/16, tracking 0.08em uppercase, semibold
+ * - monoBody: 15/22
+ * - monoCaption: 13/18
+ * - monoMicro: 12/16
  */
 export const t = {
-  /** 26px. Reserved for the Now Playing title. */
-  hero:      { fontFamily: FONTS.semiBold, fontSize: 26, lineHeight: 32, fontWeight: '600' as const, letterSpacing: -0.5 },
-  /** 22px. Large screen titles. */
-  display:   { fontFamily: FONTS.semiBold, fontSize: 22, lineHeight: 28, fontWeight: '600' as const, letterSpacing: -0.4 },
-  /** 18px. Section headings. */
-  title:     { fontFamily: FONTS.medium, fontSize: 18, lineHeight: 24, fontWeight: '500' as const, letterSpacing: -0.45 },
-  /** 16px. Sub-headings and emphasis. */
-  titleMd:   { fontFamily: FONTS.medium, fontSize: 16, lineHeight: 22, fontWeight: '500' as const, letterSpacing: -0.2 },
-  /** 14px. Track and card titles. Content, so Inter. */
-  bodyLg:    { fontFamily: FONTS.contentSemiBold, fontSize: 14, lineHeight: 20, fontWeight: '600' as const },
-  /** 14px. Geist UI text. */
-  body:      { fontFamily: FONTS.regular, fontSize: 14, lineHeight: 20, fontWeight: '400' as const },
-  /** 12px. The workhorse UI size. */
-  bodyMd:    { fontFamily: FONTS.regular, fontSize: 12, lineHeight: 16, fontWeight: '400' as const },
-  /** 11px. Captions, metadata and telemetry. */
-  bodySm:    { fontFamily: FONTS.regular, fontSize: 11, lineHeight: 14, fontWeight: '400' as const },
-  /** 12px. Buttons and pills, which are always medium weight. */
-  labelMd:   { fontFamily: FONTS.medium, fontSize: 12, lineHeight: 16, fontWeight: '500' as const, letterSpacing: -0.12 },
-  /** 11px. Uppercase section eyebrows, letterspaced. */
-  labelSm:   { fontFamily: FONTS.medium, fontSize: 11, lineHeight: 14, fontWeight: '500' as const, letterSpacing: 0.66 },
-  /** 10px. Tabular figures for timecodes and counters. */
-  labelXs:   { fontFamily: FONTS.medium, fontSize: 10, lineHeight: 14, fontWeight: '500' as const, letterSpacing: 0.4 },
-  /** 9px. Densest metadata. */
-  micro:     { fontFamily: FONTS.medium, fontSize: 9, lineHeight: 12, fontWeight: '500' as const, letterSpacing: 0.3 },
-  mono:      { fontFamily: FONTS.regular, fontSize: 11, lineHeight: 14, fontWeight: '400' as const, letterSpacing: 0.3 },
-  monoSm:    { fontFamily: FONTS.regular, fontSize: 9, lineHeight: 12, fontWeight: '400' as const, letterSpacing: 0.3 },
+  /** 32px / 36px. Showcase type/display. */
+  display:       { fontFamily: FONTS.semiBold, fontSize: 32, lineHeight: 36, fontWeight: '600' as const, letterSpacing: -1 },
+  /** 26px / 32px. Hero title. */
+  hero:          { fontFamily: FONTS.semiBold, fontSize: 26, lineHeight: 32, fontWeight: '600' as const, letterSpacing: -0.5 },
+  /** 22px / 28px. Showcase type/title. */
+  title:         { fontFamily: FONTS.semiBold, fontSize: 22, lineHeight: 28, fontWeight: '600' as const, letterSpacing: -0.5 },
+  /** 18px / 24px. Section headings. */
+  titleMd:       { fontFamily: FONTS.medium, fontSize: 18, lineHeight: 24, fontWeight: '500' as const, letterSpacing: -0.45 },
+  /** 17px / 24px. Showcase type/headline. */
+  headline:      { fontFamily: FONTS.semiBold, fontSize: 17, lineHeight: 24, fontWeight: '600' as const, letterSpacing: 0 },
+  /** 15px / 22px. Showcase type/body-strong. */
+  bodyStrong:    { fontFamily: FONTS.semiBold, fontSize: 15, lineHeight: 22, fontWeight: '600' as const },
+  bodyLg:        { fontFamily: FONTS.contentSemiBold, fontSize: 15, lineHeight: 22, fontWeight: '600' as const },
+  /** 15px / 22px. Showcase type/body. */
+  body:          { fontFamily: FONTS.regular, fontSize: 15, lineHeight: 22, fontWeight: '400' as const },
+  bodyMd:        { fontFamily: FONTS.regular, fontSize: 14, lineHeight: 20, fontWeight: '400' as const },
+  /** 13px / 18px. Showcase type/caption. */
+  caption:       { fontFamily: FONTS.regular, fontSize: 13, lineHeight: 18, fontWeight: '400' as const },
+  /** 13px / 18px. Showcase type/caption-strong. */
+  captionStrong: { fontFamily: FONTS.semiBold, fontSize: 13, lineHeight: 18, fontWeight: '600' as const },
+  bodySm:        { fontFamily: FONTS.regular, fontSize: 13, lineHeight: 18, fontWeight: '400' as const },
+  /** 12px / 16px. Showcase type/label (uppercase tracking 0.08em). */
+  label:         { fontFamily: FONTS.semiBold, fontSize: 12, lineHeight: 16, fontWeight: '600' as const, letterSpacing: 0.96, textTransform: 'uppercase' as const },
+  labelSm:       { fontFamily: FONTS.semiBold, fontSize: 12, lineHeight: 16, fontWeight: '600' as const, letterSpacing: 0.96, textTransform: 'uppercase' as const },
+  labelMd:       { fontFamily: FONTS.medium, fontSize: 12, lineHeight: 16, fontWeight: '500' as const, letterSpacing: -0.12 },
+  labelXs:       { fontFamily: FONTS.medium, fontSize: 10, lineHeight: 14, fontWeight: '500' as const, letterSpacing: 0.4 },
+  /** 12px / 16px. Showcase type/micro. */
+  micro:         { fontFamily: FONTS.medium, fontSize: 12, lineHeight: 16, fontWeight: '500' as const, letterSpacing: 0 },
+  /** JetBrains / Geist Mono scales */
+  monoBody:      { fontFamily: FONTS.regular, fontSize: 15, lineHeight: 22, fontWeight: '400' as const, letterSpacing: 0 },
+  monoCaption:   { fontFamily: FONTS.regular, fontSize: 13, lineHeight: 18, fontWeight: '400' as const, letterSpacing: 0 },
+  monoMicro:     { fontFamily: FONTS.medium, fontSize: 12, lineHeight: 16, fontWeight: '500' as const, letterSpacing: 0 },
+  mono:          { fontFamily: FONTS.regular, fontSize: 12, lineHeight: 16, fontWeight: '400' as const, letterSpacing: 0.3 },
+  monoSm:        { fontFamily: FONTS.regular, fontSize: 10, lineHeight: 14, fontWeight: '400' as const, letterSpacing: 0.3 },
 
-  /**
-   * Legacy names. Screens not yet rebuilt still reference these, so they map
-   * onto the new scale rather than being left to break the build.
-   */
-  h1:       { fontFamily: FONTS.semiBold, fontSize: 22, lineHeight: 28, fontWeight: '600' as const, letterSpacing: -0.4 },
-  h1m:      { fontFamily: FONTS.medium, fontSize: 20, lineHeight: 26, fontWeight: '500' as const, letterSpacing: -0.4 },
-  h2:       { fontFamily: FONTS.medium, fontSize: 18, lineHeight: 24, fontWeight: '500' as const, letterSpacing: -0.45 },
-  h3:       { fontFamily: FONTS.medium, fontSize: 16, lineHeight: 22, fontWeight: '500' as const, letterSpacing: -0.2 },
-  titleLg:  { fontFamily: FONTS.medium, fontSize: 16, lineHeight: 22, fontWeight: '500' as const, letterSpacing: -0.2 },
+  /** Legacy aliases */
+  h1:            { fontFamily: FONTS.semiBold, fontSize: 22, lineHeight: 28, fontWeight: '600' as const, letterSpacing: -0.4 },
+  h1m:           { fontFamily: FONTS.medium, fontSize: 20, lineHeight: 26, fontWeight: '500' as const, letterSpacing: -0.4 },
+  h2:            { fontFamily: FONTS.medium, fontSize: 18, lineHeight: 24, fontWeight: '500' as const, letterSpacing: -0.45 },
+  h3:            { fontFamily: FONTS.medium, fontSize: 16, lineHeight: 22, fontWeight: '500' as const, letterSpacing: -0.2 },
+  titleLg:       { fontFamily: FONTS.medium, fontSize: 16, lineHeight: 22, fontWeight: '500' as const, letterSpacing: -0.2 },
 } as const;
 
-/**
- * Flattened aliases kept for screens that predate the token names, so they
- * inherit the new palette without a sweeping rewrite.
- */
 export const COLORS = {
   dark: colors.background,
   surface: colors.background,
@@ -230,8 +259,8 @@ export const COLORS = {
   background: colors.background,
   onBackground: colors.onSurface,
   surfaceTint: colors.primary,
-  glassBackground: 'rgba(31, 31, 34, 0.95)',
-  glassBorder: 'rgba(255, 255, 255, 0.08)',
+  glassBackground: 'rgba(20, 20, 22, 0.92)',
+  glassBorder: colors.divider,
   gradientStart: colors.surfaceContainer,
   gradientEnd: colors.background,
 } as const;
@@ -250,7 +279,7 @@ export const RADIUS = {
   sm: r.sm,
   md: r.md,
   lg: r.lg,
-  xl: r.lg,
+  xl: r.sheet,
   pill: r.pill,
   full: r.full,
 } as const;

@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,7 +9,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Icon from '../src/components/ui/Icon';
+import CoverThumb from '../src/components/ui/CoverThumb';
 import PlayerTabBar, { PlayerTab } from '../src/components/ui/PlayerTabBar';
+import { EmptyState } from '../src/components/ui/primitives';
 import { colors, FONTS, r, t } from '../src/theme/theme';
 import { usePlaybackStore } from '../src/store/playbackStore';
 import { audioService } from '../src/audio/AudioService';
@@ -72,9 +73,7 @@ export default function LyricsScreen() {
   }, [trackId]);
 
   /**
-   * The active line is the last one whose timestamp has passed. With no
-   * timestamps there is no sync to do, so every line renders as static text
-   * rather than pretending to be one live.
+   * The active line is the last one whose timestamp has passed.
    */
   const synced = useMemo(() => items.some((item) => item.timeMs !== undefined), [items]);
 
@@ -92,7 +91,7 @@ export default function LyricsScreen() {
 
   useEffect(() => {
     if (!syncLocked || activeIndex < 0 || !scrollRef.current) return;
-    scrollRef.current.scrollTo({ y: Math.max(0, activeIndex * 88 - 220), animated: true });
+    scrollRef.current.scrollTo({ y: Math.max(0, activeIndex * 92 - 200), animated: true });
   }, [activeIndex, syncLocked]);
 
   const handleLinePress = (item: LyricLineItem) => {
@@ -128,6 +127,7 @@ export default function LyricsScreen() {
 
   return (
     <SafeAreaView style={s.container} edges={['top']}>
+      {/* Header */}
       <View style={s.header}>
         <Pressable
           onPress={handleDismiss}
@@ -136,7 +136,7 @@ export default function LyricsScreen() {
           accessibilityRole="button"
           accessibilityLabel="Close lyrics"
         >
-          <Icon name="chevron-down" size={26} color={colors.onSurface} />
+          <Icon name="chevron-down" size={24} color={colors.textPrimary} />
         </Pressable>
         <Text style={s.headerTitle}>LYRICS</Text>
         <Pressable
@@ -148,74 +148,82 @@ export default function LyricsScreen() {
           accessibilityLabel={syncLocked ? 'Disable lyric sync' : 'Enable lyric sync'}
         >
           <Icon
-            name="sync"
-            size={19}
-            color={syncLocked ? colors.onSurface : colors.outlineText}
+            name="lock"
+            size={18}
+            color={syncLocked ? colors.accent : colors.disabled}
           />
         </Pressable>
       </View>
 
+      {/* Sticky top context bar */}
+      <View style={s.contextCard}>
+        <CoverThumb
+          uri={currentTrack?.coverUrl ?? currentTrack?.artwork}
+          pattern="lines"
+          size={42}
+          borderRadius={r.sm}
+          showGlow={isPlaying}
+        />
+
+        <View style={s.contextMeta}>
+          <Text style={s.contextTitle} numberOfLines={1}>
+            {currentTrack?.title ?? 'Nothing playing'}
+          </Text>
+          <Text style={s.contextArtist} numberOfLines={1}>
+            {currentTrack ? [currentTrack.artist, currentTrack.album].filter(Boolean).join(' · ') : '—'}
+          </Text>
+        </View>
+
+        <Pressable
+          onPress={handleToggleFavorite}
+          hitSlop={8}
+          style={({ pressed }) => [s.iconBtn, pressed && s.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel={liked ? 'Remove from saved' : 'Save track'}
+        >
+          <Icon
+            name={liked ? 'check' : 'plus'}
+            size={18}
+            color={liked ? colors.accent : colors.textTertiary}
+          />
+        </Pressable>
+
+        <Pressable
+          onPress={handleTogglePlay}
+          hitSlop={8}
+          style={({ pressed }) => [s.playBtn, pressed && s.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
+        >
+          <Icon
+            name={isPlaying ? 'pause' : 'play'}
+            size={16}
+            color={colors.onAccent}
+          />
+        </Pressable>
+
+        {/* Progress track */}
+        <View style={s.progressBar}>
+          <View style={[s.progressFill, { width: `${progress * 100}%` }]} />
+        </View>
+      </View>
+
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={s.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Sticky context player card */}
-        <View style={s.contextCard}>
-          {currentTrack?.coverUrl || currentTrack?.artwork ? (
-            <Image
-              source={{ uri: (currentTrack.coverUrl ?? currentTrack.artwork) as string }}
-              style={s.contextArt}
-            />
-          ) : (
-            <View style={[s.contextArt, s.contextArtFallback]}>
-              <Icon name="musical-note" size={16} color={colors.outlineText} />
-            </View>
-          )}
-
-          <View style={s.contextMeta}>
-            <Text style={s.contextTitle} numberOfLines={1}>{currentTrack?.title ?? 'Nothing playing'}</Text>
-            <Text style={s.contextArtist} numberOfLines={1}>
-              {currentTrack ? [currentTrack.artist, currentTrack.album].filter(Boolean).join(' • ') : '—'}
-            </Text>
-          </View>
-
-          <Pressable
-            onPress={handleToggleFavorite}
-            hitSlop={6}
-            style={({ pressed }) => [pressed && s.pressed]}
-            accessibilityRole="button"
-            accessibilityLabel={liked ? 'Remove from favorites' : 'Add to favorites'}
-          >
-            <Icon name={liked ? 'heart' : 'heart-outline'} size={20} color={colors.onSurface} />
-          </Pressable>
-
-          <Pressable
-            onPress={handleTogglePlay}
-            hitSlop={6}
-            style={({ pressed }) => [s.contextPlay, pressed && s.pressed]}
-            accessibilityRole="button"
-            accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
-          >
-            <Icon name={isPlaying ? 'pause' : 'play'} size={18} color={colors.onPrimary} />
-          </Pressable>
-
-          {/* Progress sits under the card content, matching the mockup */}
-          <View style={s.contextProgressWrap}>
-            <View style={s.contextTrack}>
-              <View style={[s.contextFill, { width: `${progress * 100}%` }]} />
-            </View>
-            <View style={s.contextTimes}>
-              <Text style={s.contextTime}>{formatTime(positionMs)}</Text>
-              <Text style={s.contextTime}>{formatTime(durationMs)}</Text>
-            </View>
-          </View>
-        </View>
-
         {/* Lyric lines */}
         {loading ? (
-          <Text style={s.emptyText}>Loading synchronized lyrics…</Text>
+          <Text style={s.statusNotice}>Retrieving synchronized lyrics…</Text>
         ) : items.length === 0 ? (
-          <Text style={s.emptyText}>No lyrics available for this track.</Text>
+          <EmptyState
+            code="EMPTY_03"
+            title="No lyrics found"
+            body="Synchronized lyrics are not available for this track."
+            actionLabel="BACK TO PLAYER"
+            onAction={() => router.push('/now-playing' as any)}
+          />
         ) : (
           <View style={s.lyricList}>
             {items.map((item, index) => {
@@ -229,15 +237,15 @@ export default function LyricsScreen() {
                     onPress={() => handleLinePress(item)}
                     style={({ pressed }) => [s.activeLineWrap, pressed && s.pressed]}
                     accessibilityRole="button"
-                    accessibilityLabel={`Now singing: ${item.text}. Tap to replay.`}
+                    accessibilityLabel={`Now playing: ${item.text}. Tap to jump.`}
                   >
                     <Text style={s.activeTime}>{formatTime(item.timeMs ?? 0)}</Text>
                     <View style={s.activeLineBody}>
                       <Text style={s.activeLineText}>{item.text}</Text>
-                      <View style={s.activeIndicatorRow}>
-                        <View style={[s.activeDash, { height: 4 }]} />
-                        <View style={[s.activeDash, s.activeDashLong, { height: 4 }]} />
-                        <View style={[s.activeDash, { height: 4 }]} />
+                      <View style={s.levelDots}>
+                        <View style={[s.levelDot, s.levelDotFilled]} />
+                        <View style={[s.levelDot, s.levelDotFilled]} />
+                        <View style={s.levelDot} />
                       </View>
                     </View>
                   </Pressable>
@@ -250,14 +258,16 @@ export default function LyricsScreen() {
                   onPress={() => handleLinePress(item)}
                   style={({ pressed }) => [s.lineWrap, pressed && s.pressed]}
                   accessibilityRole="button"
-                  accessibilityLabel={`Lyric: ${item.text}. Tap to jump here.`}
+                  accessibilityLabel={`Lyric: ${item.text}. Tap to jump.`}
                 >
                   {item.timeMs !== undefined && (
                     <Text style={[s.lineTime, isPast && s.lineTimePast]}>
                       {formatTime(item.timeMs)}
                     </Text>
                   )}
-                  <Text style={[s.lineText, isPast && s.lineTextPast]}>{item.text}</Text>
+                  <Text style={[s.lineText, isPast && s.lineTextPast]}>
+                    {item.text}
+                  </Text>
                 </Pressable>
               );
             })}
@@ -265,6 +275,7 @@ export default function LyricsScreen() {
         )}
       </ScrollView>
 
+      {/* Capsule tab bar */}
       <PlayerTabBar active="lyrics" onSelect={goToPlayerTab} />
     </SafeAreaView>
   );
@@ -273,53 +284,45 @@ export default function LyricsScreen() {
 const s = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.surfaceDeep,
+    backgroundColor: colors.ink,
   },
   pressed: {
     opacity: 0.7,
   },
-  content: {
-    paddingHorizontal: 16,
-    paddingBottom: 24,
-    gap: 24,
-  },
-
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingVertical: 12,
   },
   headerButton: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
+    borderRadius: r.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerTitle: {
-    ...t.titleMd,
-    color: colors.onSurface,
+    ...t.headline,
+    color: colors.textPrimary,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
 
   contextCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    padding: 12,
-    borderRadius: r.lg,
-    backgroundColor: colors.surfaceVariant,
-    flexWrap: 'wrap',
-  },
-  contextArt: {
-    width: 48,
-    height: 48,
-    borderRadius: r.sm,
-    backgroundColor: colors.surfaceContainer,
-  },
-  contextArtFallback: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    marginHorizontal: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: r.md,
+    backgroundColor: colors.surface1,
+    borderWidth: 1,
+    borderColor: colors.divider,
+    position: 'relative',
+    overflow: 'hidden',
   },
   contextMeta: {
     flex: 1,
@@ -327,50 +330,50 @@ const s = StyleSheet.create({
     gap: 2,
   },
   contextTitle: {
-    fontFamily: FONTS.contentSemiBold,
-    fontSize: 15,
-    lineHeight: 20,
+    ...t.body,
     fontWeight: '600',
-    color: colors.onSurface,
+    fontSize: 14,
+    color: colors.textPrimary,
   },
   contextArtist: {
-    ...t.bodySm,
-    color: colors.outlineText,
+    ...t.caption,
+    fontSize: 12,
+    color: colors.textSecondary,
   },
-  contextPlay: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  iconBtn: {
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.onSurface,
   },
-  contextProgressWrap: {
-    width: '100%',
-    marginTop: 4,
-    gap: 4,
+  playBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: r.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.accent,
   },
-  contextTrack: {
-    height: 3,
-    borderRadius: r.pill,
-    backgroundColor: colors.surfaceContainerHigh,
+  progressBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 2,
+    backgroundColor: colors.surface2,
   },
-  contextFill: {
-    height: 3,
-    borderRadius: r.pill,
-    backgroundColor: colors.onSurface,
+  progressFill: {
+    height: 2,
+    backgroundColor: colors.accent,
   },
-  contextTimes: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  contextTime: {
-    ...t.mono,
-    color: colors.onSurfaceVariant,
+
+  content: {
+    paddingHorizontal: 24,
+    paddingVertical: 24,
   },
 
   lyricList: {
-    gap: 28,
+    gap: 24,
   },
   lineWrap: {
     flexDirection: 'row',
@@ -378,24 +381,23 @@ const s = StyleSheet.create({
     gap: 16,
   },
   lineTime: {
-    ...t.mono,
-    width: 44,
-    paddingTop: 4,
-    color: colors.outlineText,
-    fontVariant: ['tabular-nums'],
+    ...t.monoMicro,
+    width: 40,
+    paddingTop: 3,
+    color: colors.textTertiary,
   },
   lineTimePast: {
-    opacity: 0.5,
+    color: colors.textPast,
   },
   lineText: {
     flex: 1,
-    fontFamily: FONTS.content,
+    ...t.headline,
     fontSize: 18,
     lineHeight: 26,
-    color: colors.outlineText,
+    color: colors.textTertiary,
   },
   lineTextPast: {
-    opacity: 0.45,
+    color: colors.textPast,
   },
 
   activeLineWrap: {
@@ -403,45 +405,47 @@ const s = StyleSheet.create({
     alignItems: 'flex-start',
     gap: 16,
     padding: 16,
-    borderRadius: r.lg,
-    backgroundColor: colors.surfaceVariant,
+    borderRadius: r.md,
+    backgroundColor: colors.surface2,
+    borderWidth: 1,
+    borderColor: colors.divider,
   },
   activeTime: {
-    ...t.mono,
-    width: 44,
-    paddingTop: 2,
-    color: colors.onSurface,
-    fontVariant: ['tabular-nums'],
+    ...t.monoMicro,
+    width: 40,
+    paddingTop: 5,
+    color: colors.textPrimary,
+    fontWeight: '700',
   },
   activeLineBody: {
     flex: 1,
-    gap: 12,
+    gap: 8,
   },
   activeLineText: {
-    fontFamily: FONTS.contentSemiBold,
-    fontSize: 20,
-    lineHeight: 28,
-    fontWeight: '600',
-    color: colors.onSurface,
+    ...t.title,
+    fontSize: 22,
+    lineHeight: 30,
+    color: colors.textPrimary,
+    fontWeight: '700',
   },
-  activeIndicatorRow: {
+  levelDots: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+    gap: 4,
+    marginTop: 4,
   },
-  activeDash: {
-    width: 14,
-    borderRadius: r.pill,
-    backgroundColor: colors.surfaceContainerHighest,
+  levelDot: {
+    width: 8,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: colors.surface2,
   },
-  activeDashLong: {
-    width: 28,
-    backgroundColor: colors.onSurface,
+  levelDotFilled: {
+    backgroundColor: colors.accent,
   },
 
-  emptyText: {
-    ...t.bodyMd,
-    color: colors.outlineText,
+  statusNotice: {
+    ...t.caption,
+    color: colors.textTertiary,
     textAlign: 'center',
     paddingVertical: 48,
   },
