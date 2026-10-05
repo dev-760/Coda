@@ -217,14 +217,6 @@ export default function QueueScreen() {
       </View>
 
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
-        {/* Readout totals */}
-        <View style={s.readoutRow}>
-          <Text style={s.totalsText}>
-            TOTAL: {allTracks.length} {allTracks.length === 1 ? 'TRACK' : 'TRACKS'}
-            {totalRuntime(allTracks) ? ` · ${totalRuntime(allTracks)}` : ''}
-          </Text>
-          <Text style={s.fidelityText}>{(hifiQuality ?? 'LOSSLESS').toUpperCase()}</Text>
-        </View>
 
         {notice && (
           <Banner

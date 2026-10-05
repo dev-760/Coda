@@ -276,42 +276,6 @@ export default function SearchScreen() {
         </View>
       )}
 
-      {/* Curated style seeds */}
-      <View style={s.block}>
-        <View style={s.blockHeader}>
-          <View style={s.blockHeaderText}>
-            <Text style={s.blockLabel}>EXPLORE STYLES</Text>
-            <Text style={s.blockTitle}>Curated Aesthetics</Text>
-          </View>
-        </View>
-
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={s.rail}
-        >
-          {EXPLORE_STYLES.map((item) => (
-            <Pressable
-              key={item.id}
-              onPress={() => runSearch(item.query)}
-              style={({ pressed }) => [s.styleCard, pressed && s.pressed]}
-              accessibilityRole="button"
-              accessibilityLabel={`${item.title}. Search style.`}
-            >
-              <View style={s.styleCardHeader}>
-                <Text style={s.styleCardTitle}>{item.title}</Text>
-                <View style={s.styleSearchBadge}>
-                  <Icon name="search" size={13} color={colors.onSurface} />
-                </View>
-              </View>
-              <Text style={s.styleCardBlurb} numberOfLines={2}>{item.blurb}</Text>
-              <View style={s.styleCardFooter}>
-                <Text style={s.styleCardSeed}>Search: {item.query}</Text>
-              </View>
-            </Pressable>
-          ))}
-        </ScrollView>
-      </View>
 
       {/* Genre grid matching showcase card/genre */}
       <View style={s.block}>

@@ -174,9 +174,6 @@ export default function SettingsScreen() {
           <Text style={s.sectionTitle}>PLAYBACK &amp; AUDIO</Text>
         </View>
 
-        {/* Signal Path Hardware Diagram */}
-        <SignalPathDiagram activeNode="Output" />
-
         <View style={s.card}>
           <Text style={s.cardLabel}>Streaming Quality</Text>
           <Text style={s.cardHint}>Select fidelity for online streaming audio.</Text>
@@ -349,12 +346,6 @@ export default function SettingsScreen() {
         <View style={s.sectionHeader}>
           <Text style={s.sectionTitle}>STORAGE</Text>
         </View>
-
-        <StorageBar
-          usedGb={usedGb}
-          totalGb={totalCapacityGb}
-          isLow={freeGb !== null && freeGb < 2}
-        />
 
         <View style={s.card}>
           <View style={s.statRow}>

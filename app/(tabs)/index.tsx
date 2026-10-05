@@ -133,25 +133,12 @@ export default function HomeScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.onSurface} />
         }
       >
-        {/* Top Header matching Luma showcase nav/header */}
+        {/* Top Header */}
         <View style={s.headerRow}>
-          <View style={s.headerTitles}>
-            <View style={s.brandLine}>
-              <AppLogo size={22} color={colors.accent} />
-              <Text style={s.dateEyebrow}>{getFormattedDate()}</Text>
-            </View>
-            <Text style={s.screenTitle}>Continue</Text>
+          <View style={s.brandLine}>
+            <AppLogo size={22} color={colors.accent} />
+            <Text style={s.dateEyebrow}>{getFormattedDate()}</Text>
           </View>
-
-          <Pressable
-            onPress={() => router.push('/settings' as any)}
-            hitSlop={10}
-            style={({ pressed }) => [s.avatarDisc, pressed && s.pressed]}
-            accessibilityRole="button"
-            accessibilityLabel="Settings and audio configuration"
-          >
-            <Icon name="sliders" size={20} color={colors.onSurface} />
-          </Pressable>
         </View>
 
         {offline && (
@@ -223,21 +210,6 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* Filter Chips Rail */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={s.chipRail}
-        >
-          {GENRE_CHIPS.map((genre) => (
-            <Chip
-              key={genre}
-              label={genre}
-              selected={selectedGenre === genre}
-              onPress={() => setSelectedGenre(genre)}
-            />
-          ))}
-        </ScrollView>
 
         {/* Heavy Rotation Carousel */}
         {heavyRotation.length > 0 && (
@@ -292,26 +264,8 @@ export default function HomeScreen() {
 
         {/* Made for You Recommendations */}
         <View style={s.section}>
-          <MadeForYou
-            seed={
-              selectedGenre === 'All'
-                ? null
-                : { id: `genre_${selectedGenre.toLowerCase()}`, title: selectedGenre, artist: selectedGenre }
-            }
-          />
+          <MadeForYou seed={null} />
         </View>
-
-        {/* Empty state when library has no tracks */}
-        {!hasContent && (
-          <EmptyState
-            icon="explore"
-            title="Explore Curated Sound"
-            body="Discover high-resolution releases, studio masters and binaural recordings."
-            actionLabel="Browse Explore"
-            onAction={() => router.push('/search' as any)}
-            style={s.emptySpacing}
-          />
-        )}
       </ScrollView>
 
       {/* Options sheet */}

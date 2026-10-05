@@ -147,13 +147,6 @@ export default function NowPlayingScreen() {
         contentContainerStyle={s.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Technical Readout & Format badge row */}
-        <View style={s.readoutRow}>
-          <Text style={s.readoutText}>
-            TRACK {trackIndexStr}/{totalTracksStr} · {bitrate} KBPS
-          </Text>
-          <QualityBadge format={qualityBadge} />
-        </View>
 
         {/* Artwork showcase */}
         <View style={[s.artContainer, { width: artSize + 16, height: artSize + 16 }]}>
@@ -318,14 +311,6 @@ export default function NowPlayingScreen() {
           </Pressable>
         </View>
 
-        {/* Output Device Pill */}
-        <View style={s.devicePill}>
-          <Icon name="output" size={14} color={colors.textTertiary} />
-          <Text style={s.deviceText}>USB DAC · DIRECT</Text>
-          <View style={s.deviceDivider} />
-          <View style={s.statusDot} />
-          <Text style={s.bitPerfectText}>BIT-PERFECT</Text>
-        </View>
 
         {!!error && <Text style={s.errorText}>{error}</Text>}
         {isLoading && <Text style={s.statusText}>Buffering audio stream…</Text>}

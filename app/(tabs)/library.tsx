@@ -122,22 +122,11 @@ export default function LibraryScreen() {
         contentContainerStyle={[s.content, { paddingBottom: bottomBarClearance }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Top Header matching Luma showcase Collection */}
+        {/* Top Header */}
         <View style={s.headerRow}>
           <View style={s.headerTitles}>
-            <Text style={s.eyebrow}>
-              {`${totalSavedCount} SAVED · ${completedDownloads.length} OFFLINE`}
-            </Text>
             <Text style={s.screenTitle}>Collection</Text>
           </View>
-        </View>
-
-        {/* Collection Controls from showcase */}
-        <View style={s.controlsRow}>
-          <OfflinePill
-            isOffline={offlineOnly}
-            onToggle={() => setOfflineMode(!offlineOnly)}
-          />
         </View>
 
         <SegmentedControl
@@ -323,11 +312,6 @@ export default function LibraryScreen() {
         {/* 4. DOWNLOADS VIEW */}
         {view === 'downloads' && (
           <View style={s.viewSection}>
-            <StorageBar
-              usedGb={usedGb}
-              totalGb={totalCapacityGb}
-              isLow={usedGb > totalCapacityGb * 0.9}
-            />
 
             {completedDownloads.length === 0 ? (
               <EmptyState

@@ -295,7 +295,7 @@ const s = StyleSheet.create({
     borderTopRightRadius: 20,
     borderTopWidth: 1,
     borderTopColor: colors.divider,
-    backgroundColor: colors.surface2,
+    backgroundColor: '#18181B',
   },
   grabber: {
     width: 40,

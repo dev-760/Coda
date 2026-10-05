@@ -239,7 +239,6 @@ export default function LyricsScreen() {
                     accessibilityRole="button"
                     accessibilityLabel={`Now playing: ${item.text}. Tap to jump.`}
                   >
-                    <Text style={s.activeTime}>{formatTime(item.timeMs ?? 0)}</Text>
                     <View style={s.activeLineBody}>
                       <Text style={s.activeLineText}>{item.text}</Text>
                       <View style={s.levelDots}>
@@ -260,11 +259,6 @@ export default function LyricsScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={`Lyric: ${item.text}. Tap to jump.`}
                 >
-                  {item.timeMs !== undefined && (
-                    <Text style={[s.lineTime, isPast && s.lineTimePast]}>
-                      {formatTime(item.timeMs)}
-                    </Text>
-                  )}
                   <Text style={[s.lineText, isPast && s.lineTextPast]}>
                     {item.text}
                   </Text>
