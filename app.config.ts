@@ -5,7 +5,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: 'Luma',
   slug: 'luma',
-  owner: 'wasler4j',
+  owner: 'windsurf29',
   version: packageJson.version,
   orientation: 'default',
   icon: './assets/brand/icon-1024.png',
@@ -92,7 +92,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   extra: {
     hifiApiBaseUrl: 'https://hifi-api00.vercel.app',
     eas: {
-      projectId: "04e8b1da-7e68-4186-b984-58c97312cfec",
+      projectId: '721038e8-4798-46ab-b51b-2ebdf891abf4',
     },
   }
 });
