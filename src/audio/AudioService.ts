@@ -231,25 +231,34 @@ class AudioService {
     await this.playTrack(next);
   }
 
-  async playPrevious(): Promise<void> {
-    if (usePlaybackStore.getState().positionMs > PREVIOUS_RESTART_MS) {
+  private lastPreviousClickTime = 0;
+
+  async playPrevious(forcePrevious = false): Promise<void> {
+    const now = Date.now();
+    const isDoubleTap = now - this.lastPreviousClickTime < 2000;
+    this.lastPreviousClickTime = now;
+
+    if (!forcePrevious && !isDoubleTap && usePlaybackStore.getState().positionMs > PREVIOUS_RESTART_MS) {
       await this.seekTo(0);
       return;
     }
     const previous = useQueueStore.getState().goBack();
-    if (!previous) return;
+    if (!previous) {
+      await this.seekTo(0);
+      return;
+    }
     await this.playTrack(previous);
   }
 
   async pause(): Promise<void> {
     this.cancelSleepTimer();
-    await this.backend.pause();
     usePlaybackStore.getState().setPlaying(false);
+    await this.backend.pause();
   }
 
   async resume(): Promise<void> {
-    await this.backend.resume();
     usePlaybackStore.getState().setPlaying(true);
+    await this.backend.resume();
     this.startSleepTimer();
   }
 
@@ -260,6 +269,7 @@ class AudioService {
   }
 
   async seekTo(positionMs: number): Promise<void> {
+    usePlaybackStore.setState({ positionMs });
     await this.backend.seekTo(positionMs);
   }
 

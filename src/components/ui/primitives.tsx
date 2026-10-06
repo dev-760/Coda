@@ -1,4 +1,3 @@
-import React from 'react';
 import {
   Pressable,
   StyleSheet,
@@ -10,11 +9,6 @@ import {
 } from 'react-native';
 import Icon from './Icon';
 import { colors, r, t } from '../../theme/theme';
-
-/**
- * Coda Primitives — faithfully built to match the Coda Design System showcase:
- * https://design-system-rho-dusky.vercel.app/
- */
 
 export interface ButtonProps {
   label: string;
@@ -30,11 +24,7 @@ export interface ButtonProps {
 }
 
 /**
- * Standard Coda Button:
- * - Primary: Solid Silver fill (#B8B8C0), Ink (#141416) text & icon
- * - Secondary / Outline: 1px Silver outline, Silver text
- * - Ghost: No border/background, Silver text, surface-1 pressed
- * - Destructive: Trash icon, 1px Silver outline
+ * Standard Coda Button
  */
 export function Button({
   label,
@@ -151,7 +141,7 @@ export function PlayButton({
 }
 
 /**
- * Filter Chip from showcase:
+ * Filter Chip:
  * 8px radius, surface-2 background, 1px divider border.
  * When active: solid Silver background, Ink text, check icon.
  */
@@ -200,85 +190,7 @@ export function Chip({
 }
 
 /**
- * Audio Quality Badge from showcase:
- * e.g. "FLAC 24/96", "Hi-Res Lossless 192k", "Dolby Atmos"
- */
-export function QualityBadge({
-  quality,
-  format,
-  active = false,
-  onPress,
-  style,
-}: {
-  quality?: string;
-  format?: string;
-  active?: boolean;
-  onPress?: () => void;
-  style?: StyleProp<ViewStyle>;
-}) {
-  const displayQuality = format ?? quality ?? 'FLAC 24/96';
-  return (
-    <Pressable
-      onPress={onPress}
-      style={[
-        s.qualityBadge,
-        active && s.qualityBadgeActive,
-        style,
-      ]}
-      accessibilityLabel={`Audio quality ${displayQuality}`}
-    >
-      <Text style={s.qualityText}>{displayQuality}</Text>
-    </Pressable>
-  );
-}
-
-/**
- * Offline Mode Pill toggle from showcase:
- * - On: Solid Silver fill, Ink text ("Offline · On")
- * - Off: 1px Silver outline, Silver text ("Offline · Off")
- */
-export function OfflinePill({
-  isOffline,
-  onToggle,
-  style,
-}: {
-  isOffline: boolean;
-  onToggle?: () => void;
-  style?: StyleProp<ViewStyle>;
-}) {
-  return (
-    <Pressable
-      onPress={onToggle}
-      style={({ pressed }) => [
-        s.offlinePill,
-        isOffline ? s.offlinePillOn : s.offlinePillOff,
-        pressed && s.pressed,
-        style,
-      ]}
-      accessibilityRole="switch"
-      accessibilityState={{ checked: isOffline }}
-      accessibilityLabel={`Offline mode ${isOffline ? 'on' : 'off'}`}
-      hitSlop={6}
-    >
-      <Icon
-        name="cloud-off"
-        size={16}
-        color={isOffline ? colors.onPrimary : colors.onSurface}
-      />
-      <Text
-        style={[
-          s.offlinePillText,
-          { color: isOffline ? colors.onPrimary : colors.onSurface },
-        ]}
-      >
-        {isOffline ? 'Offline · On' : 'Offline · Off'}
-      </Text>
-    </Pressable>
-  );
-}
-
-/**
- * Segmented Control container from showcase
+ * Segmented Control container
  */
 export function SegmentedControl<T extends string>({
   segments,
@@ -325,47 +237,7 @@ export function SegmentedControl<T extends string>({
 }
 
 /**
- * Storage Bar from showcase
- */
-export function StorageBar({
-  usedGb,
-  totalGb,
-  isLow = false,
-  onManage,
-}: {
-  usedGb: number;
-  totalGb: number;
-  isLow?: boolean;
-  onManage?: () => void;
-}) {
-  const freeGb = Math.max(0, totalGb - usedGb);
-  const ratio = totalGb > 0 ? Math.min(1, usedGb / totalGb) : 0;
-
-  return (
-    <View style={s.storageCard}>
-      <View style={s.storageHeader}>
-        <View style={s.storageTitleRow}>
-          {isLow && <Icon name="warning" size={16} color={colors.onSurface} />}
-          <Text style={s.storageUsedText}>
-            {`${usedGb.toFixed(1)} GB of ${totalGb.toFixed(0)} GB used`}
-          </Text>
-        </View>
-        <Text style={s.storageFreeText}>{`${freeGb.toFixed(1)} GB free`}</Text>
-      </View>
-      <View style={s.storageTrack}>
-        <View style={[s.storageFill, { width: `${ratio * 100}%` }]} />
-      </View>
-      {isLow && (
-        <Text style={s.storageWarningText}>
-          Storage almost full. Remove downloads to keep saving music offline.
-        </Text>
-      )}
-    </View>
-  );
-}
-
-/**
- * Feedback Banner from showcase (Offline, Error, Low Storage, Success)
+ * Feedback Banner (Offline, Error, Low Storage, Success)
  */
 export function Banner({
   type = 'offline',
@@ -376,9 +248,9 @@ export function Banner({
   onDismiss,
   style,
 }: {
-  type?: 'offline' | 'error' | 'success' | 'lowStorage';
+  type?: 'offline' | 'error' | 'warning' | 'success';
   title: string;
-  body: string;
+  body?: string;
   actionLabel?: string;
   onAction?: () => void;
   onDismiss?: () => void;
@@ -388,23 +260,25 @@ export function Banner({
     type === 'offline'
       ? 'cloud-off'
       : type === 'error'
+      ? 'alert-circle'
+      : type === 'warning'
       ? 'warning'
-      : type === 'lowStorage'
-      ? 'storage'
-      : 'check';
+      : 'check-circle';
 
   return (
-    <View style={[s.banner, style]} accessibilityRole="alert">
+    <View style={[s.banner, style]}>
       <Icon name={iconName} size={20} color={colors.onSurface} />
       <View style={s.bannerContent}>
         <Text style={s.bannerTitle}>{title}</Text>
-        <Text style={s.bannerBody}>{body}</Text>
+        {!!body && <Text style={s.bannerBody}>{body}</Text>}
       </View>
-      {!!actionLabel && (
+      {!!actionLabel && !!onAction && (
         <Pressable
           onPress={onAction}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={actionLabel}
           style={({ pressed }) => [s.bannerAction, pressed && s.pressed]}
-          hitSlop={6}
         >
           <Text style={s.bannerActionText}>{actionLabel}</Text>
         </Pressable>
@@ -412,12 +286,12 @@ export function Banner({
       {!!onDismiss && (
         <Pressable
           onPress={onDismiss}
-          style={({ pressed }) => [pressed && s.pressed]}
           hitSlop={8}
           accessibilityRole="button"
-          accessibilityLabel="Dismiss notice"
+          accessibilityLabel="Dismiss banner"
+          style={({ pressed }) => [s.bannerAction, pressed && s.pressed]}
         >
-          <Icon name="close" size={16} color={colors.outlineText} />
+          <Icon name="close" size={16} color={colors.onSurfaceVariant} />
         </Pressable>
       )}
     </View>
@@ -425,14 +299,14 @@ export function Banner({
 }
 
 /**
- * Empty State component from showcase:
- * Surface-2 disc (64px) with centered icon, headline, single explanatory sentence, single button.
+ * Empty State view with icon, title, description and optional action button
  */
 export function EmptyState({
-  icon,
+  icon = 'music',
   code,
   title,
   body,
+  description,
   actionLabel,
   onAction,
   style,
@@ -440,31 +314,23 @@ export function EmptyState({
   icon?: string;
   code?: string;
   title: string;
-  body: string;
+  body?: string;
+  description?: string;
   actionLabel?: string;
   onAction?: () => void;
   style?: StyleProp<ViewStyle>;
 }) {
-  const iconName =
-    icon ??
-    (code === 'EMPTY_01'
-      ? 'playlist'
-      : code === 'EMPTY_02'
-      ? 'queue'
-      : code === 'EMPTY_03'
-      ? 'lyrics'
-      : code === 'EMPTY_04'
-      ? 'download'
-      : 'disc');
+  const displayIcon = icon ?? code ?? 'music';
+  const displayDesc = body ?? description;
 
   return (
     <View style={[s.emptyContainer, style]}>
       <View style={s.emptyDisc}>
-        <Icon name={iconName} size={32} color={colors.onSurface} />
+        <Icon name={displayIcon} size={28} color={colors.onSurfaceVariant} />
       </View>
       <Text style={s.emptyTitle}>{title}</Text>
-      <Text style={s.emptyBody}>{body}</Text>
-      {!!actionLabel && (
+      {!!displayDesc && <Text style={s.emptyBody}>{displayDesc}</Text>}
+      {!!actionLabel && !!onAction && (
         <Button
           label={actionLabel}
           variant="secondary"
@@ -473,123 +339,6 @@ export function EmptyState({
         />
       )}
     </View>
-  );
-}
-
-/**
- * Signal Path diagram from showcase (Source -> Decoder -> EQ -> Output)
- */
-export function SignalPathDiagram({
-  activeNode = 'Output',
-}: {
-  activeNode?: 'Source' | 'Decoder' | 'EQ' | 'Output';
-}) {
-  const nodes = ['Source', 'Decoder', 'EQ', 'Output'] as const;
-
-  return (
-    <View style={s.signalPathContainer}>
-      <Text style={s.signalPathLabel}>SIGNAL PATH</Text>
-      <View style={s.signalPathRow}>
-        {nodes.map((node, i) => {
-          const isActive = node === activeNode;
-          return (
-            <React.Fragment key={node}>
-              <View
-                style={[
-                  s.signalNode,
-                  isActive ? s.signalNodeActive : s.signalNodeInactive,
-                ]}
-              >
-                <Text
-                  style={[
-                    s.signalNodeText,
-                    { color: isActive ? colors.onAccent : colors.onSurfaceVariant },
-                  ]}
-                >
-                  {node}
-                </Text>
-              </View>
-              {i < nodes.length - 1 && <View style={s.signalSegment} />}
-            </React.Fragment>
-          );
-        })}
-      </View>
-      <Text style={s.signalPathDescription}>
-        FLAC 24/96 → native decoder → EQ bypassed → Direct Output to USB DAC.
-      </Text>
-    </View>
-  );
-}
-
-/**
- * Pill button (backward compatible).
- */
-export function Pill({
-  label,
-  selected = false,
-  onPress,
-  icon,
-  accessibilityLabel,
-  style,
-}: {
-  label: string;
-  selected?: boolean;
-  onPress?: () => void;
-  icon?: string;
-  accessibilityLabel?: string;
-  style?: StyleProp<ViewStyle>;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [s.pill, selected && s.pillSelected, pressed && s.pressed, style]}
-      accessibilityRole="button"
-      accessibilityState={{ selected }}
-      accessibilityLabel={accessibilityLabel ?? label}
-      hitSlop={4}
-    >
-      {!!icon && (
-        <Icon name={icon} size={14} color={selected ? colors.onPrimary : colors.onSurfaceVariant} />
-      )}
-      <Text style={[s.pillLabel, selected && s.pillLabelSelected]} numberOfLines={1}>
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
-
-/** Circular icon button, 36px/48px in the spec. */
-export function CircleButton({
-  icon,
-  onPress,
-  size = 36,
-  iconSize = 18,
-  color = colors.onSurface,
-  background = colors.surfaceVariant,
-  accessibilityLabel,
-}: {
-  icon: string;
-  onPress?: () => void;
-  size?: number;
-  iconSize?: number;
-  color?: string;
-  background?: string;
-  accessibilityLabel: string;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        s.circle,
-        { width: size, height: size, borderRadius: size / 2, backgroundColor: background },
-        pressed && s.pressed,
-      ]}
-      accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel}
-      hitSlop={6}
-    >
-      <Icon name={icon} size={iconSize} color={color} />
-    </Pressable>
   );
 }
 
@@ -624,55 +373,6 @@ export function SectionHeader({
           <Text style={s.sectionActionLabel}>{actionLabel}</Text>
         </Pressable>
       )}
-    </View>
-  );
-}
-
-/** Hairline rule */
-export function Divider({ style }: { style?: StyleProp<ViewStyle> }) {
-  return <View style={[s.divider, style]} />;
-}
-
-/** Small status dot */
-export function Dot({ color = colors.onSurface, size = 6 }: { color?: string; size?: number }) {
-  return <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: color }} />;
-}
-
-/** Meter bar */
-export function Meter({
-  level,
-  segments = 5,
-  color = colors.onSurface,
-  track = colors.surfaceContainerHighest,
-  height = 12,
-  width = 17,
-}: {
-  level: number;
-  segments?: number;
-  color?: string;
-  track?: string;
-  height?: number;
-  width?: number;
-}) {
-  const clamped = Math.max(0, Math.min(1, level));
-  const active = Math.round(clamped * segments);
-  const barWidth = (width - (segments - 1) * 3) / segments;
-
-  return (
-    <View style={[s.meter, { height, gap: 3 }]}>
-      {Array.from({ length: segments }).map((_, index) => (
-        <View
-          key={index}
-          style={[
-            s.meterBar,
-            {
-              width: barWidth,
-              backgroundColor: index < active ? color : track,
-              height: height * (0.4 + (0.6 * (index + 1)) / segments),
-            },
-          ]}
-        />
-      ))}
     </View>
   );
 }
@@ -805,43 +505,6 @@ const s = StyleSheet.create({
     color: colors.onPrimary,
   },
 
-  qualityBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: r.full,
-    borderWidth: 1,
-    borderColor: colors.divider,
-    backgroundColor: colors.surfaceVariant,
-  },
-  qualityBadgeActive: {
-    borderColor: colors.accent,
-  },
-  qualityText: {
-    ...t.monoMicro,
-    color: colors.onSurface,
-  },
-
-  offlinePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    height: 36,
-    paddingHorizontal: 14,
-    borderRadius: r.full,
-  },
-  offlinePillOn: {
-    backgroundColor: colors.accent,
-  },
-  offlinePillOff: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: colors.accent,
-  },
-  offlinePillText: {
-    ...t.captionStrong,
-  },
-
   segmentedContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -871,48 +534,6 @@ const s = StyleSheet.create({
     ...t.captionStrong,
     fontSize: 12,
     color: colors.onPrimary,
-  },
-
-  storageCard: {
-    padding: 16,
-    borderRadius: r.lg,
-    backgroundColor: '#18181B',
-    borderWidth: 1,
-    borderColor: '#27272A',
-    gap: 10,
-  },
-  storageHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  storageTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  storageUsedText: {
-    ...t.bodyStrong,
-    color: colors.onSurface,
-  },
-  storageFreeText: {
-    ...t.monoCaption,
-    color: colors.onSurfaceVariant,
-  },
-  storageTrack: {
-    height: 8,
-    borderRadius: r.full,
-    backgroundColor: colors.surfaceVariant,
-    overflow: 'hidden',
-  },
-  storageFill: {
-    height: '100%',
-    backgroundColor: colors.accent,
-    borderRadius: r.full,
-  },
-  storageWarningText: {
-    ...t.caption,
-    color: colors.onSurfaceVariant,
   },
 
   banner: {
@@ -980,78 +601,6 @@ const s = StyleSheet.create({
     marginTop: 8,
   },
 
-  signalPathContainer: {
-    padding: 16,
-    gap: 10,
-    backgroundColor: colors.surface1,
-    borderRadius: r.lg,
-    borderWidth: 1,
-    borderColor: colors.divider,
-  },
-  signalPathLabel: {
-    ...t.label,
-    color: colors.onSurfaceVariant,
-  },
-  signalPathRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  signalNode: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: r.full,
-  },
-  signalNodeActive: {
-    backgroundColor: colors.accent,
-  },
-  signalNodeInactive: {
-    borderWidth: 1.5,
-    borderColor: colors.onSurfaceVariant,
-  },
-  signalNodeText: {
-    ...t.monoMicro,
-  },
-  signalSegment: {
-    flex: 1,
-    height: 2,
-    backgroundColor: colors.onSurfaceVariant,
-  },
-  signalPathDescription: {
-    ...t.caption,
-    color: colors.onSurfaceVariant,
-  },
-
-  pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    height: 32,
-    paddingHorizontal: 14,
-    borderRadius: r.full,
-    backgroundColor: colors.surfaceVariant,
-    borderWidth: 1,
-    borderColor: colors.divider,
-  },
-  pillSelected: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
-  },
-  pillLabel: {
-    ...t.caption,
-    color: colors.onSurfaceVariant,
-  },
-  pillLabelSelected: {
-    ...t.captionStrong,
-    color: colors.onPrimary,
-  },
-
-  circle: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1081,19 +630,6 @@ const s = StyleSheet.create({
   sectionActionLabel: {
     ...t.label,
     color: colors.outlineText,
-  },
-
-  divider: {
-    height: 1,
-    backgroundColor: colors.divider,
-  },
-
-  meter: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-  },
-  meterBar: {
-    borderRadius: r.full,
   },
 
   toggle: {

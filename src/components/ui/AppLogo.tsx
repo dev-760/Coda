@@ -1,4 +1,3 @@
-import React from 'react';
 import { View, ViewStyle, StyleProp } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { colors } from '../../theme/theme';
@@ -24,7 +23,6 @@ const ECLIPSE_PATH =
 export function AppLogo({
   size = 28,
   color = colors.accent,
-  showText = false,
   style,
 }: AppLogoProps) {
   return (

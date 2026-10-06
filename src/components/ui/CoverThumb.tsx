@@ -1,4 +1,4 @@
-import React, { memo, useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { Image, StyleSheet, ImageStyle, StyleProp } from 'react-native';
 import { withCoverSize } from '../../providers/mappers';
 import { GenerativeArt, GenerativePattern } from './GenerativeArt';

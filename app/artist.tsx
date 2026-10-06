@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -23,6 +23,7 @@ import { Track } from '../src/providers/types';
 import { CatalogAlbum } from '../src/providers/catalogTypes';
 import { getArtistCatalog } from '../src/services/catalogService';
 import { useResponsive } from '../src/hooks/useResponsive';
+import { useBackHandler } from '../src/hooks/useBackHandler';
 import { colors, FONTS } from '../src/theme/theme';
 
 type LoadState = 'loading' | 'ready' | 'notFound' | 'error';
@@ -53,6 +54,8 @@ export default function ArtistScreen() {
   const [state, setState] = useState<LoadState>(artistId ? 'loading' : 'notFound');
   const [optionsTrack, setOptionsTrack] = useState<Track | null>(null);
   const [following, setFollowing] = useState(false);
+
+  useBackHandler();
 
   const load = useCallback(async () => {
     if (!artistId) {

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -11,6 +11,7 @@ import { useDownloadStore } from '../src/downloads/downloadStore';
 import { autoQueueService } from '../src/services/autoQueueService';
 import { audioService } from '../src/audio/AudioService';
 import { useResponsive } from '../src/hooks/useResponsive';
+import { useBackHandler } from '../src/hooks/useBackHandler';
 import { formatBytes } from '../src/utils/formatting';
 import { colors, r, t } from '../src/theme/theme';
 import { APP_VERSION } from '../src/version';
@@ -48,6 +49,8 @@ export default function SettingsScreen() {
   const setAutoQueueEnabled = useListeningStore((state) => state.setAutoQueueEnabled);
   const downloads = useDownloadStore((state) => state.downloads);
   const deleteAllDownloads = useDownloadStore((state) => state.deleteAllDownloads);
+
+  useBackHandler();
 
   const totalBytes = useMemo(
     () => downloads.reduce((sum, item) => sum + (item.downloadedBytes || 0), 0),

@@ -1,4 +1,3 @@
-import React from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Tabs } from 'expo-router';
@@ -22,6 +21,7 @@ export default function TabLayout() {
   return (
     <View style={styles.root}>
       <Tabs
+        backBehavior="history"
         screenOptions={{ headerShown: false }}
         tabBar={() => <TabBar />}
       >

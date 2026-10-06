@@ -79,6 +79,7 @@ export default function TrackOptionsMenu({
   const downloadTrack = useDownloadStore((state) => state.downloadTrack);
   const deleteDownload = useDownloadStore((state) => state.deleteDownload);
   const cancelDownload = useDownloadStore((state) => state.cancelDownload);
+  const retryDownload = useDownloadStore((state) => state.retryDownload);
   const hifiQuality = useSettingsStore((state) => state.audio.hifiAudioQuality);
 
   if (!track) return null;
@@ -99,8 +100,15 @@ export default function TrackOptionsMenu({
         await deleteDownload(track.id);
         return;
       }
-      if (downloadStatus === 'downloading' || downloadStatus === 'pending') {
+      if (downloadStatus === 'downloading') {
         await cancelDownload(track.id);
+        return;
+      }
+      if (downloadStatus === 'paused' || downloadStatus === 'failed') {
+        await retryDownload(track.id);
+        return;
+      }
+      if (downloadStatus === 'pending') {
         return;
       }
       await downloadTrack(track);
@@ -252,18 +260,42 @@ export default function TrackOptionsMenu({
               onPress={handleDownload}
               style={({ pressed }) => [
                 s.quickAction,
-                isDownloaded && s.quickActionActive,
+                (isDownloaded || downloadStatus === 'downloading') && s.quickActionActive,
                 pressed && s.pressed,
               ]}
               accessibilityRole="button"
-              accessibilityLabel={isDownloaded ? 'Remove download' : 'Download for offline'}
+              accessibilityLabel={
+                isDownloaded
+                  ? 'Remove download'
+                  : downloadStatus === 'downloading'
+                  ? 'Cancel download'
+                  : downloadStatus === 'failed' || downloadStatus === 'paused'
+                  ? 'Retry download'
+                  : 'Download for offline'
+              }
             >
               <Icon
-                name={isDownloaded ? 'download-done' : 'download'}
+                name={
+                  isDownloaded
+                    ? 'download-done'
+                    : downloadStatus === 'failed' || downloadStatus === 'paused'
+                    ? 'retry'
+                    : 'download'
+                }
                 size={20}
-                color={isDownloaded ? '#FFFFFF' : colors.onSurface}
+                color={isDownloaded || downloadStatus === 'downloading' ? '#FFFFFF' : colors.onSurface}
               />
-              <Text style={[s.quickLabel, isDownloaded && s.quickLabelActive]}>OFFLINE</Text>
+              <Text style={[s.quickLabel, (isDownloaded || downloadStatus === 'downloading') && s.quickLabelActive]}>
+                {isDownloaded
+                  ? 'OFFLINE'
+                  : downloadStatus === 'downloading'
+                  ? 'SAVING'
+                  : downloadStatus === 'pending'
+                  ? 'QUEUED'
+                  : downloadStatus === 'failed' || downloadStatus === 'paused'
+                  ? 'RETRY'
+                  : 'OFFLINE'}
+              </Text>
             </Pressable>
           </View>
 

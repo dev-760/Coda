@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Stack } from 'expo-router';
+import { Stack, useRouter, usePathname } from 'expo-router';
 import { useFonts } from 'expo-font';
 import {
   Geist_400Regular,
@@ -16,7 +16,7 @@ import {
 import * as SplashScreen from 'expo-splash-screen';
 import { colors } from '../src/theme/theme';
 import { audioService } from '../src/audio/AudioService';
-import { StatusBar } from 'react-native';
+import { BackHandler, Platform, StatusBar } from 'react-native';
 import { useLibraryStore } from '../src/store/libraryStore';
 import { useSettingsStore } from '../src/store/settingsStore';
 import { useDownloadStore } from '../src/downloads/downloadStore';
@@ -62,6 +62,32 @@ export default function RootLayout() {
       return () => autoQueueService.stop();
     }, []);
 
+    const router = useRouter();
+    const pathname = usePathname();
+
+    useEffect(() => {
+      if (Platform.OS !== 'android') return;
+
+      const onBackPress = () => {
+        if (router.canDismiss?.()) {
+          router.dismiss();
+          return true;
+        }
+        if (router.canGoBack()) {
+          router.back();
+          return true;
+        }
+        if (pathname && pathname !== '/' && pathname !== '/index') {
+          router.navigate('/(tabs)');
+          return true;
+        }
+        return false;
+      };
+
+      const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => sub.remove();
+    }, [pathname, router]);
+
     if (!fontsLoaded && !fontError) {
     return null;
   }
@@ -79,7 +105,7 @@ export default function RootLayout() {
         <Stack.Screen name="album" options={{ presentation: 'card', headerShown: false }} />
         <Stack.Screen name="artist" options={{ presentation: 'card', headerShown: false }} />
         <Stack.Screen name="settings" options={{ presentation: 'card', headerShown: false }} />
-                <Stack.Screen name="lyrics" options={{ presentation: 'fullScreenModal', headerShown: false }} />
+                <Stack.Screen name="lyrics" options={{ presentation: 'card', headerShown: false }} />
         <Stack.Screen name="downloads" options={{ presentation: 'card', headerShown: false }} />
       </Stack>
     </>

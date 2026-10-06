@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import { audioService } from '../src/audio/AudioService';
 import { useQueueStore } from '../src/store/queueStore';
 import { formatBytes } from '../src/utils/formatting';
 import { DownloadMetadata } from '../src/downloads/downloadTypes';
+import { useBackHandler } from '../src/hooks/useBackHandler';
 import { colors, FONTS } from '../src/theme/theme';
 
 type Filter = 'all' | 'completed' | 'downloading';
@@ -54,6 +55,8 @@ export default function DownloadsScreen() {
 
   const [filter, setFilter] = useState<Filter>('all');
   const [sortDescending, setSortDescending] = useState(true);
+
+  useBackHandler();
 
   const filtered = useMemo(() => {
     const matching = filter === 'all'
@@ -137,9 +140,9 @@ export default function DownloadsScreen() {
                 <View style={s.progressTrack}>
                   <View style={[s.progressFill, { width: `${item.progress}%` }]} />
                 </View>
-                <Text style={s.statusText}>
+                <Text style={s.statusText} numberOfLines={2}>
                   {item.status === 'paused'
-                    ? 'Paused'
+                    ? (item.errorMessage || 'Paused')
                     : item.status === 'pending'
                       ? 'Waiting to start'
                       : `Downloading · ${item.progress}%`}
@@ -163,7 +166,7 @@ export default function DownloadsScreen() {
           </View>
         </Pressable>
 
-        {inProgress ? (
+        {item.status === 'downloading' || item.status === 'pending' ? (
           <Pressable
             style={({ pressed }) => [s.action, pressed && s.actionPressed]}
             onPress={() => void cancelDownload(item.trackId)}
@@ -173,7 +176,7 @@ export default function DownloadsScreen() {
           >
             <Icon name="close" size={20} color={colors.onSurfaceVariant} />
           </Pressable>
-        ) : item.status === 'failed' ? (
+        ) : item.status === 'failed' || item.status === 'paused' ? (
           <Pressable
             style={({ pressed }) => [s.action, pressed && s.actionPressed]}
             onPress={() => void retryDownload(item.trackId)}

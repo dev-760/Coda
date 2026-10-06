@@ -11,7 +11,7 @@ import { getActiveProvider } from '../providers/registry';
 import { useSettingsStore } from '../store/settingsStore';
 import { logger } from '../logging/Logger';
 import { Track } from '../providers/types';
-import { isDashManifestUrl, downloadDashStream } from './dashDownloader';
+import { isDashManifestUrl, downloadDashStream, isHlsManifestUrl, downloadHlsStream } from './dashDownloader';
 
 const DEFAULT_CONFIG: DownloadManagerConfig = {
   maxConcurrentDownloads: 2,
@@ -57,6 +57,15 @@ class DownloadManager {
         await downloadStorage.updateStatus(item.trackId, 'pending');
       }
     }
+    try {
+      Network.addNetworkStateListener((state) => {
+        if (state.isConnected) {
+          void this.drain();
+        }
+      });
+    } catch {
+      // Listener may not be available on all platforms
+    }
   }
 
   subscribe(listener: Listener): () => void {
@@ -79,13 +88,18 @@ class DownloadManager {
   }
 
   private async canStartNow(): Promise<boolean> {
-    if (!this.isWifiOnly()) return true;
     try {
       const state = await Network.getNetworkStateAsync();
-      return state.type === Network.NetworkStateType.WIFI;
+      if (state.isConnected === false || state.isInternetReachable === false) {
+        return false;
+      }
+      // Only block if strictly wifi-only is enabled and connection is explicitly cellular
+      if (this.isWifiOnly() && state.type === Network.NetworkStateType.CELLULAR) {
+        return false;
+      }
+      return true;
     } catch {
-      // If the connection type cannot be read, let the transfer start and let
-      // the platform handle it rather than blocking the user.
+      // If the connection type cannot be read, let the transfer start
       return true;
     }
   }
@@ -137,7 +151,26 @@ class DownloadManager {
 
   private async runQueue(): Promise<void> {
     while (this.queue.length > 0 && this.runningCount < this.config.maxConcurrentDownloads) {
-      if (!(await this.canStartNow())) return;
+      if (!(await this.canStartNow())) {
+        const nextTrackId = this.queue[0];
+        if (nextTrackId) {
+          const entry = await downloadStorage.getDownloadByTrackId(nextTrackId);
+          if (entry && (entry.status === 'pending' || entry.status === 'downloading')) {
+            const reason = this.isWifiOnly()
+              ? 'Waiting for Wi-Fi. Turn off "Download on Wi-Fi only" in Settings to use cellular.'
+              : 'Waiting for network connection.';
+            await downloadStorage.updateStatus(nextTrackId, 'paused', { errorMessage: reason });
+            this.emit({
+              trackId: nextTrackId,
+              progress: entry.progress,
+              downloadedBytes: entry.downloadedBytes,
+              totalBytes: entry.totalBytes,
+              status: 'paused',
+            });
+          }
+        }
+        return;
+      }
       const trackId = this.queue.shift();
       if (!trackId) return;
 
@@ -191,6 +224,26 @@ class DownloadManager {
       if (isDashManifestUrl(url)) {
         extension = 'm4a';
         const result = await downloadDashStream(url, temporary, {
+          signal: controller.signal,
+          onProgress: (bytesWritten, totalBytes) => {
+            const total = totalBytes > 0 ? totalBytes : entry.totalBytes;
+            const progress = total > 0
+              ? Math.min(100, Math.round((bytesWritten / total) * 100))
+              : 0;
+
+            this.emit({ trackId, progress, downloadedBytes: bytesWritten, totalBytes: total, status: 'downloading' });
+
+            const now = Date.now();
+            if (now - lastPersist > 1000 || progress >= 100) {
+              lastPersist = now;
+              void downloadStorage.updateProgress(trackId, bytesWritten, total);
+            }
+          },
+        });
+        written = result.size;
+      } else if (isHlsManifestUrl(url)) {
+        extension = 'm4a';
+        const result = await downloadHlsStream(url, temporary, {
           signal: controller.signal,
           onProgress: (bytesWritten, totalBytes) => {
             const total = totalBytes > 0 ? totalBytes : entry.totalBytes;

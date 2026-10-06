@@ -39,6 +39,9 @@ export class ExpoAudioBackend implements AudioBackend {
    * position tick would re-render the whole player.
    */
   private lastReportedPlaying = false;
+  /** Guards against in-flight playback updates from native immediately following an intentional pause. */
+  private isPausing = false;
+  private pauseDebounceTimer: ReturnType<typeof setTimeout> | null = null;
   private sessionActive = false;
   /**
    * Final progress seen for the current track, kept so the end-of-track report
@@ -91,8 +94,18 @@ export class ExpoAudioBackend implements AudioBackend {
         return;
       }
 
+      // Ignore stale in-flight playing: true updates while intentionally pausing
+      if (this.isPausing && status.playing) {
+        return;
+      }
+
       if (status.playing !== this.lastReportedPlaying) {
         this.lastReportedPlaying = status.playing;
+        if (status.playing) {
+          this.startProgressTimer();
+        } else {
+          this.stopProgressTimer();
+        }
         this.events.onPlayingChanged?.(status.playing);
       }
     });
@@ -107,6 +120,11 @@ export class ExpoAudioBackend implements AudioBackend {
 
   async play(stream: StreamInfo, track: Track): Promise<void> {
     const player = this.requirePlayer();
+    this.isPausing = false;
+    if (this.pauseDebounceTimer) {
+      clearTimeout(this.pauseDebounceTimer);
+      this.pauseDebounceTimer = null;
+    }
     this.endReported = false;
     this.currentTrack = track;
     this.lastKnownPositionMs = 0;
@@ -155,12 +173,26 @@ export class ExpoAudioBackend implements AudioBackend {
           }
         : undefined,
       {
-        showSeekForward: !isLiveStream,
-        showSeekBackward: !isLiveStream,
+        showSeekForward: false,
+        showSeekBackward: false,
         isLiveStream,
       },
     );
     this.sessionActive = true;
+
+    if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
+      try {
+        navigator.mediaSession.setActionHandler('nexttrack', () => {
+          this.events.onNext?.();
+        });
+        navigator.mediaSession.setActionHandler('previoustrack', () => {
+          this.events.onPrevious?.();
+        });
+      } catch {
+        // Ignored on platforms where MediaSession is restricted or unsupported
+      }
+    }
+
     logger.info('ExpoAudioBackend', 'Media session active for the OS');
   }
 
@@ -168,6 +200,16 @@ export class ExpoAudioBackend implements AudioBackend {
     if (!this.player || !this.sessionActive) return;
     this.player.clearLockScreenControls();
     this.sessionActive = false;
+
+    if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
+      try {
+        navigator.mediaSession.setActionHandler('nexttrack', null);
+        navigator.mediaSession.setActionHandler('previoustrack', null);
+      } catch {
+        // Ignored
+      }
+    }
+
     logger.info('ExpoAudioBackend', 'Media session released');
   }
 
@@ -181,6 +223,19 @@ export class ExpoAudioBackend implements AudioBackend {
       const durationMs = player.duration * 1000;
       this.lastKnownPositionMs = positionMs;
       this.lastKnownDurationMs = durationMs;
+
+      // Detect OS or hardware initiated pause/play that bypassed the JS bridge (e.g. lock screen)
+      if (!this.isPausing) {
+        if (this.lastReportedPlaying && !player.playing) {
+          this.lastReportedPlaying = false;
+          this.stopProgressTimer();
+          this.events.onPlayingChanged?.(false);
+          return;
+        } else if (!this.lastReportedPlaying && player.playing) {
+          this.lastReportedPlaying = true;
+          this.events.onPlayingChanged?.(true);
+        }
+      }
 
       // Some stream formats never report a duration. When playback has stopped
       // near the end of a known duration, treat it as complete.
@@ -219,18 +274,38 @@ export class ExpoAudioBackend implements AudioBackend {
   }
 
   async pause(): Promise<void> {
-    this.requirePlayer().pause();
+    const player = this.requirePlayer();
+    this.isPausing = true;
+    if (this.pauseDebounceTimer) {
+      clearTimeout(this.pauseDebounceTimer);
+    }
     this.lastReportedPlaying = false;
     this.stopProgressTimer();
+    player.pause();
+    if (this.currentTrack) {
+      this.publishMetadata(this.currentTrack);
+    }
+    this.pauseDebounceTimer = setTimeout(() => {
+      this.isPausing = false;
+      this.pauseDebounceTimer = null;
+    }, 600);
   }
 
   async resume(): Promise<void> {
     const player = this.requirePlayer();
+    this.isPausing = false;
+    if (this.pauseDebounceTimer) {
+      clearTimeout(this.pauseDebounceTimer);
+      this.pauseDebounceTimer = null;
+    }
     // Restoring the session covers the case where playback was started from
     // the lock screen, where the player had been detached by the OS.
     if (!this.sessionActive) this.activateMediaSession(this.currentTrack);
     player.play();
     this.lastReportedPlaying = true;
+    if (this.currentTrack) {
+      this.publishMetadata(this.currentTrack);
+    }
     this.startProgressTimer();
   }
 
@@ -280,6 +355,10 @@ export class ExpoAudioBackend implements AudioBackend {
   }
 
   async dispose(): Promise<void> {
+    if (this.pauseDebounceTimer) {
+      clearTimeout(this.pauseDebounceTimer);
+      this.pauseDebounceTimer = null;
+    }
     this.stopProgressTimer();
     this.statusSubscription?.remove();
     this.statusSubscription = null;

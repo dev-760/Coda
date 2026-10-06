@@ -51,8 +51,19 @@ class DownloadStorage {
   }
 
   async getAllDownloads(): Promise<DownloadMetadata[]> {
-    const data = await AsyncStorage.getItem(INDEX_KEY);
-    if (!data) return [];
+    let data = await AsyncStorage.getItem(INDEX_KEY);
+    if (!data) {
+      try {
+        const legacyData = await AsyncStorage.getItem('luma:download_metadata');
+        if (legacyData) {
+          await AsyncStorage.setItem(INDEX_KEY, legacyData);
+          data = legacyData;
+        }
+      } catch {
+        // Ignore legacy read errors
+      }
+      if (!data) return [];
+    }
     try {
       const parsed = JSON.parse(data);
       return Array.isArray(parsed) ? parsed : [];
@@ -177,17 +188,34 @@ class DownloadStorage {
       }
 
       try {
-        const file = new File(download.filePath);
+        let file = new File(download.filePath);
+        if (!file.exists) {
+          const fileName = download.filePath.split('/').pop();
+          if (fileName && this.directory) {
+            const reanchored = new File(this.directory, fileName);
+            if (reanchored.exists) {
+              file = reanchored;
+              download.filePath = reanchored.uri;
+            }
+          }
+        }
+
         if (!file.exists) {
           removed.push(download.trackId);
           continue;
         }
+
         const size = file.size ?? 0;
-        if (download.totalBytes > 0 && size !== download.totalBytes) {
+        if (size === 0 || (download.totalBytes > 0 && size !== download.totalBytes)) {
           removed.push(download.trackId);
           continue;
         }
-        repaired.push(download);
+
+        repaired.push({
+          ...download,
+          downloadedBytes: size,
+          totalBytes: size,
+        });
       } catch {
         removed.push(download.trackId);
       }
@@ -197,9 +225,26 @@ class DownloadStorage {
     return removed;
   }
 
+  resolveLocalPath(filePath: string): string | null {
+    if (!this.isSupported) return null;
+    try {
+      const file = new File(filePath);
+      if (file.exists) return file.uri;
+      const fileName = filePath.split('/').pop();
+      if (fileName && this.directory) {
+        const reanchored = new File(this.directory, fileName);
+        if (reanchored.exists) return reanchored.uri;
+      }
+    } catch {
+      return null;
+    }
+    return null;
+  }
+
   async isTrackDownloaded(trackId: string): Promise<boolean> {
     const download = await this.getDownloadByTrackId(trackId);
-    return download?.status === 'completed' && download.filePath !== null;
+    if (!download || download.status !== 'completed' || !download.filePath) return false;
+    return this.resolveLocalPath(download.filePath) !== null;
   }
 
   async getFreeStorageBytes(): Promise<number> {

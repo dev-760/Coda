@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View, Share } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -22,6 +22,7 @@ import { useSettingsStore } from '../../src/store/settingsStore';
 import { audioService } from '../../src/audio/AudioService';
 import { Track } from '../../src/providers/types';
 import { useResponsive } from '../../src/hooks/useResponsive';
+import { useBackHandler } from '../../src/hooks/useBackHandler';
 import { colors, r, t } from '../../src/theme/theme';
 
 type SubView = 'playlists' | 'tracks' | 'albums' | 'downloads';
@@ -42,6 +43,35 @@ export default function LibraryScreen() {
   const [actionsVisible, setActionsVisible] = useState(false);
   const [selectedPlaylist, setSelectedPlaylist] = useState<any>(null);
   const [optionsTrack, setOptionsTrack] = useState<Track | null>(null);
+
+  useBackHandler(() => {
+    if (createVisible) {
+      setCreateVisible(false);
+      return true;
+    }
+    if (actionsVisible) {
+      setActionsVisible(false);
+      return true;
+    }
+    if (editingPlaylist) {
+      setEditingPlaylist(null);
+      return true;
+    }
+    if (optionsTrack) {
+      setOptionsTrack(null);
+      return true;
+    }
+    if (view !== 'playlists') {
+      setView('playlists');
+      return true;
+    }
+    if (router.canGoBack()) {
+      router.back();
+      return true;
+    }
+    router.navigate('/(tabs)');
+    return true;
+  });
 
   const completedDownloads = useMemo(
     () => downloads.filter((item) => item.status === 'completed'),

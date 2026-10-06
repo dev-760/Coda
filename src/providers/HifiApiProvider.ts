@@ -65,7 +65,7 @@ class HifiApiProvider implements MusicProvider {
     }
   }
 
-  async getStreamInfo(trackId: string, abortSignal?: AbortSignal): Promise<StreamInfo> {
+  async getStreamInfo(trackId: string, _abortSignal?: AbortSignal): Promise<StreamInfo> {
     const numericId = parseInt(trackId, 10);
     if (isNaN(numericId) || numericId <= 0) {
       throw new Error('Invalid track ID');

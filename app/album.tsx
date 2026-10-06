@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -21,6 +21,7 @@ import { Track } from '../src/providers/types';
 import { getAlbum } from '../src/services/catalogService';
 import { useLibraryStore } from '../src/store/libraryStore';
 import { useResponsive } from '../src/hooks/useResponsive';
+import { useBackHandler } from '../src/hooks/useBackHandler';
 import { colors, FONTS } from '../src/theme/theme';
 
 type LoadState = 'loading' | 'ready' | 'notFound' | 'error';
@@ -56,6 +57,8 @@ export default function AlbumScreen() {
   const [optionsTrack, setOptionsTrack] = useState<Track | null>(null);
   const { favorites, addFavorite, removeFavorite } = useLibraryStore();
   const isAlbumSaved = tracks.length > 0 && tracks.every((t) => favorites.some((f) => f.id === t.id));
+
+  useBackHandler();
 
   const load = useCallback(async () => {
     if (!albumId) {

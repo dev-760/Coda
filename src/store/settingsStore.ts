@@ -55,7 +55,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   verboseLogging: false,
   audio: DEFAULT_AUDIO_SETTINGS,
   downloadQuality: 'LOSSLESS',
-  downloadWifiOnly: true,
+  downloadWifiOnly: false,
   offlineMode: false,
 };
 
@@ -83,6 +83,23 @@ export const useSettingsStore = create<SettingsState>()(
       setDownloadWifiOnly: (downloadWifiOnly) => set({ downloadWifiOnly }),
       setOfflineMode: (offlineMode) => set({ offlineMode }),
       initialize: async () => {
+        try {
+          const current = await AsyncStorage.getItem('coda-settings');
+          if (!current) {
+            const legacy = await AsyncStorage.getItem('luma-settings');
+            if (legacy) {
+              await AsyncStorage.setItem('coda-settings', legacy);
+              const parsed = JSON.parse(legacy);
+              const state = parsed.state ?? parsed;
+              set({
+                ...state,
+                audio: { ...DEFAULT_AUDIO_SETTINGS, ...(state.audio ?? {}) },
+              });
+            }
+          }
+        } catch {
+          // Ignore migration errors
+        }
         set({ hasHydrated: true });
       },
     }),

@@ -58,9 +58,18 @@ export function parseDashManifest(xml: string): DashSegmentPlan | null {
       totalSegments = 1;
     }
 
+    let baseUrl = '';
+    const baseMatch = xml.match(/<BaseURL>([^<]+)<\/BaseURL>/i);
+    if (baseMatch) {
+      baseUrl = baseMatch[1].trim();
+    }
+
+    const fullInitUrl = (!initUrl.startsWith('http') && baseUrl) ? `${baseUrl}${initUrl}` : initUrl;
+    const fullMediaTemplate = (!mediaTemplate.startsWith('http') && baseUrl) ? `${baseUrl}${mediaTemplate}` : mediaTemplate;
+
     return {
-      initUrl,
-      mediaTemplate,
+      initUrl: fullInitUrl,
+      mediaTemplate: fullMediaTemplate,
       startNumber,
       totalSegments,
       mimeType,
@@ -142,6 +151,84 @@ export async function downloadDashStream(
     bytesWritten += segBuf.byteLength;
 
     const currentTotal = Math.max(bytesWritten, Math.round((bytesWritten / seg) * plan.totalSegments));
+    onProgress?.(bytesWritten, currentTotal);
+  }
+
+  return { size: bytesWritten };
+}
+
+/** Checks whether a given stream URL points to an HLS playlist manifest. */
+export function isHlsManifestUrl(url: string): boolean {
+  if (!url) return false;
+  const clean = url.toLowerCase();
+  return clean.includes('.m3u8') || clean.includes('mpegurl');
+}
+
+/**
+ * Downloads all segments of an HLS stream and sequentially appends them into destination.
+ */
+export async function downloadHlsStream(
+  manifestUrlOrFile: string,
+  destination: File,
+  options: DashDownloadOptions = {}
+): Promise<{ size: number }> {
+  const { signal, onProgress } = options;
+
+  let content = '';
+  let baseUri = '';
+  if (manifestUrlOrFile.startsWith('file:') || manifestUrlOrFile.startsWith('/')) {
+    try {
+      content = await FileSystemLegacy.readAsStringAsync(manifestUrlOrFile, {
+        encoding: FileSystemLegacy.EncodingType.UTF8,
+      });
+    } catch {
+      const f = new File(manifestUrlOrFile);
+      content = await f.text();
+    }
+  } else if (manifestUrlOrFile.startsWith('http:') || manifestUrlOrFile.startsWith('https:')) {
+    const res = await fetch(manifestUrlOrFile, { signal });
+    if (!res.ok) throw new Error(`Failed to fetch HLS manifest: HTTP ${res.status}`);
+    content = await res.text();
+    baseUri = manifestUrlOrFile.substring(0, manifestUrlOrFile.lastIndexOf('/') + 1);
+  } else {
+    content = manifestUrlOrFile;
+  }
+
+  const lines = content.split('\n').map((l) => l.trim()).filter(Boolean);
+  // If master playlist with variants, find the sub-playlist
+  const variantLine = lines.find((l) => !l.startsWith('#') && (l.includes('.m3u8') || l.includes('http')));
+  if (variantLine && !lines.some((l) => l.startsWith('#EXTINF'))) {
+    const subUrl = variantLine.startsWith('http') ? variantLine : `${baseUri}${variantLine}`;
+    return downloadHlsStream(subUrl, destination, options);
+  }
+
+  const segmentUrls: string[] = [];
+  for (const line of lines) {
+    if (line.startsWith('#')) continue;
+    const url = line.startsWith('http') ? line : `${baseUri}${line}`;
+    segmentUrls.push(url);
+  }
+
+  if (segmentUrls.length === 0) {
+    throw new Error('No playable segments found in HLS stream.');
+  }
+
+  if (destination.exists) {
+    destination.delete();
+  }
+  destination.create();
+
+  let bytesWritten = 0;
+  for (let i = 0; i < segmentUrls.length; i++) {
+    if (signal?.aborted) throw new Error('Download cancelled.');
+    const segRes = await fetch(segmentUrls[i], { signal });
+    if (!segRes.ok) {
+      throw new Error(`Failed downloading HLS segment ${i + 1}/${segmentUrls.length} (HTTP ${segRes.status})`);
+    }
+    const buf = await segRes.arrayBuffer();
+    destination.write(new Uint8Array(buf), { append: true });
+    bytesWritten += buf.byteLength;
+    const currentTotal = Math.max(bytesWritten, Math.round((bytesWritten / (i + 1)) * segmentUrls.length));
     onProgress?.(bytesWritten, currentTotal);
   }
 

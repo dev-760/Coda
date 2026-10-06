@@ -97,8 +97,14 @@ export const useLibraryStore = create<LibraryState>()(
 
       loadFavorites: async () => {
         try {
-          // Use local storage only since API doesn't require authentication
-          const data = await AsyncStorage.getItem(STORAGE_KEYS.FAVORITES);
+          let data = await AsyncStorage.getItem(STORAGE_KEYS.FAVORITES);
+          if (!data) {
+            const legacy = await AsyncStorage.getItem('luma:favorites');
+            if (legacy) {
+              await AsyncStorage.setItem(STORAGE_KEYS.FAVORITES, legacy);
+              data = legacy;
+            }
+          }
           const favorites = data ? JSON.parse(data) : [];
           set({ favorites });
         } catch {
@@ -147,7 +153,14 @@ export const useLibraryStore = create<LibraryState>()(
 
       loadPlaylists: async () => {
         try {
-          const data = await AsyncStorage.getItem(STORAGE_KEYS.PLAYLISTS);
+          let data = await AsyncStorage.getItem(STORAGE_KEYS.PLAYLISTS);
+          if (!data) {
+            const legacy = await AsyncStorage.getItem('luma:playlists');
+            if (legacy) {
+              await AsyncStorage.setItem(STORAGE_KEYS.PLAYLISTS, legacy);
+              data = legacy;
+            }
+          }
           const playlists = data ? JSON.parse(data) : [];
           set({ playlists });
         } catch {
@@ -398,7 +411,14 @@ color: color || colors.primary,
 
       loadRecentlyPlayed: async () => {
         try {
-          const data = await AsyncStorage.getItem(STORAGE_KEYS.RECENTLY_PLAYED);
+          let data = await AsyncStorage.getItem(STORAGE_KEYS.RECENTLY_PLAYED);
+          if (!data) {
+            const legacy = await AsyncStorage.getItem('luma:recently_played');
+            if (legacy) {
+              await AsyncStorage.setItem(STORAGE_KEYS.RECENTLY_PLAYED, legacy);
+              data = legacy;
+            }
+          }
           const recentlyPlayed = data ? JSON.parse(data) : [];
           set({ recentlyPlayed });
         } catch {

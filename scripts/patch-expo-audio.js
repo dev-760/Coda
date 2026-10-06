@@ -64,6 +64,35 @@ const metadataInjectingPlayerPath = path.join(
   'MetadataInjectingPlayer.kt'
 );
 
+const iosAudioPlayerPath = path.join(
+  __dirname,
+  '..',
+  'node_modules',
+  'expo-audio',
+  'ios',
+  'AudioPlayer.swift'
+);
+
+const iosMediaControllerPath = path.join(
+  __dirname,
+  '..',
+  'node_modules',
+  'expo-audio',
+  'ios',
+  'MediaController.swift'
+);
+
+function safeReplace(content, target, replacement) {
+  const normContent = content.replace(/\r\n/g, '\n');
+  const normTarget = target.replace(/\r\n/g, '\n');
+  const normReplacement = replacement.replace(/\r\n/g, '\n');
+  if (normContent.includes(normTarget)) {
+    return normContent.replace(normTarget, normReplacement);
+  }
+  return content;
+}
+
+
 function patchAudioPlayer() {
   if (!fs.existsSync(audioPlayerPath)) return;
   let content = fs.readFileSync(audioPlayerPath, 'utf8');
@@ -281,13 +310,121 @@ function patchMetadataInjectingPlayer() {
   }
 }
 
+function patchIosAudioPlayer() {
+  if (!fs.existsSync(iosAudioPlayerPath)) return;
+  let content = fs.readFileSync(iosAudioPlayerPath, 'utf8');
+
+  if (!content.includes('func handleSkipNext()')) {
+    const target = '  public override func sharedObjectWillRelease() {';
+    const addition = `  func handleSkipNext() {
+    updateStatus(with: ["remoteAction": "next"])
+  }
+
+  func handleSkipPrevious() {
+    updateStatus(with: ["remoteAction": "previous"])
+  }
+
+  public override func sharedObjectWillRelease() {`;
+    content = safeReplace(content, target, addition);
+    fs.writeFileSync(iosAudioPlayerPath, content, 'utf8');
+    console.log('[patch-expo-audio] Patched AudioPlayer.swift (iOS)');
+  }
+}
+
+function patchIosMediaController() {
+  if (!fs.existsSync(iosMediaControllerPath)) return;
+  let content = fs.readFileSync(iosMediaControllerPath, 'utf8');
+
+  if (!content.includes('remoteCommandCenter.nextTrackCommand.addTarget')) {
+    const target = `    remoteCommandCenter.skipBackwardCommand.preferredIntervals = [10.0]
+    remoteCommandCenter.skipBackwardCommand.addTarget { [weak self] event in
+      guard let player = self?.activePlayer,
+      let event = event as? MPSkipIntervalCommandEvent else {
+        return .commandFailed
+      }
+
+      let currentTime = player.ref.currentTime()
+      let seekTime = currentTime - CMTime(seconds: event.interval, preferredTimescale: 1)
+      player.ref.seek(to: seekTime, toleranceBefore: .zero, toleranceAfter: .zero)
+
+      return .success
+    }`;
+
+    const addition = `${target}
+
+    remoteCommandCenter.nextTrackCommand.addTarget { [weak self] _ in
+      guard let player = self?.activePlayer else {
+        return .commandFailed
+      }
+
+      player.handleSkipNext()
+      return .success
+    }
+
+    remoteCommandCenter.previousTrackCommand.addTarget { [weak self] _ in
+      guard let player = self?.activePlayer else {
+        return .commandFailed
+      }
+
+      player.handleSkipPrevious()
+      return .success
+    }`;
+
+    content = safeReplace(content, target, addition);
+  }
+
+  if (!content.includes('remoteCommandCenter.nextTrackCommand.isEnabled = true')) {
+    const target = `    remoteCommandCenter.skipForwardCommand.isEnabled = options?.showSeekForward ?? false
+    remoteCommandCenter.skipBackwardCommand.isEnabled = options?.showSeekBackward ?? false`;
+
+    const addition = `    remoteCommandCenter.skipForwardCommand.isEnabled = options?.showSeekForward ?? false
+    remoteCommandCenter.skipBackwardCommand.isEnabled = options?.showSeekBackward ?? false
+    remoteCommandCenter.nextTrackCommand.isEnabled = true
+    remoteCommandCenter.previousTrackCommand.isEnabled = true`;
+
+    content = safeReplace(content, target, addition);
+  }
+
+  if (!content.includes('remoteCommandCenter.nextTrackCommand.isEnabled = false')) {
+    const target = `    remoteCommandCenter.skipForwardCommand.isEnabled = false
+    remoteCommandCenter.skipBackwardCommand.isEnabled = false`;
+
+    const addition = `    remoteCommandCenter.skipForwardCommand.isEnabled = false
+    remoteCommandCenter.skipBackwardCommand.isEnabled = false
+    remoteCommandCenter.nextTrackCommand.isEnabled = false
+    remoteCommandCenter.previousTrackCommand.isEnabled = false`;
+
+    content = safeReplace(content, target, addition);
+  }
+
+  if (!content.includes('remoteCommandCenter.nextTrackCommand.removeTarget')) {
+    const target = `    remoteCommandCenter.skipForwardCommand.removeTarget(self)
+    remoteCommandCenter.skipBackwardCommand.removeTarget(self)`;
+
+    const addition = `    remoteCommandCenter.skipForwardCommand.removeTarget(self)
+    remoteCommandCenter.skipBackwardCommand.removeTarget(self)
+    remoteCommandCenter.nextTrackCommand.removeTarget(self)
+    remoteCommandCenter.previousTrackCommand.removeTarget(self)
+    remoteCommandCenter.nextTrackCommand.removeTarget(nil)
+    remoteCommandCenter.previousTrackCommand.removeTarget(nil)`;
+
+    content = safeReplace(content, target, addition);
+  }
+
+  fs.writeFileSync(iosMediaControllerPath, content, 'utf8');
+  console.log('[patch-expo-audio] Patched MediaController.swift (iOS)');
+}
+
 try {
   patchAudioPlayer();
   patchAudioControlsService();
   patchAudioMediaSessionCallback();
   patchMetadataInjectingPlayer();
+  patchIosAudioPlayer();
+  patchIosMediaController();
   console.log('[patch-expo-audio] Completed successfully.');
 } catch (err) {
   console.error('[patch-expo-audio] Error patching expo-audio:', err);
   process.exit(0); // Do not fail build if optional patch encounters unexpected structure
 }
+

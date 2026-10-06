@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -17,6 +17,7 @@ import { usePlaybackStore } from '../src/store/playbackStore';
 import { audioService } from '../src/audio/AudioService';
 import { useLibraryStore } from '../src/store/libraryStore';
 import { useResponsive } from '../src/hooks/useResponsive';
+import { useBackHandler } from '../src/hooks/useBackHandler';
 import { LyricLineItem, isArabicText } from '../src/services/lyricsParser';
 import { lyricsService } from '../src/services/lyricsService';
 
@@ -114,21 +115,28 @@ export default function LyricsScreen() {
   const goToPlayerTab = (tab: PlayerTab) => {
     if (tab === 'lyrics') return;
     if (tab === 'now-playing') {
-      router.push('/now-playing' as any);
+      router.replace('/now-playing' as any);
       return;
     }
-    router.push(`/${tab}` as any);
+    router.replace(`/${tab}` as any);
   };
 
   const progress = durationMs > 0 ? Math.min(1, positionMs / durationMs) : 0;
 
   const handleDismiss = () => {
-    if (router.canGoBack()) {
+    if (router.canDismiss?.()) {
+      router.dismiss();
+    } else if (router.canGoBack()) {
       router.back();
     } else {
       router.navigate('/(tabs)');
     }
   };
+
+  useBackHandler(() => {
+    handleDismiss();
+    return true;
+  });
 
   return (
     <SafeAreaView style={s.container} edges={['top']}>
@@ -235,7 +243,7 @@ export default function LyricsScreen() {
             title="No lyrics found"
             body="Synchronized lyrics are not available for this track."
             actionLabel="BACK TO PLAYER"
-            onAction={() => router.push('/now-playing' as any)}
+            onAction={() => router.replace('/now-playing' as any)}
           />
         ) : (
           <View style={s.lyricList}>

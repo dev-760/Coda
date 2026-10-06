@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -14,6 +14,7 @@ import { useDownloadStore } from '../src/downloads/downloadStore';
 import { audioService } from '../src/audio/AudioService';
 import { Track } from '../src/providers/types';
 import { useResponsive } from '../src/hooks/useResponsive';
+import { useBackHandler } from '../src/hooks/useBackHandler';
 import { colors, r, t } from '../src/theme/theme';
 
 const formatMs = (ms: number) => {
@@ -77,7 +78,7 @@ export default function QueueScreen() {
 
   const goToPlayerTab = (tab: PlayerTab) => {
     if (tab === 'queue') return;
-    router.push(`/${tab}` as any);
+    router.replace(`/${tab}` as any);
   };
 
   const playAbsoluteIndex = (targetIndex: number) => {
@@ -116,12 +117,19 @@ export default function QueueScreen() {
   };
 
   const handleDismiss = () => {
-    if (router.canGoBack()) {
+    if (router.canDismiss?.()) {
+      router.dismiss();
+    } else if (router.canGoBack()) {
       router.back();
     } else {
       router.navigate('/(tabs)');
     }
   };
+
+  useBackHandler(() => {
+    handleDismiss();
+    return true;
+  });
 
   const renderTrackItem = (item: { entry: QueueEntry; index: number; track: Track }) => {
     const { track, index } = item;

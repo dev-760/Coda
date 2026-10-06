@@ -1,4 +1,3 @@
-import React from 'react';
 import { Pressable, StyleSheet, Text, View, ViewStyle, StyleProp } from 'react-native';
 import Icon from './Icon';
 import CoverThumb from './CoverThumb';

@@ -117,10 +117,17 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
 
   getOfflineTrackUrl: async (trackId) => {
     const item = get().downloads.find((d) => d.trackId === trackId);
-    if (item?.status === 'completed' && item.filePath) return item.filePath;
+    if (item?.status === 'completed' && item.filePath) {
+      const resolved = downloadStorage.resolveLocalPath(item.filePath);
+      if (resolved) return resolved;
+    }
     // Fall back to the persisted index in case the store has not refreshed yet.
     const stored = await downloadStorage.getDownloadByTrackId(trackId);
-    return stored?.status === 'completed' ? stored.filePath : null;
+    if (stored?.status === 'completed' && stored.filePath) {
+      const resolved = downloadStorage.resolveLocalPath(stored.filePath);
+      if (resolved) return resolved;
+    }
+    return null;
   },
 
   getStats: () => downloadManager.getStats(),

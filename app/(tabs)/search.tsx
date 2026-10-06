@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
+  Keyboard,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -19,6 +20,7 @@ import { TrackRow } from '../../src/components/ui/TrackRow';
 import { Chip, EmptyState } from '../../src/components/ui/primitives';
 import TrackOptionsMenu from '../../src/components/ui/TrackOptionsMenu';
 import { useResponsive } from '../../src/hooks/useResponsive';
+import { useBackHandler } from '../../src/hooks/useBackHandler';
 import { CatalogAlbum, CatalogArtist } from '../../src/providers/catalogTypes';
 import { Track } from '../../src/providers/types';
 import { recommendationsService } from '../../src/services/recommendationsService';
@@ -150,6 +152,27 @@ export default function SearchScreen() {
     inputRef.current?.blur();
   };
 
+  useBackHandler(() => {
+    if (hasSubmitted) {
+      setHasSubmitted(false);
+      setIsSearching(false);
+      return true;
+    }
+    if (isSearching || query.length > 0) {
+      setQuery('');
+      setIsSearching(false);
+      setHasSubmitted(false);
+      inputRef.current?.blur();
+      return true;
+    }
+    if (router.canGoBack()) {
+      router.back();
+      return true;
+    }
+    router.navigate('/(tabs)');
+    return true;
+  });
+
   const handleRetry = () => {
     const term = query.trim();
     if (!term) return;
@@ -165,6 +188,8 @@ export default function SearchScreen() {
   };
 
   const playOne = (track: Track) => {
+    Keyboard.dismiss();
+    inputRef.current?.blur();
     cacheTracks([track]);
     useQueueStore.getState().playContext([track], 0, {
       type: 'search',
@@ -174,6 +199,8 @@ export default function SearchScreen() {
   };
 
   const playMany = (tracks: Track[]) => {
+    Keyboard.dismiss();
+    inputRef.current?.blur();
     if (tracks.length === 0) return;
     cacheTracks(tracks);
     useQueueStore.getState().playContext(tracks, 0, {
@@ -184,6 +211,8 @@ export default function SearchScreen() {
   };
 
   const openAlbum = (album: CatalogAlbum) => {
+    Keyboard.dismiss();
+    inputRef.current?.blur();
     router.push({
       pathname: '/album' as any,
       params: {
@@ -197,6 +226,8 @@ export default function SearchScreen() {
   };
 
   const openArtist = (artist: CatalogArtist) => {
+    Keyboard.dismiss();
+    inputRef.current?.blur();
     router.push({
       pathname: '/artist' as any,
       params: { artistId: artist.id, name: artist.name, coverUrl: artist.picture ?? '' },
@@ -224,6 +255,7 @@ export default function SearchScreen() {
       ]}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
     >
       {searchHistory.length > 0 && (
         <View style={s.block}>
@@ -328,6 +360,7 @@ export default function SearchScreen() {
       ]}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
     >
       {loading && <ActivityIndicator color={colors.onSurface} style={s.loader} />}
 
@@ -441,6 +474,7 @@ export default function SearchScreen() {
       ]}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
     >
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.rail}>
         {(['Top', 'Tracks', 'Artists', 'Albums'] as const).map((tab) => {
@@ -497,8 +531,16 @@ export default function SearchScreen() {
                   key={track.id}
                   track={track}
                   onPress={() => playOne(track)}
-                  onLongPress={() => setOptionsTrack(track)}
-                  onMore={() => setOptionsTrack(track)}
+                  onLongPress={() => {
+                    Keyboard.dismiss();
+                    inputRef.current?.blur();
+                    setOptionsTrack(track);
+                  }}
+                  onMore={() => {
+                    Keyboard.dismiss();
+                    inputRef.current?.blur();
+                    setOptionsTrack(track);
+                  }}
                 />
               ))}
             </View>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -19,6 +19,7 @@ import { useQueueStore } from '../src/store/queueStore';
 import { useLibraryStore } from '../src/store/libraryStore';
 import { useDownloadStore } from '../src/downloads/downloadStore';
 import { useResponsive } from '../src/hooks/useResponsive';
+import { useBackHandler } from '../src/hooks/useBackHandler';
 import { colors, FONTS, r, t } from '../src/theme/theme';
 
 /** Elapsed time, or the countdown when counting back from the end. */
@@ -85,16 +86,23 @@ export default function NowPlayingScreen() {
 
   const goToPlayerTab = (tab: PlayerTab) => {
     if (tab === 'now-playing') return;
-    router.push(`/${tab}` as any);
+    router.replace(`/${tab}` as any);
   };
 
   const handleDismiss = () => {
-    if (router.canGoBack()) {
+    if (router.canDismiss?.()) {
+      router.dismiss();
+    } else if (router.canGoBack()) {
       router.back();
     } else {
       router.navigate('/(tabs)');
     }
   };
+
+  useBackHandler(() => {
+    handleDismiss();
+    return true;
+  });
 
   const playingFromLabel = (() => {
     if (context?.type === 'search') {

@@ -30,6 +30,33 @@ export default function MiniPlayer() {
   const isPlaying = usePlaybackStore((state) => state.isPlaying);
   const durationMs = usePlaybackStore((state) => state.durationMs);
   const hasNext = useQueueStore((state) => state.upcomingCount() > 0);
+  const context = useQueueStore((state) => state.context);
+
+  const playingFrom = (() => {
+    if (context?.type === 'search') {
+      return 'Search';
+    }
+    if (context?.name) {
+      return context.name;
+    }
+    if (currentTrack?.album) {
+      return currentTrack.album;
+    }
+    return 'Queue';
+  })();
+
+  const playingFromDisplay = playingFrom.toLowerCase().startsWith('playing from')
+    ? playingFrom
+    : `Playing from ${playingFrom}`;
+
+  const lastPreviousPressRef = React.useRef(0);
+
+  const handlePrevious = async () => {
+    const now = Date.now();
+    const isDouble = now - lastPreviousPressRef.current < 1500;
+    lastPreviousPressRef.current = now;
+    await audioService.playPrevious(isDouble);
+  };
 
   const handleTogglePlay = async () => {
     if (!currentTrack) return;
@@ -59,7 +86,7 @@ export default function MiniPlayer() {
           style={({ pressed }) => [s.touchableArea, pressed && { opacity: 0.85 }]}
           onPress={handleOpenNowPlaying}
           accessibilityRole="button"
-          accessibilityLabel={`Now playing: ${currentTrack.title} by ${currentTrack.artist}. Double tap to open player.`}
+          accessibilityLabel={`Now playing: ${currentTrack.title} by ${currentTrack.artist}, playing from ${playingFrom}. Double tap to open player.`}
         >
           {/* 40px Thumbnail with glow when playing */}
           <CoverThumb
@@ -72,10 +99,7 @@ export default function MiniPlayer() {
           {/* Titles */}
           <View style={s.info}>
             <Text numberOfLines={1} style={s.title}>
-              {currentTrack.title}
-            </Text>
-            <Text numberOfLines={1} style={s.artist}>
-              {currentTrack.artist}
+              {playingFromDisplay}
             </Text>
           </View>
         </Pressable>
@@ -89,6 +113,19 @@ export default function MiniPlayer() {
 
         {/* Controls */}
         <View style={s.controls}>
+          <Pressable
+            onPress={handlePrevious}
+            style={({ pressed }) => [s.controlBtn, pressed && { opacity: 0.6 }]}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Previous track. Double tap for previous song."
+          >
+            <Icon
+              name="skip-previous"
+              size={20}
+              color={colors.onSurface}
+            />
+          </Pressable>
           <Pressable
             onPress={handleTogglePlay}
             style={({ pressed }) => [s.controlBtn, pressed && { opacity: 0.6 }]}
@@ -155,7 +192,7 @@ const s = StyleSheet.create({
   info: {
     flex: 1,
     minWidth: 0,
-    gap: 2,
+    justifyContent: 'center',
   },
   title: {
     ...t.bodyStrong,
@@ -172,11 +209,11 @@ const s = StyleSheet.create({
   controls: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 2,
   },
   controlBtn: {
-    width: 40,
-    height: 40,
+    width: 38,
+    height: 38,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: r.full,
