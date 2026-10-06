@@ -37,6 +37,7 @@ function getGreeting(): string {
   return 'GOOD EVENING';
 }
 
+
 export default function HomeScreen() {
   const router = useRouter();
   const { favorites, playlists, recentlyPlayed } = useLibraryStore();
