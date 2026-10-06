@@ -29,7 +29,7 @@ function getSeedNumber(key: string | number): number {
 }
 
 export function GenerativeArt({
-  seedKey = 'luma',
+  seedKey = 'coda',
   pattern,
   size = 144,
   borderRadius = r.lg,

@@ -144,7 +144,7 @@ export const useListeningStore = create<ListeningState>()(
         ),
     }),
     {
-      name: 'luma-listening-data',
+      name: 'coda-listening-data',
       version: 1,
       storage: createJSONStorage(() => AsyncStorage),
     }

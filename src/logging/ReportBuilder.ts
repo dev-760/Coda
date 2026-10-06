@@ -5,7 +5,7 @@ import { useLogStore } from '../store/logStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { APP_VERSION } from '../version';
 
-export const REPORT_SCHEMA_VERSION = '4.2.0';
+export const REPORT_SCHEMA_VERSION = '4.4.0';
 
 // Full URLs can carry signed stream tokens, so they are stripped from both the
 // message and the structured data before a report leaves the device.
@@ -22,7 +22,7 @@ function redact(value: unknown): unknown {
   return value;
 }
 
-export interface LumaReport {
+export interface CodaReport {
   schemaVersion: string;
   timestamp: string;
   appVersion: string;
@@ -37,7 +37,7 @@ export interface LumaReport {
 }
 
 export class ReportBuilder {
-  static async buildReport(): Promise<LumaReport> {
+  static async buildReport(): Promise<CodaReport> {
     const settings = useSettingsStore.getState();
     const logs = useLogStore.getState().entries;
 
@@ -67,7 +67,7 @@ export class ReportBuilder {
       const report = await this.buildReport();
       const json = JSON.stringify(report, null, 2);
       
-      const filename = `luma_diagnostic_${Date.now()}.json`;
+      const filename = `coda_diagnostic_${Date.now()}.json`;
       const fileUri = `${FileSystem.cacheDirectory}${filename}`;
       
       await FileSystem.writeAsStringAsync(fileUri, json, { encoding: FileSystem.EncodingType.UTF8 });
@@ -75,7 +75,7 @@ export class ReportBuilder {
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(fileUri, {
           mimeType: 'application/json',
-          dialogTitle: 'Export Luma Diagnostics',
+          dialogTitle: 'Export Coda Diagnostics',
         });
         return true;
       }

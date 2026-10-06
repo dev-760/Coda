@@ -17,7 +17,7 @@ interface CreatePlaylistModalProps {
 }
 
 /**
- * Playlist identity colours, drawn from the Luma structural ramp rather than a
+ * Playlist identity colours, drawn from the Coda structural ramp rather than a
  * saturated rainbow. Design.md rules out saturated purple and cyan states, so
  * these stay in the steel-to-warm family and read as one system.
  */

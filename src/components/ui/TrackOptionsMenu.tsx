@@ -115,7 +115,7 @@ export default function TrackOptionsMenu({
   const handleShare = async () => {
     onClose();
     try {
-      await Share.share({ message: `Listen to "${track.title}" by ${track.artist} on Luma` });
+      await Share.share({ message: `Listen to "${track.title}" by ${track.artist} on Coda` });
     } catch {
       // The user dismissed the share sheet.
     }

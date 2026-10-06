@@ -8,7 +8,7 @@ import { Track } from '../../providers/types';
 import { useDownloadStore } from '../../downloads/downloadStore';
 
 /**
- * The catalog track row faithfully built from the Luma Design System showcase:
+ * The catalog track row faithfully built from the Coda Design System showcase:
  * - 64px row height
  * - Level meter on playing track
  * - 48px cover artwork with glow when playing

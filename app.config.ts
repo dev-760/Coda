@@ -3,23 +3,23 @@ import packageJson from './package.json';
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
-  name: 'Luma',
-  slug: 'luma',
+  name: 'Coda',
+  slug: 'coda',
   owner: 'windsurf29',
   version: packageJson.version,
   orientation: 'default',
   icon: './assets/brand/icon-1024.png',
-  scheme: 'luma',
+  scheme: 'coda',
   userInterfaceStyle: 'dark',
   backgroundColor: '#131316', // App background
   ios: {
-    bundleIdentifier: 'com.luma.musicplayer',
+    bundleIdentifier: 'com.coda.player',
     infoPlist: {
       UIBackgroundModes: ['audio', 'fetch'],
     },
   },
   android: {
-    package: 'com.luma.musicplayer',
+    package: 'com.coda.player',
     versionCode: 42,
     adaptiveIcon: {
       // Split layers so the launcher can mask and tint them. The mark sits
@@ -92,7 +92,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   extra: {
     hifiApiBaseUrl: 'https://hifi-api00.vercel.app',
     eas: {
-      projectId: '721038e8-4798-46ab-b51b-2ebdf891abf4',
+      projectId: 'e0f53ea8-5afd-42c5-a154-2908a1d8c084',
     },
   }
 });

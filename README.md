@@ -1,6 +1,6 @@
-# Luma
+# Coda
 
-A music player for React Native and Expo. Luma streams from a third-party HiFi API,
+A music player for React Native and Expo. Coda streams from a third-party HiFi API,
 keeps a persistent local library, downloads music for offline playback, and ranks
 suggestions on the device from what you actually play.
 

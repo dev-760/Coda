@@ -4,9 +4,9 @@ import Svg, { Path } from 'react-native-svg';
 import { colors } from '../../theme/theme';
 
 /**
- * The official Luma Eclipse mark.
+ * The official Coda Eclipse mark.
  *
- * Source: Luma Design System showcase:
+ * Source: Coda Design System showcase:
  * A thick ring with an opening at the upper right; a detached dot of light sits in the gap.
  * Reads cleanly from 16px to 1024px.
  */

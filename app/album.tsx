@@ -104,7 +104,7 @@ export default function AlbumScreen() {
 
   const handleShare = async () => {
     try {
-      await Share.share({ message: `Listen to "${albumTitle}" by ${albumArtist} on Luma` });
+      await Share.share({ message: `Listen to "${albumTitle}" by ${albumArtist} on Coda` });
     } catch {}
   };
 

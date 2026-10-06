@@ -2,14 +2,14 @@
 
 ## Overview
 
-The Luma Music Player now includes a comprehensive local playlist management system that allows users to create, store, and manage playlists entirely on their device using AsyncStorage. This system is fully functional and requires no backend services.
+The Coda Music Player now includes a comprehensive local playlist management system that allows users to create, store, and manage playlists entirely on their device using AsyncStorage. This system is fully functional and requires no backend services.
 
 ## Architecture
 
 ### Data Storage
 
 **Storage Location:** AsyncStorage (Local device storage)
-**Storage Key:** `luma:playlists`
+**Storage Key:** `coda:playlists`
 **Data Format:** JSON array of Playlist objects
 
 ### Playlist Data Structure
@@ -136,7 +136,7 @@ await updatePlaylistLastPlayed(playlistId);
 - Validation and error handling
 
 **Color Options:**
-Drawn from the Luma structural ramp (see `Design.md`), not a saturated
+Drawn from the Coda structural ramp (see `Design.md`), not a saturated
 rainbow. Saturated purple and cyan states are ruled out by the design system.
 
 - Steel (#6F7E88)
@@ -202,10 +202,10 @@ rainbow. Saturated purple and cyan states are ruled out by the design system.
 
 ```typescript
 STORAGE_KEYS = {
-  PLAYLISTS: 'luma:playlists',
-  FAVORITES: 'luma:favorites',
-  SEARCH_HISTORY: 'luma:search_history',
-  RECENTLY_PLAYED: 'luma:recently_played',
+  PLAYLISTS: 'coda:playlists',
+  FAVORITES: 'coda:favorites',
+  SEARCH_HISTORY: 'coda:search_history',
+  RECENTLY_PLAYED: 'coda:recently_played',
   // ... other keys
 }
 ```

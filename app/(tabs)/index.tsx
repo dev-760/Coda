@@ -179,7 +179,7 @@ export default function HomeScreen() {
                   {heroTrack.artist}
                 </Text>
                 <Text numberOfLines={1} style={s.heroCatalog}>
-                  {heroTrack.album || 'Luma Master Recording'}
+                  {heroTrack.album || 'Coda Master Recording'}
                 </Text>
               </View>
             </Pressable>

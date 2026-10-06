@@ -186,7 +186,7 @@ describe('downloadStorage', () => {
   });
 
   it('survives a corrupt index instead of crashing', async () => {
-    await AsyncStorage.setItem('luma:download_metadata', '{not json');
+    await AsyncStorage.setItem('coda:download_metadata', '{not json');
     expect(await downloadStorage.getAllDownloads()).toEqual([]);
   });
 });

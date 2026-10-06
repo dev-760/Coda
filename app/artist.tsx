@@ -97,7 +97,7 @@ export default function ArtistScreen() {
     useQueueStore.getState().toggleShuffle();
   };
 
-  const FOLLOWED_ARTISTS_KEY = 'luma:followed_artists';
+  const FOLLOWED_ARTISTS_KEY = 'coda:followed_artists';
 
   useEffect(() => {
     if (!name) return;
@@ -125,7 +125,7 @@ export default function ArtistScreen() {
 
   const handleShare = async () => {
     try {
-      await Share.share({ message: `Listen to ${name} on Luma` });
+      await Share.share({ message: `Listen to ${name} on Coda` });
     } catch {}
   };
 

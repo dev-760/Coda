@@ -1,4 +1,4 @@
-# Changes in Luma v4.2.0
+# Changes in Coda v4.4.0
 
 A comprehensive record of code quality, architecture, UI/UX, mobile ergonomics, accessibility, and documentation improvements delivered in one uninterrupted pass.
 
@@ -6,7 +6,7 @@ A comprehensive record of code quality, architecture, UI/UX, mobile ergonomics, 
 
 ## 1. Executive Summary
 
-Luma v4.2.0 is an offline-capable, local-first music player built with React Native 0.86, Expo SDK 57, Expo Router, TypeScript (strict), Zustand 4.5 (with persist), and expo-audio.
+Coda v4.4.0 is an offline-capable, local-first music player built with React Native 0.86, Expo SDK 57, Expo Router, TypeScript (strict), Zustand 4.5 (with persist), and expo-audio.
 
 This release eliminates confirmed runtime crashes on web previews, replaces all hardcoded fictional catalog items and metrics with authentic on-device data and real search triggers, strengthens mobile touch targets and accessibility semantics, consolidates redundant caches and quality configurations, and cleans up codebase comments and design documentation.
 
@@ -199,7 +199,7 @@ npm test            # 12 test suites passed, 137 / 137 tests passed
 
 ### 11.2. Home Screen & Suggestion Engine Overhaul
 - **Suggestion Engine Cold Start Fix (`src/services/suggestionEngine.ts`):** Resolved cold start starvation where candidate queries were empty when listening stats had zero plays. The engine now uses user library favorites as query seeds and falls back to foundational genre streams (`Electronic`, `Chill`, `Ambient`, `Lo-Fi`), ensuring high-fidelity discovery recommendations load immediately.
-- **Top Greeting & Header (`app/(tabs)/index.tsx`):** Added a brand header featuring "Luma", time-of-day greeting ("Good morning / afternoon / evening"), and a quick settings button.
+- **Top Greeting & Header (`app/(tabs)/index.tsx`):** Added a brand header featuring "Coda", time-of-day greeting ("Good morning / afternoon / evening"), and a quick settings button.
 - **Vibe & Genre Quick Filters:** Added a horizontal pill rail (`All`, `Electronic`, `Ambient`, `Chill`, `Lo-Fi`, `Classical`, `Jazz`). Selecting a genre dynamically seeds the suggestion engine on the fly.
 - **Featured Soundscapes Rail:** Replaced the empty "Play tracks repeatedly" placeholder with high-taste soundscape discovery cards (`Ambient & Drone`, `Lo-Fi & Downtempo`, `Electronic & Synth`, `Modern Classical`).
 - **Skeleton Shimmer Loading (`src/components/discover/MadeForYou.tsx`):** Added card skeleton placeholders during recommendation fetch, preventing layout jumpiness and providing immediate visual feedback. Added play button overlay affordance on recommendation cards.
@@ -207,7 +207,7 @@ npm test            # 12 test suites passed, 137 / 137 tests passed
 ### 11.3. Now Playing & Notification Elevation
 - **Elevated Artwork Container (`app/now-playing.tsx`):** Added subtle container border (`colors.surfaceContainerHighest`), rounded geometry, and refined depth.
 - **Persistent Lossless Fidelity Badge:** Now Playing displays a dedicated fidelity indicator pill (`FLAC 24/192 • Lossless Audio` with indicator dot) whenever audio is active.
-- **Android Media Notification Formatting (`src/audio/ExpoAudioBackend.ts`):** Enforced fallback album titles (`track.album || 'Luma Lossless'`) and artwork URLs in `publishMetadata` and `activateMediaSession`, ensuring Android's media control notification shade renders crisp artwork, album subtitle, and full playback controls.
+- **Android Media Notification Formatting (`src/audio/ExpoAudioBackend.ts`):** Enforced fallback album titles (`track.album || 'Coda Lossless'`) and artwork URLs in `publishMetadata` and `activateMediaSession`, ensuring Android's media control notification shade renders crisp artwork, album subtitle, and full playback controls.
 
 ### 11.4. Brand Asset & Splash Screen Modernization
 - **New App Icon & Mark (`icon.svg`):** Replaced legacy soundbar icon with the new modern brand mark: a sleek squircle app tile (`#1a1c1e`) featuring a silver open ring and floating dot (`#b0b3ba`) with subtle drop shadow.

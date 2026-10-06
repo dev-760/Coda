@@ -105,7 +105,7 @@ export default function SettingsScreen() {
   };
 
   const handleResetHistoryPrompt = () => {
-    // Two-step confirmation matching Luma showcase
+    // Two-step confirmation matching Coda showcase
     Alert.alert(
       'Clear Listening Data',
       'Step 1 of 2: This will reset recommendations, play counts, and recently played tracks.',

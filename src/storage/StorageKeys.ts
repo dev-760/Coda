@@ -1,4 +1,4 @@
-export const STORAGE_NAMESPACE = 'luma';
+export const STORAGE_NAMESPACE = 'coda';
 
 export const STORAGE_KEYS = {
   FAVORITES: `${STORAGE_NAMESPACE}:favorites`,

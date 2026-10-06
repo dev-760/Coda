@@ -1,6 +1,6 @@
 # Architecture
 
-How Luma is organised, and why the seams are where they are. Every claim here is
+How Coda is organised, and why the seams are where they are. Every claim here is
 checkable against the source as of this writing.
 
 ## 1. Layers
@@ -128,7 +128,7 @@ Reorder is restricted to the user tier, which is what the queue screen actually 
 
 ### Persistence
 
-Version 3, under the AsyncStorage key `luma-queue-storage`.
+Version 3, under the AsyncStorage key `coda-queue-storage`.
 
 `partialize` persists `entries`, `currentIndex`, `repeat`, `context`, and the
 **serialised track cache**. The cache is persisted deliberately: entries alone are ids,

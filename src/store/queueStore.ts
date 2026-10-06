@@ -419,7 +419,7 @@ export const useQueueStore = create<QueueState>()(
       },
     }),
     {
-      name: 'luma-queue-storage',
+      name: 'coda-queue-storage',
       version: 3,
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({

@@ -31,7 +31,7 @@ class LyricsService {
     try {
       const res = await fetch(url, {
         signal: controller.signal,
-        headers: { 'User-Agent': 'LumaMusicPlayer/4.2.0' },
+        headers: { 'User-Agent': 'CodaMusicPlayer/4.4.0' },
       });
       if (res.ok) {
         return await res.json();

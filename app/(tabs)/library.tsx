@@ -403,7 +403,7 @@ export default function LibraryScreen() {
           if (selectedPlaylist) {
             try {
               await Share.share({
-                message: `Listen to "${selectedPlaylist.name}" on Luma`,
+                message: `Listen to "${selectedPlaylist.name}" on Coda`,
               });
             } catch {}
           }

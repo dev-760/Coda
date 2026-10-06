@@ -7,7 +7,7 @@ import { resolveTabBarInset, TAB_BAR_HEIGHT } from '../../hooks/useResponsive';
 import { colors, t } from '../../theme/theme';
 
 /**
- * Bottom navigation faithfully matching Luma Design System showcase:
+ * Bottom navigation faithfully matching Coda Design System showcase:
  * Surface-1 on Ink background with 1px hairline divider top border,
  * active dot indicator, and bespoke monoline icons.
  */

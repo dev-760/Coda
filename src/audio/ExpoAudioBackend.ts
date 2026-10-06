@@ -126,7 +126,7 @@ export class ExpoAudioBackend implements AudioBackend {
     this.player.updateLockScreenMetadata({
       title: track.title,
       artist: track.artist,
-      albumTitle: track.album ? `${track.album} • Luma` : 'Luma Lossless',
+      albumTitle: track.album ? `${track.album} • Coda` : 'Coda Lossless',
       artworkUrl: track.coverUrl ?? track.artwork,
     });
   }
@@ -150,7 +150,7 @@ export class ExpoAudioBackend implements AudioBackend {
         ? {
             title: track.title,
             artist: track.artist,
-            albumTitle: track.album ? `${track.album} • Luma` : 'Luma Lossless',
+            albumTitle: track.album ? `${track.album} • Coda` : 'Coda Lossless',
             artworkUrl: track.coverUrl ?? track.artwork,
           }
         : undefined,

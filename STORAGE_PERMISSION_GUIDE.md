@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Luma Music Player now requests proper storage permissions from users to enable permanent offline music storage. This ensures users have full control over their downloaded music and provides a better offline experience.
+The Coda Music Player now requests proper storage permissions from users to enable permanent offline music storage. This ensures users have full control over their downloaded music and provides a better offline experience.
 
 ## Permission System Architecture
 
@@ -185,7 +185,7 @@ When `PermissionsAndroid.request()` is called, Android shows:
 ┌─────────────────────────────────┐
 │         Storage Permission      │
 ├─────────────────────────────────┤
-│ Luma needs access to your      │
+│ Coda needs access to your      │
 │ storage to download music for  │
 │ offline listening.             │
 │                                 │
@@ -203,7 +203,7 @@ Our custom modal provides better UX:
 │                                 │
 │   Storage Permission Required   │
 │                                 │
-│ Luma needs access to your      │
+│ Coda needs access to your      │
 │ device storage to download     │
 │ music for offline listening.   │
 │                                 │

@@ -12,7 +12,7 @@ import Icon from './Icon';
 import { colors, r, t } from '../../theme/theme';
 
 /**
- * Luma Primitives — faithfully built to match the Luma Design System showcase:
+ * Coda Primitives — faithfully built to match the Coda Design System showcase:
  * https://design-system-rho-dusky.vercel.app/
  */
 
@@ -30,7 +30,7 @@ export interface ButtonProps {
 }
 
 /**
- * Standard Luma Button:
+ * Standard Coda Button:
  * - Primary: Solid Silver fill (#B8B8C0), Ink (#141416) text & icon
  * - Secondary / Outline: 1px Silver outline, Silver text
  * - Ghost: No border/background, Silver text, surface-1 pressed
@@ -101,7 +101,7 @@ export function Button({
 }
 
 /**
- * Circular Play / Transport Button with signature Luma Glow
+ * Circular Play / Transport Button with signature Coda Glow
  */
 export function PlayButton({
   isPlaying,

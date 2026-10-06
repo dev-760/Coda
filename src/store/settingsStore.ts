@@ -87,7 +87,7 @@ export const useSettingsStore = create<SettingsState>()(
       },
     }),
     {
-      name: 'luma-settings',
+      name: 'coda-settings',
       version: 1,
       storage: createJSONStorage(() => AsyncStorage),
       migrate: (persistedState: any, version: number) => {

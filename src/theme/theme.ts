@@ -1,6 +1,6 @@
-// theme.ts — Luma design tokens.
+// theme.ts — Coda design tokens.
 //
-// Generated from the official Luma Design System showcase:
+// Generated from the official Coda Design System showcase:
 // https://design-system-rho-dusky.vercel.app/
 //
 // Monochrome Ink and Silver system for a lyrics-first music player:
@@ -10,7 +10,7 @@ export const INK = '#141416';
 export const SILVER = '#B8B8C0';
 
 /** Official showcase color tokens */
-export const lumaTokens = {
+export const codaTokens = {
   ink: INK,
   silver: SILVER,
   bg: INK,
@@ -32,80 +32,80 @@ export const lumaTokens = {
 
 export const colors = {
   // Canvas
-  background: lumaTokens.bg,
-  surface: lumaTokens.bg,
+  background: codaTokens.bg,
+  surface: codaTokens.bg,
   surfaceDeep: INK,
   surfaceContainerLowest: INK,
-  surfaceContainerLow: lumaTokens.surface1,
-  surfaceContainer: lumaTokens.surface1,
-  surfaceContainerHigh: lumaTokens.surface2,
-  surfaceContainerHighest: lumaTokens.surface2,
-  surfaceVariant: lumaTokens.surface2,
-  surfaceSubtle: lumaTokens.surface1,
-  surfaceBright: lumaTokens.surface2,
+  surfaceContainerLow: codaTokens.surface1,
+  surfaceContainer: codaTokens.surface1,
+  surfaceContainerHigh: codaTokens.surface2,
+  surfaceContainerHighest: codaTokens.surface2,
+  surfaceVariant: codaTokens.surface2,
+  surfaceSubtle: codaTokens.surface1,
+  surfaceBright: codaTokens.surface2,
 
   // Direct token names matching showcase
-  surface1: lumaTokens.surface1,
-  surface2: lumaTokens.surface2,
-  divider: lumaTokens.divider,
-  glow: lumaTokens.glow,
-  textPast: lumaTokens.textPast,
+  surface1: codaTokens.surface1,
+  surface2: codaTokens.surface2,
+  divider: codaTokens.divider,
+  glow: codaTokens.glow,
+  textPast: codaTokens.textPast,
 
   /** Silver 100% — Track titles, body and active lyric. */
-  onSurface: lumaTokens.textPrimary,
-  textPrimary: lumaTokens.textPrimary,
+  onSurface: codaTokens.textPrimary,
+  textPrimary: codaTokens.textPrimary,
 
   /** Silver 80% — Supporting copy, artist names and captions. */
-  onSurfaceVariant: lumaTokens.textSecondary,
-  textSecondary: lumaTokens.textSecondary,
+  onSurfaceVariant: codaTokens.textSecondary,
+  textSecondary: codaTokens.textSecondary,
 
   /** Silver 65% — De-emphasised labels, counters and timestamps. */
-  outlineText: lumaTokens.textTertiary,
-  textTertiary: lumaTokens.textTertiary,
+  outlineText: codaTokens.textTertiary,
+  textTertiary: codaTokens.textTertiary,
 
   // Line work (14% Silver)
-  outline: lumaTokens.divider,
-  outlineVariant: lumaTokens.divider,
+  outline: codaTokens.divider,
+  outlineVariant: codaTokens.divider,
 
   // Text tints
-  textSoft: lumaTokens.textPrimary,
-  textMuted: lumaTokens.textSecondary,
-  disabled: lumaTokens.disabled,
+  textSoft: codaTokens.textPrimary,
+  textMuted: codaTokens.textSecondary,
+  disabled: codaTokens.disabled,
 
   // Primary chrome. Inverts rather than tints: solid Silver fill with Ink text
-  primary: lumaTokens.accent,
-  onPrimary: lumaTokens.onAccent,
-  primaryContainer: lumaTokens.surface2,
-  onPrimaryContainer: lumaTokens.textPrimary,
+  primary: codaTokens.accent,
+  onPrimary: codaTokens.onAccent,
+  primaryContainer: codaTokens.surface2,
+  onPrimaryContainer: codaTokens.textPrimary,
 
-  secondary: lumaTokens.textSecondary,
-  onSecondary: lumaTokens.onAccent,
-  secondaryContainer: lumaTokens.surface2,
-  onSecondaryContainer: lumaTokens.textPrimary,
+  secondary: codaTokens.textSecondary,
+  onSecondary: codaTokens.onAccent,
+  secondaryContainer: codaTokens.surface2,
+  onSecondaryContainer: codaTokens.textPrimary,
 
-  tertiary: lumaTokens.textTertiary,
-  onTertiary: lumaTokens.onAccent,
-  tertiaryContainer: lumaTokens.surface1,
-  onTertiaryContainer: lumaTokens.textSecondary,
+  tertiary: codaTokens.textTertiary,
+  onTertiary: codaTokens.onAccent,
+  tertiaryContainer: codaTokens.surface1,
+  onTertiaryContainer: codaTokens.textSecondary,
 
   // Feedback
-  error: lumaTokens.error,
-  onError: lumaTokens.onAccent,
-  errorContainer: lumaTokens.errorContainer,
+  error: codaTokens.error,
+  onError: codaTokens.onAccent,
+  errorContainer: codaTokens.errorContainer,
   onErrorContainer: '#FFE9E7',
 
-  success: lumaTokens.success,
+  success: codaTokens.success,
   onSuccess: '#04180C',
 
-  inverseSurface: lumaTokens.accent,
-  inverseOnSurface: lumaTokens.onAccent,
-  inversePrimary: lumaTokens.surface2,
+  inverseSurface: codaTokens.accent,
+  inverseOnSurface: codaTokens.onAccent,
+  inversePrimary: codaTokens.surface2,
 
   surfaceDim: INK,
 
   /** Active playback accent is solid Silver. */
-  accent: lumaTokens.accent,
-  onAccent: lumaTokens.onAccent,
+  accent: codaTokens.accent,
+  onAccent: codaTokens.onAccent,
   ink: INK,
   silver: SILVER,
 } as const;
@@ -150,7 +150,7 @@ export const FONTS = {
 } as const;
 
 /**
- * Type scale directly from the Luma showcase:
+ * Type scale directly from the Coda showcase:
  * - display: 32/36, tracking -1, semibold
  * - title: 22/28, tracking -0.5, semibold
  * - headline: 17/24, tracking 0, semibold

@@ -164,7 +164,7 @@ export const useLibraryStore = create<LibraryState>()(
             tracks: [],
             isPublic: false,
             tags: [],
-            // Falls back to Luma Steel so an unnamed playlist still matches the palette.
+            // Falls back to Coda Steel so an unnamed playlist still matches the palette.
 color: color || colors.primary,
             icon: icon || 'musical-notes',
             createdAt: Date.now(),

@@ -15,7 +15,7 @@ export async function requestAndroidNotificationPermission(): Promise<boolean> {
         PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
         {
           title: 'Media Playback Controls',
-          message: 'Allow Luma to display playback controls in your notification bar and lock screen.',
+          message: 'Allow Coda to display playback controls in your notification bar and lock screen.',
           buttonPositive: 'Allow',
           buttonNegative: 'Not now',
         }
@@ -43,7 +43,7 @@ export async function requestAndroidStoragePermission(): Promise<boolean> {
         PermissionsAndroid.PERMISSIONS.READ_MEDIA_AUDIO,
         {
           title: 'Storage Access',
-          message: 'Allow Luma to access audio files on this device.',
+          message: 'Allow Coda to access audio files on this device.',
           buttonPositive: 'Allow',
           buttonNegative: 'Not now',
         }
