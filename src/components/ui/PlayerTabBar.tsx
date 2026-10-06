@@ -37,7 +37,12 @@ export default function PlayerTabBar({
               accessibilityState={{ selected: focused }}
               accessibilityLabel={tab.label}
             >
-              <Text style={[s.label, focused && s.labelActive]} numberOfLines={1}>
+              <Text
+                style={[s.label, focused && s.labelActive]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.8}
+              >
                 {tab.label}
               </Text>
             </Pressable>
@@ -78,7 +83,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: r.full,
-    paddingHorizontal: 12,
+    paddingHorizontal: 4,
   },
   segmentActive: {
     backgroundColor: colors.accent,
@@ -88,7 +93,8 @@ const s = StyleSheet.create({
   },
   label: {
     ...t.label,
-    fontSize: 11,
+    fontSize: 10.5,
+    letterSpacing: 0.5,
     color: colors.onSurfaceVariant,
   },
   labelActive: {

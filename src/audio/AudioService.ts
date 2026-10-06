@@ -1,6 +1,6 @@
 import { ExpoAudioBackend } from './ExpoAudioBackend';
 import { usePlaybackStore } from '../store/playbackStore';
-import { useQueueStore } from '../store/queueStore';
+import { useQueueStore, getCachedTrack } from '../store/queueStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { logger } from '../logging/Logger';
 import { Track, StreamInfo } from '../providers/types';
@@ -253,10 +253,31 @@ class AudioService {
   async pause(): Promise<void> {
     this.cancelSleepTimer();
     usePlaybackStore.getState().setPlaying(false);
-    await this.backend.pause();
+    if (this.backend.hasLoadedTrack()) {
+      await this.backend.pause();
+    }
   }
 
   async resume(): Promise<void> {
+    const store = usePlaybackStore.getState();
+    const currentQueueTrack = (() => {
+      const entry = useQueueStore.getState().currentEntry();
+      return entry ? getCachedTrack(entry.trackId) ?? null : null;
+    })();
+    const trackToPlay = store.currentTrack ?? currentQueueTrack;
+
+    if (!this.backend.hasLoadedTrack()) {
+      if (trackToPlay) {
+        const targetPos = store.positionMs;
+        await this.playAttempt(trackToPlay, 0);
+        if (targetPos > 0) {
+          await this.seekTo(targetPos);
+        }
+        return;
+      }
+      return;
+    }
+
     usePlaybackStore.getState().setPlaying(true);
     await this.backend.resume();
     this.startSleepTimer();
@@ -270,7 +291,9 @@ class AudioService {
 
   async seekTo(positionMs: number): Promise<void> {
     usePlaybackStore.setState({ positionMs });
-    await this.backend.seekTo(positionMs);
+    if (this.backend.hasLoadedTrack()) {
+      await this.backend.seekTo(positionMs);
+    }
   }
 
   async rewind(): Promise<void> {

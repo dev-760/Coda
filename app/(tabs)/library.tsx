@@ -194,7 +194,7 @@ export default function LibraryScreen() {
               <EmptyState
                 icon="playlist"
                 title="No playlists yet"
-                body="Group tracks for a mood, a place or a label. Playlists sync to every device."
+                body="Group tracks for a mood, a place or a label. Playlists are saved locally to this device."
                 actionLabel="New playlist"
                 onAction={() => setCreateVisible(true)}
               />
@@ -244,14 +244,14 @@ export default function LibraryScreen() {
         {view === 'tracks' && (
           <View style={s.viewSection}>
             <Text style={s.sectionCount}>
-              {`${favorites.length} TRACKS · RECENTLY ADDED`}
+              {`${favorites.length} ${favorites.length === 1 ? 'TRACK' : 'TRACKS'} · RECENTLY ADDED`}
             </Text>
 
             {favorites.length === 0 ? (
               <EmptyState
                 icon="plus"
                 title="No saved tracks"
-                body="Tap the pin on any track and it lands here, newest first."
+                body="Tap the heart on any track to save it here, newest first."
                 actionLabel="Explore music"
                 onAction={() => router.push('/search' as any)}
               />
@@ -357,7 +357,9 @@ export default function LibraryScreen() {
               <View style={s.tracksList}>
                 <View style={s.sectionActionRow}>
                   <Text style={s.sectionCount}>
-                    {`ON THIS DEVICE · ${completedDownloads.length} TRACKS`}
+                    {`ON THIS DEVICE · ${completedDownloads.length} ${
+                      completedDownloads.length === 1 ? 'TRACK' : 'TRACKS'
+                    }`}
                   </Text>
                   <Button
                     label="Manage"

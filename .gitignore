@@ -45,3 +45,6 @@ example
 
 # design reference screenshots (not used by the build)
 /UI/
+
+# binaries
+*.apk

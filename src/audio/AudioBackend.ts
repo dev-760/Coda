@@ -35,6 +35,8 @@ export interface AudioBackend {
   setPlaybackRate(rate: number): Promise<void>;
   /** Update lock screen now-playing metadata for the active track. */
   updateMetadata(track: Track): void;
+  /** Whether the backend currently has an active track loaded into the player. */
+  hasLoadedTrack(): boolean;
   /**
    * Registers this player as the OS media session so the lock screen, shade and
    * headphone buttons drive it. Called on playback, not at init: binding it for

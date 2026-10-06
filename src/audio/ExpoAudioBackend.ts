@@ -309,11 +309,16 @@ export class ExpoAudioBackend implements AudioBackend {
     this.startProgressTimer();
   }
 
+  hasLoadedTrack(): boolean {
+    return this.currentTrack !== null;
+  }
+
   async stop(): Promise<void> {
     const player = this.requirePlayer();
     this.stopProgressTimer();
     player.pause();
     player.replace(null);
+    this.currentTrack = null;
     this.lastReportedPlaying = false;
     this.deactivateMediaSession();
   }

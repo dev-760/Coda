@@ -124,10 +124,10 @@ export default function LyricsScreen() {
   const progress = durationMs > 0 ? Math.min(1, positionMs / durationMs) : 0;
 
   const handleDismiss = () => {
-    if (router.canDismiss?.()) {
-      router.dismiss();
-    } else if (router.canGoBack()) {
+    if (router.canGoBack()) {
       router.back();
+    } else if (router.canDismiss?.()) {
+      router.dismiss();
     } else {
       router.navigate('/(tabs)');
     }

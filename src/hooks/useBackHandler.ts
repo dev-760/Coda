@@ -17,12 +17,12 @@ export function useBackHandler(handler?: () => boolean) {
         const handled = handler();
         if (handled) return true;
       }
-      if (router.canDismiss?.()) {
-        router.dismiss();
-        return true;
-      }
       if (router.canGoBack()) {
         router.back();
+        return true;
+      }
+      if (router.canDismiss?.()) {
+        router.dismiss();
         return true;
       }
       router.navigate('/(tabs)');

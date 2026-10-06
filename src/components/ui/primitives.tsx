@@ -225,9 +225,11 @@ export function SegmentedControl<T extends string>({
                 isSelected && s.segmentedLabelSelected,
               ]}
               numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.8}
             >
               {seg.label}
-              {seg.count !== undefined ? `  ${seg.count}` : ''}
+              {seg.count !== undefined ? ` ${seg.count}` : ''}
             </Text>
           </Pressable>
         );
@@ -517,7 +519,7 @@ const s = StyleSheet.create({
   segmentedItem: {
     flex: 1,
     paddingVertical: 8,
-    paddingHorizontal: 8,
+    paddingHorizontal: 4,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: r.full,
@@ -527,12 +529,12 @@ const s = StyleSheet.create({
   },
   segmentedLabel: {
     ...t.caption,
-    fontSize: 12,
+    fontSize: 11,
     color: colors.onSurfaceVariant,
   },
   segmentedLabelSelected: {
     ...t.captionStrong,
-    fontSize: 12,
+    fontSize: 11,
     color: colors.onPrimary,
   },
 

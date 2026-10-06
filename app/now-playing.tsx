@@ -90,10 +90,10 @@ export default function NowPlayingScreen() {
   };
 
   const handleDismiss = () => {
-    if (router.canDismiss?.()) {
-      router.dismiss();
-    } else if (router.canGoBack()) {
+    if (router.canGoBack()) {
       router.back();
+    } else if (router.canDismiss?.()) {
+      router.dismiss();
     } else {
       router.navigate('/(tabs)');
     }

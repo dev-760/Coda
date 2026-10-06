@@ -22,6 +22,7 @@ import TrackOptionsMenu from '../../src/components/ui/TrackOptionsMenu';
 import MadeForYou from '../../src/components/discover/MadeForYou';
 import { useLibraryStore } from '../../src/store/libraryStore';
 import { usePlaybackStore } from '../../src/store/playbackStore';
+import { useSettingsStore } from '../../src/store/settingsStore';
 import { useListeningStore } from '../../src/store/listeningStore';
 import { audioService } from '../../src/audio/AudioService';
 import { useQueueStore, cacheTracks } from '../../src/store/queueStore';
@@ -46,6 +47,8 @@ export default function HomeScreen() {
   const isPlaying = usePlaybackStore((state) => state.isPlaying);
   const positionMs = usePlaybackStore((state) => state.positionMs);
   const durationMs = usePlaybackStore((state) => state.durationMs);
+  const streamInfo = usePlaybackStore((state) => state.streamInfo);
+  const audioQuality = useSettingsStore((state) => state.audio.hifiAudioQuality);
   const { gutter, maxContentWidth, bottomBarClearance } = useResponsive();
 
   const [optionsTrack, setOptionsTrack] = useState<Track | null>(null);
@@ -56,6 +59,16 @@ export default function HomeScreen() {
 
   const heroTrack = currentTrack || recentlyPlayed[0] || favorites[0] || null;
   const heroProgress = durationMs > 0 ? Math.min(1, positionMs / durationMs) : 0.35;
+
+  const heroQualityLabel = useMemo(() => {
+    if (streamInfo?.format && streamInfo.format !== 'unknown') {
+      return `${streamInfo.format.toUpperCase()} · ${audioQuality}`;
+    }
+    if (audioQuality === 'LOSSLESS') {
+      return 'FLAC · LOSSLESS';
+    }
+    return `${audioQuality} · HI-FI`;
+  }, [streamInfo, audioQuality]);
 
   /**
    * Heavy rotation derived from recorded playback stats
@@ -157,7 +170,7 @@ export default function HomeScreen() {
           <View style={s.heroCard}>
             <View style={s.heroEyebrowRow}>
               <Text style={s.heroEyebrow}>CONTINUE LISTENING</Text>
-              <Text style={s.heroMeta}>FLAC 24/96 · LOSSLESS</Text>
+              <Text style={s.heroMeta}>{heroQualityLabel}</Text>
             </View>
 
             <Pressable

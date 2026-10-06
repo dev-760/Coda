@@ -69,15 +69,15 @@ export default function RootLayout() {
       if (Platform.OS !== 'android') return;
 
       const onBackPress = () => {
-        if (router.canDismiss?.()) {
-          router.dismiss();
-          return true;
-        }
         if (router.canGoBack()) {
           router.back();
           return true;
         }
-        if (pathname && pathname !== '/' && pathname !== '/index') {
+        if (router.canDismiss?.()) {
+          router.dismiss();
+          return true;
+        }
+        if (pathname && pathname !== '/' && pathname !== '/index' && pathname !== '/(tabs)' && pathname !== '/(tabs)/index') {
           router.navigate('/(tabs)');
           return true;
         }
