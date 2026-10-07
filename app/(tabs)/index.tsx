@@ -183,7 +183,7 @@ export default function HomeScreen() {
           <View style={s.brandGroup}>
             <View style={s.brandLine}>
               <AppLogo size={24} color={colors.accent} />
-              <Text style={s.brandTitle}>LUMA</Text>
+              <Text style={s.brandTitle}>CODA</Text>
             </View>
             <Text style={s.dateEyebrow}>{getGreeting()}</Text>
           </View>

@@ -48,3 +48,6 @@ example
 
 # binaries
 *.apk
+
+# IDE
+.idea/

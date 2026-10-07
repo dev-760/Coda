@@ -348,7 +348,7 @@ Grouped under clear section eyebrows.
 
 **STORAGE** - Interrogates actual device storage via `downloadStorage.getFreeStorageBytes()`. Shows audio storage used, downloaded track count, real detected free device storage, and an Offline Temp Cache `Clear Cache` button.
 
-**LUMA** - `Version 4.4.0` with diagnostics report builder.
+**CODA** - `Version 4.5.0` with diagnostics report builder.
 
 ### Downloads
 

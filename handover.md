@@ -13,7 +13,7 @@ library on the device, downloads tracks for offline playback, and ranks suggesti
 locally from listening history. No accounts, no backend of ours, no analytics. All state
 lives on the device.
 
-Version `4.4.0`, from `package.json`. `src/version.ts` re-exports it and `app.config.ts`
+Version `4.5.0`, from `package.json`. `src/version.ts` re-exports it and `app.config.ts`
 reads the same value, so the build and the diagnostics report cannot disagree.
 
 ## 2. First run
@@ -180,7 +180,7 @@ set of user-facing options.
 
 ## 7. Not covered by tests
 
-137 tests across 12 suites, all pure logic, no rendering. `npm test` is green.
+153 tests across 14 suites, all pure logic, no rendering. `npm test` is green.
 
 The gaps are deliberate and they are where your risk is:
 
@@ -219,9 +219,9 @@ looks empty, compare against that table before assuming the UI is broken.
 
 Both `development` and `preview` set `EAS_SKIP_AUTO_FINGERPRINT=1`.
 
-EAS project id is in `app.config.ts` under `extra.eas.projectId`, owner `wasler4j`.
-Bundle id and package are `com.coda.musicplayer`. iOS deployment target is 16.4. Android
-`versionCode` is 4.
+EAS project id is in `app.config.ts` under `extra.eas.projectId`, owner `windsurf29`.
+Bundle id and package are `com.coda.player`. iOS deployment target is 16.4. Android
+`versionCode` and iOS `buildNumber` are both `43`; bump both in lockstep per release.
 
 ## 10. Where to look
 

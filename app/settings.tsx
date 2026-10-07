@@ -78,7 +78,7 @@ export default function SettingsScreen() {
     try {
       await audioService.setPlaybackSpeed(value);
     } catch (error) {
-      console.warn('Could not apply playback speed', error);
+      if (__DEV__) console.warn('Could not apply playback speed', error);
     }
   };
 
@@ -408,7 +408,7 @@ export default function SettingsScreen() {
         {/* Footer Brand Showcase */}
         <View style={s.footer}>
           <AppLogo size={36} showText={true} />
-          <Text style={s.footerSub}>LUMA</Text>
+          <Text style={s.footerSub}>CODA</Text>
           <Text style={s.footerVersion}>VERSION {APP_VERSION}</Text>
         </View>
       </ScrollView>

@@ -303,7 +303,7 @@ platform matrix in CI.
 
 ## 12. Testing
 
-**137 tests across 12 suites**, all pure logic, no rendering. `npm test` is green.
+**153 tests across 14 suites**, all pure logic, no rendering. `npm test` is green.
 
 | Suite | Covers |
 | --- | --- |
@@ -319,6 +319,8 @@ platform matrix in CI.
 | `providers/streamInfo` | stream info normalisation |
 | `utils/useResponsive` | responsive breakpoints |
 | `utils/validation` | schema validation and error type |
+| `services/spotifyImportService` | Spotify URL parsing for playlist import |
+| `store/toastStore` | toast show, replace, and dismiss |
 
 The audio backend and the React components are not covered. They need a device, which is
 where the remaining risk sits.

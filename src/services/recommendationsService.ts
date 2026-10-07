@@ -114,7 +114,7 @@ export class RecommendationsService {
       const data = (mix as { data?: { items?: unknown } })?.data;
       return mapHifiApiTracks(data?.items);
     } catch (error) {
-      console.error('Failed to get mix recommendations:', error);
+      if (__DEV__) console.error('Failed to get mix recommendations:', error);
       return [];
     }
   }

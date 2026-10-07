@@ -72,7 +72,7 @@ interface ShapeDef {
 }
 
 /** 43 bespoke Coda monochrome vector icons from the official design system */
-const LUMA_ICON_DEFS: Record<string, ShapeDef[]> = {
+const CODA_ICON_DEFS: Record<string, ShapeDef[]> = {
   'home': [
     { type: 'path', d: 'M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-6h-5v6H5a1 1 0 0 1-1-1z' },
   ],
@@ -269,7 +269,7 @@ const LUMA_ICON_DEFS: Record<string, ShapeDef[]> = {
 /** Normalize icon names from legacy Expo vector names to Coda design system names */
 function normalizeIconName(name: string): string {
   const n = name.toLowerCase();
-  if (LUMA_ICON_DEFS[n]) return n;
+  if (CODA_ICON_DEFS[n]) return n;
 
   // Navigation & tabs
   if (n === 'grid' || n === 'grid-outline' || n.includes('home')) return 'home';
@@ -341,7 +341,7 @@ export default function Icon({
   }
 
   const normalized = normalizeIconName(name);
-  const shapes = LUMA_ICON_DEFS[normalized];
+  const shapes = CODA_ICON_DEFS[normalized];
 
   if (!shapes) {
     // Fallback disc

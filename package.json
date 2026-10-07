@@ -1,7 +1,7 @@
 {
   "name": "coda-music-player",
   "main": "expo-router/entry",
-  "version": "4.4.0",
+  "version": "4.5.0",
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
@@ -15,10 +15,9 @@
   "jest": {
     "preset": "jest-expo",
     "moduleNameMapper": {
-      "^expo-modules-core$": "<rootDir>/node_modules/expo/node_modules/expo-modules-core",
-      "^expo-modules-core/(.*)$": "<rootDir>/node_modules/expo/node_modules/expo-modules-core/$1",
-      "^react-native-mmkv$": "<rootDir>/__mocks__/react-native-mmkv",
-      "^react-native-nitro-modules$": "<rootDir>/__mocks__/react-native-nitro-modules"
+      "^expo-modules-core$": "<rootDir>/node_modules/expo-modules-core",
+      "^expo-modules-core/(.*)$": "<rootDir>/node_modules/expo-modules-core/$1",
+      "^react-native-mmkv$": "<rootDir>/__mocks__/react-native-mmkv"
     }
   },
   "dependencies": {
@@ -33,7 +32,7 @@
     "expo": "~57.0.27",
     "expo-asset": "~57.0.19",
     "expo-audio": "~57.0.5",
-    "expo-build-properties": "~57.0.17",
+    "expo-build-properties": "~57.0.22",
     "expo-constants": "~57.0.18",
     "expo-file-system": "~57.0.7",
     "expo-font": "~57.0.4",
@@ -47,19 +46,17 @@
     "expo-splash-screen": "~57.0.9",
     "expo-status-bar": "~57.0.1",
     "expo-system-ui": "~57.0.4",
-    "react": "19.3.0",
-    "react-dom": "19.3.0",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
     "react-native": "0.86.3",
     "react-native-gesture-handler": "~2.32.0",
     "react-native-mmkv": "^4.3.1",
-    "react-native-nitro-modules": "^0.35.6",
-    "react-native-nitro-player": "^1.1.0",
-    "react-native-reanimated": "4.5.5",
+    "react-native-reanimated": "4.5.1",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",
     "react-native-svg": "15.15.4",
     "react-native-web": "^0.21.2",
-    "react-native-worklets": "0.10.4",
+    "react-native-worklets": "0.10.1",
     "react-native-worklets-core": "^1.6.3",
     "zod": "^3.23.8",
     "zustand": "^4.5.2"
@@ -68,7 +65,7 @@
     "@babel/core": "^7.20.0",
     "@testing-library/react-native": "^13.2.0",
     "@types/jest": "^29.5.14",
-    "@types/react": "~19.3.0",
+    "@types/react": "~19.2.4",
     "eslint": "^9.0.0",
     "eslint-config-expo": "~57.0.2",
     "jest": "^29.2.1",
@@ -88,9 +85,14 @@
   },
   "allowScripts": {
     "coda-music-player": true,
+    "expo": true,
     "expo-audio": true,
     "expo-network": true,
-    "react-native-nitro-player": true,
+    "expo-router": true,
+    "expo-linking": true,
+    "expo-sharing": true,
+    "expo-build-properties": true,
+    "@expo/metro-runtime": true,
     "unrs-resolver": true,
     "@expo-google-fonts/geist": true,
     "@expo-google-fonts/inter": true

@@ -81,7 +81,7 @@ export class ReportBuilder {
       }
       return false;
     } catch (e) {
-      console.error('Failed to export report:', e);
+      if (__DEV__) console.error('Failed to export report:', e);
       return false;
     }
   }

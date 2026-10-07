@@ -14,13 +14,15 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   backgroundColor: '#131316', // App background
   ios: {
     bundleIdentifier: 'com.coda.player',
+    // Mirrors android.versionCode so both stores bump in lockstep per release.
+    buildNumber: '43',
     infoPlist: {
       UIBackgroundModes: ['audio', 'fetch'],
     },
   },
   android: {
     package: 'com.coda.player',
-    versionCode: 42,
+    versionCode: 43,
     adaptiveIcon: {
       // Split layers so the launcher can mask and tint them. The mark sits
       // inside the adaptive safe zone, which a single squashed foreground
@@ -29,15 +31,15 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       backgroundImage: './assets/brand/adaptive-icon-background.png',
       backgroundColor: '#1a1c1e',
     },
+    // Downloads live in the app-private directory, so no storage or media
+    // read permissions are declared. READ/WRITE_EXTERNAL_STORAGE are legacy
+    // (max SDK 32) and trigger Play Store review flags.
     permissions: [
       'android.permission.FOREGROUND_SERVICE',
       'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK',
       'android.permission.INTERNET',
       'android.permission.ACCESS_NETWORK_STATE',
       'android.permission.POST_NOTIFICATIONS',
-      'android.permission.READ_EXTERNAL_STORAGE',
-      'android.permission.WRITE_EXTERNAL_STORAGE',
-      'android.permission.READ_MEDIA_AUDIO',
     ],
     backgroundColor: '#131316', // Android splash background
     predictiveBackGestureEnabled: true,

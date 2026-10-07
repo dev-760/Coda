@@ -1,6 +1,4 @@
-import { PlaybackEngine } from '../native/PlaybackEngine';
-import { GaplessPlaybackController } from '../native/GaplessController';
-import { NativeDownloadManager } from '../native/NativeDownloadManager';
+import { ExpoAudioBackend } from './ExpoAudioBackend';
 import { usePlaybackStore } from '../store/playbackStore';
 import { useQueueStore, getCachedTrack } from '../store/queueStore';
 import { useSettingsStore } from '../store/settingsStore';
@@ -23,9 +21,7 @@ const MAX_CONSECUTIVE_SKIPS = 3;
  * touches audio.
  */
 class AudioService {
-  private backend = PlaybackEngine;
-  private gapless = new GaplessPlaybackController();
-  private downloadManager = new NativeDownloadManager();
+  private backend = new ExpoAudioBackend();
   private initialized = false;
   private sleepTimer: ReturnType<typeof setTimeout> | null = null;
   private preloadToken = 0;
@@ -104,8 +100,7 @@ class AudioService {
       const stream = await this.resolveStream(track);
       store.setCurrentTrack(track);
       store.setStreamInfo(stream);
-      await this.gapless.enableGapless();
-      await this.gapless.playWithGapless(stream.url, track.id);
+      await this.backend.play(stream, track);
       store.setPlaying(true);
       this.consecutiveSkips = 0;
       this.startSleepTimer();
@@ -182,7 +177,7 @@ class AudioService {
         const stream = await this.resolveStream(next);
         // The playhead may have moved while the stream URL was resolving.
         if (token !== this.preloadToken) return;
-        await this.backend.preload(stream.url);
+        await this.backend.preload(stream);
       } catch (error) {
         logger.warn('AudioService', 'Could not preload next track', error);
       }

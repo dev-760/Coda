@@ -1,4 +1,5 @@
-import { useEffect } from 'react';
+import { Component, ReactNode, useEffect } from 'react';
+import { BackHandler, Platform, Pressable, StatusBar, Text, View } from 'react-native';
 import { Stack, useRouter, usePathname } from 'expo-router';
 import { useFonts } from 'expo-font';
 import {
@@ -16,15 +17,69 @@ import {
 import * as SplashScreen from 'expo-splash-screen';
 import { colors } from '../src/theme/theme';
 import { audioService } from '../src/audio/AudioService';
-import { BackHandler, Platform, StatusBar } from 'react-native';
 import { useLibraryStore } from '../src/store/libraryStore';
 import { useSettingsStore } from '../src/store/settingsStore';
 import { useDownloadStore } from '../src/downloads/downloadStore';
 import { autoQueueService } from '../src/services/autoQueueService';
 import { requestAndroidNotificationPermission } from '../src/utils/androidPermissions';
 import { ToastContainer } from '../src/components/ui/ToastContainer';
+import { logger } from '../src/logging/Logger';
 
 SplashScreen.preventAutoHideAsync();
+
+function reportStartupError(stage: string, error: unknown): void {
+  try {
+    logger.error('Startup', `${stage} failed`, error);
+  } catch {
+    // The log store itself may be unavailable; never throw from here.
+  }
+  if (__DEV__) console.error(`[${stage}]`, error);
+}
+
+/** Production crash containment: a render failure must show retry UI, never a blank screen. */
+class RootErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  state = { error: null as Error | null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  componentDidCatch(error: Error) {
+    reportStartupError('Render', error);
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: colors.surface,
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 24,
+          }}
+        >
+          <Text style={{ color: colors.onSurface, fontSize: 17, fontWeight: '600' }}>
+            Something went wrong
+          </Text>
+          <Text style={{ color: colors.onSurfaceVariant, fontSize: 14, marginTop: 8, textAlign: 'center' }}>
+            Coda hit an unexpected error. Your library and downloads are safe.
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Try again"
+            onPress={() => this.setState({ error: null })}
+            style={{ marginTop: 20, paddingVertical: 12, paddingHorizontal: 24, borderRadius: 999 }}
+          >
+            <Text style={{ color: colors.onSurface, fontSize: 15, fontWeight: '600' }}>Try again</Text>
+          </Pressable>
+        </View>
+      );
+    }
+    return this.props.children;
+  }
+}
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     // Geist sets UI chrome, Inter sets catalog content. See src/theme/theme.ts.
@@ -46,16 +101,18 @@ export default function RootLayout() {
     }
   }, [fontsLoaded, fontError]);
   useEffect(() => {
-    requestAndroidNotificationPermission().catch(console.warn);
+    requestAndroidNotificationPermission().catch((error) => {
+      reportStartupError('NotificationPermission', error);
+    });
     audioService.init().catch((error) => {
-      console.error('Failed to initialize audio service:', error);
+      reportStartupError('AudioService.init', error);
     });
   }, []);
   useEffect(() => {
     // Initialize storage systems
-    initializeSettings().catch(console.error);
-    initializeLibrary().catch(console.error);
-    initializeDownloads().catch(console.error);
+    initializeSettings().catch((error) => reportStartupError('Settings.init', error));
+    initializeLibrary().catch((error) => reportStartupError('Library.init', error));
+    initializeDownloads().catch((error) => reportStartupError('Downloads.init', error));
   }, [initializeSettings, initializeLibrary, initializeDownloads]);
 
     useEffect(() => {
@@ -93,7 +150,7 @@ export default function RootLayout() {
     return null;
   }
   return (
-    <>
+    <RootErrorBoundary>
       <StatusBar barStyle="light-content" backgroundColor={colors.surface} />
       <Stack screenOptions={{ 
         headerStyle: { backgroundColor: colors.surface },
@@ -110,6 +167,6 @@ export default function RootLayout() {
         <Stack.Screen name="downloads" options={{ presentation: 'card', headerShown: false }} />
       </Stack>
       <ToastContainer />
-    </>
+    </RootErrorBoundary>
   );
 }

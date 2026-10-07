@@ -144,11 +144,11 @@ where they do. [handover.md](./handover.md) is the orientation guide, including 
 npm test
 ```
 
-**137 tests across 12 suites**, all pure logic with no rendering: queue insertion and
+**153 tests across 14 suites**, all pure logic with no rendering: queue insertion and
 removal relative to the playhead, repeat modes, shuffle and restore, the download index
 and its repair, DASH manifest parsing, the suggestion scoring rules, catalog search,
 lyrics parsing, Offline Mode gating, report redaction, the response mappers, the
-responsive breakpoints, and schema validation.
+responsive breakpoints, schema validation, Spotify URL parsing, and the toast store.
 
 The audio backend and the React components are not covered. They need a device, which is
 where the remaining risk sits.
