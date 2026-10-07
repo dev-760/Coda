@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Platform, View, Text, Modal, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert, KeyboardAvoidingView } from 'react-native';
+import { Platform, View, Text, Modal, StyleSheet, Pressable, TextInput, ScrollView, Alert, KeyboardAvoidingView } from 'react-native';
 import { colors, r, sp, t } from '../../theme/theme';
 import Icon from '../ui/Icon';
 
@@ -114,9 +114,9 @@ export const CreatePlaylistModal: React.FC<CreatePlaylistModalProps> = ({
               <Text style={[t.titleLg, { color: colors.onSurface }]}>
                 {initialPlaylist ? 'Edit Playlist' : 'Create Playlist'}
               </Text>
-              <TouchableOpacity onPress={onClose} style={s.closeButton}>
+              <Pressable onPress={onClose} style={s.closeButton}>
                 <Icon name="close" size={24} color={colors.onSurface} />
-              </TouchableOpacity>
+              </Pressable>
             </View>
 
             <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
@@ -159,7 +159,7 @@ export const CreatePlaylistModal: React.FC<CreatePlaylistModalProps> = ({
               </Text>
               <View style={s.colorGrid}>
                 {COLORS.map((color) => (
-                  <TouchableOpacity
+                  <Pressable
                     key={color}
                     style={[
                       s.colorButton,
@@ -171,7 +171,7 @@ export const CreatePlaylistModal: React.FC<CreatePlaylistModalProps> = ({
                     {selectedColor === color && (
                       <Icon name="checkmark" size={16} color={colors.onSurface} />
                     )}
-                  </TouchableOpacity>
+                  </Pressable>
                 ))}
               </View>
             </View>
@@ -183,7 +183,7 @@ export const CreatePlaylistModal: React.FC<CreatePlaylistModalProps> = ({
               </Text>
               <View style={s.iconGrid}>
                 {ICONS.map((icon) => (
-                  <TouchableOpacity
+                  <Pressable
                     key={icon}
                     style={[
                       s.iconButton,
@@ -197,7 +197,7 @@ export const CreatePlaylistModal: React.FC<CreatePlaylistModalProps> = ({
                       size={24}
                       color={selectedIcon === icon ? selectedColor : colors.onSurfaceVariant}
                     />
-                  </TouchableOpacity>
+                  </Pressable>
                 ))}
               </View>
             </View>
@@ -218,14 +218,14 @@ export const CreatePlaylistModal: React.FC<CreatePlaylistModalProps> = ({
 
           {/* Footer Buttons */}
           <View style={s.footer}>
-            <TouchableOpacity
+            <Pressable
               style={[s.button, s.cancelButton]}
               onPress={onClose}
               disabled={isLoading}
             >
               <Text style={[t.labelMd, { color: colors.onSurface }]}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Pressable>
+            <Pressable
               style={[s.button, s.createButton, { backgroundColor: selectedColor }]}
               onPress={handleCreate}
               disabled={isLoading || !name.trim()}
@@ -233,7 +233,7 @@ export const CreatePlaylistModal: React.FC<CreatePlaylistModalProps> = ({
               <Text style={[t.labelMd, { color: colors.onSurface }]}>
                 {initialPlaylist ? 'Save' : 'Create'}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </View>
       </KeyboardAvoidingView>

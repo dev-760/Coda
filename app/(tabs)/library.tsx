@@ -17,6 +17,8 @@ import { SpotifyImportModal } from '../../src/components/playlist/SpotifyImportM
 import { PlaylistActionsModal } from '../../src/components/playlist/PlaylistActionsModal';
 import { useLibraryStore } from '../../src/store/libraryStore';
 import { useDownloadStore } from '../../src/downloads/downloadStore';
+import { planPlaylistDownload } from '../../src/downloads/playlistDownload';
+import { showToast } from '../../src/store/toastStore';
 import { usePlaybackStore } from '../../src/store/playbackStore';
 import { useQueueStore, cacheTracks } from '../../src/store/queueStore';
 import { useSettingsStore } from '../../src/store/settingsStore';
@@ -32,6 +34,7 @@ export default function LibraryScreen() {
   const router = useRouter();
   const { playlists, favorites, createPlaylist, updatePlaylist, deletePlaylist, duplicatePlaylist } = useLibraryStore();
   const downloads = useDownloadStore((state) => state.downloads);
+  const downloadTracks = useDownloadStore((state) => state.downloadTracks);
   const currentTrack = usePlaybackStore((state) => state.currentTrack);
   const isPlaying = usePlaybackStore((state) => state.isPlaying);
   const offlineOnly = useSettingsStore((state) => state.offlineMode ?? false);
@@ -136,6 +139,25 @@ export default function LibraryScreen() {
       useQueueStore.getState().toggleShuffle();
     }
     await audioService.playTrack(playlist.tracks[0]);
+  };
+
+  const downloadPlaylist = async (playlist: any) => {
+    if (!playlist?.tracks?.length) return;
+    const { toDownload, alreadyDownloaded } = planPlaylistDownload(
+      playlist.tracks,
+      (id) => useDownloadStore.getState().isTrackDownloaded(id),
+    );
+    if (toDownload.length === 0) {
+      showToast(`All tracks from "${playlist.name}" are already downloaded`, 'info');
+      return;
+    }
+    await downloadTracks(toDownload);
+    showToast(
+      alreadyDownloaded > 0
+        ? `Downloading ${toDownload.length} tracks from "${playlist.name}" (${alreadyDownloaded} already offline)`
+        : `Downloading ${toDownload.length} tracks from "${playlist.name}"`,
+      'success',
+    );
   };
 
   const segments = [
@@ -445,6 +467,13 @@ export default function LibraryScreen() {
             void playPlaylist(selectedPlaylist, true);
           }
         }}
+        onDownload={
+          selectedPlaylist && selectedPlaylist.tracks.length > 0
+            ? () => {
+                if (selectedPlaylist) void downloadPlaylist(selectedPlaylist);
+              }
+            : undefined
+        }
         onShare={async () => {
           if (selectedPlaylist) {
             try {

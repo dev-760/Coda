@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Modal, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, Modal, StyleSheet, Pressable, Alert } from 'react-native';
 import { colors, r, sp, t } from '../../theme/theme';
 import Icon from '../ui/Icon';
 import { Playlist } from '../../store/libraryStore';
@@ -14,6 +14,7 @@ interface PlaylistActionsModalProps {
   onShare?: () => void;
   onPlay?: () => void;
   onShufflePlay?: () => void;
+  onDownload?: () => void;
 }
 
 export const PlaylistActionsModal: React.FC<PlaylistActionsModalProps> = ({
@@ -26,6 +27,7 @@ export const PlaylistActionsModal: React.FC<PlaylistActionsModalProps> = ({
   onShare,
   onPlay,
   onShufflePlay,
+  onDownload,
 }) => {
   // The caller clears the selection to dismiss the sheet, so a render can land
   // here with a null playlist while the modal is still mounted.
@@ -63,6 +65,14 @@ export const PlaylistActionsModal: React.FC<PlaylistActionsModalProps> = ({
       label: 'Shuffle Play',
       onPress: () => {
         onShufflePlay();
+        onClose();
+      },
+    } : null,
+    onDownload ? {
+      icon: 'download',
+      label: 'Download',
+      onPress: () => {
+        onDownload();
         onClose();
       },
     } : null,
@@ -105,7 +115,7 @@ export const PlaylistActionsModal: React.FC<PlaylistActionsModalProps> = ({
       animationType="fade"
       onRequestClose={onClose}
     >
-      <TouchableOpacity style={s.overlay} activeOpacity={1} onPress={onClose}>
+      <Pressable style={s.overlay} onPress={onClose}>
         <View style={s.container}>
           <View style={s.header}>
             <View style={[s.playlistHeader, { backgroundColor: playlist.color || colors.primary }]}>
@@ -119,7 +129,7 @@ export const PlaylistActionsModal: React.FC<PlaylistActionsModalProps> = ({
 
           <View style={s.actionsContainer}>
             {actions.map((action, index) => (
-              <TouchableOpacity
+              <Pressable
                 key={index}
                 style={[s.actionItem, action.destructive && s.destructiveAction]}
                 onPress={action.onPress}
@@ -137,15 +147,15 @@ export const PlaylistActionsModal: React.FC<PlaylistActionsModalProps> = ({
                 >
                   {action.label}
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             ))}
           </View>
 
-          <TouchableOpacity style={s.cancelButton} onPress={onClose}>
+          <Pressable style={s.cancelButton} onPress={onClose}>
             <Text style={[t.labelMd, { color: colors.primary }]}>Cancel</Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
-      </TouchableOpacity>
+      </Pressable>
     </Modal>
   );
 };

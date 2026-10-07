@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 /* eslint-disable react-hooks/refs */
 import {
   ActivityIndicator,
-  Image,
   Keyboard,
   Pressable,
   ScrollView,
@@ -13,6 +12,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { audioService } from '../../src/audio/AudioService';
 import Icon from '../../src/components/ui/Icon';

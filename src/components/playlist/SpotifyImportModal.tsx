@@ -4,7 +4,7 @@ import {
   Text,
   Modal,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   TextInput,
   ActivityIndicator,
   Alert,
@@ -140,9 +140,9 @@ export const SpotifyImportModal: React.FC<SpotifyImportModalProps> = ({
               <Icon name="arrow-down-circle" size={20} color={colors.accent} />
               <Text style={s.title}>IMPORT SPOTIFY PLAYLIST</Text>
             </View>
-            <TouchableOpacity onPress={handleClose} hitSlop={12} style={s.closeButton}>
+            <Pressable onPress={handleClose} hitSlop={12} style={s.closeButton}>
               <Icon name="close" size={20} color={colors.onSurfaceVariant} />
-            </TouchableOpacity>
+            </Pressable>
           </View>
 
           {/* Body Content */}
@@ -166,11 +166,11 @@ export const SpotifyImportModal: React.FC<SpotifyImportModalProps> = ({
               </View>
 
               <View style={s.buttonRow}>
-                <TouchableOpacity style={s.cancelButton} onPress={handleClose}>
+                <Pressable style={s.cancelButton} onPress={handleClose}>
                   <Text style={s.cancelButtonText}>CANCEL</Text>
-                </TouchableOpacity>
+                </Pressable>
 
-                <TouchableOpacity
+                <Pressable
                   style={[s.primaryButton, (!url.trim() || isLoadingPreview) && s.disabledButton]}
                   onPress={handleFetchPreview}
                   disabled={!url.trim() || isLoadingPreview}
@@ -180,7 +180,7 @@ export const SpotifyImportModal: React.FC<SpotifyImportModalProps> = ({
                   ) : (
                     <Text style={s.primaryButtonText}>LOAD PLAYLIST</Text>
                   )}
-                </TouchableOpacity>
+                </Pressable>
               </View>
             </View>
           )}
@@ -204,13 +204,13 @@ export const SpotifyImportModal: React.FC<SpotifyImportModalProps> = ({
               </Text>
 
               <View style={s.buttonRow}>
-                <TouchableOpacity style={s.cancelButton} onPress={() => setStep('input')}>
+                <Pressable style={s.cancelButton} onPress={() => setStep('input')}>
                   <Text style={s.cancelButtonText}>BACK</Text>
-                </TouchableOpacity>
+                </Pressable>
 
-                <TouchableOpacity style={s.primaryButton} onPress={handleStartImport}>
+                <Pressable style={s.primaryButton} onPress={handleStartImport}>
                   <Text style={s.primaryButtonText}>START IMPORT</Text>
-                </TouchableOpacity>
+                </Pressable>
               </View>
             </View>
           )}
@@ -245,9 +245,9 @@ export const SpotifyImportModal: React.FC<SpotifyImportModalProps> = ({
               )}
 
               <View style={s.buttonRow}>
-                <TouchableOpacity style={s.cancelButton} onPress={handleClose}>
+                <Pressable style={s.cancelButton} onPress={handleClose}>
                   <Text style={s.cancelButtonText}>STOP</Text>
-                </TouchableOpacity>
+                </Pressable>
               </View>
             </View>
           )}

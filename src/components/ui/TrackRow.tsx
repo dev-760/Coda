@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Pressable, StyleSheet, Text, View, ViewStyle, StyleProp } from 'react-native';
 import Icon from './Icon';
 import CoverThumb from './CoverThumb';
@@ -7,14 +8,14 @@ import { Track } from '../../providers/types';
 import { useDownloadStore } from '../../downloads/downloadStore';
 
 /**
- * The catalog track row faithfully built from the Coda Design System showcase:
- * - 64px row height
- * - Level meter on playing track
- * - 48px cover artwork with glow when playing
- * - Monoline indicator icons (download, more)
- * - Tabular mono-micro duration
+ * Catalog track row from the Coda Design System showcase (64px row, level
+ * meter on playing track, 48px cover with glow, tabular duration).
+ *
+ * Memoized: rows re-render on every playback position tick, and the cover
+ * image is the most expensive node to reconcile. Props are primitives or
+ * stable cached track references, so default shallow compare applies.
  */
-export function TrackRow({
+export const TrackRow = memo(function TrackRow({
   track,
   index,
   isActive = false,
@@ -135,7 +136,7 @@ export function TrackRow({
       )}
     </Pressable>
   );
-}
+});
 
 function formatTrackDuration(durationMs: number): string {
   const totalSeconds = Math.round(durationMs / 1000);

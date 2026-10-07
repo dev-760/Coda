@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, Modal, StyleSheet, TouchableOpacity, TextInput, ScrollView } from 'react-native';
+import { View, Text, Modal, StyleSheet, Pressable, TextInput, ScrollView } from 'react-native';
 import { colors, r, sp, t } from '../../theme/theme';
 import Icon from '../ui/Icon';
 import { useLibraryStore } from '../../store/libraryStore';
@@ -68,9 +68,9 @@ export const AddToPlaylistModal: React.FC<AddToPlaylistModalProps> = ({
         <View style={s.container}>
           <View style={s.header}>
             <Text style={[t.titleLg, { color: colors.onSurface }]}>Add to Playlist</Text>
-            <TouchableOpacity onPress={onClose} style={s.closeButton}>
+            <Pressable onPress={onClose} style={s.closeButton}>
               <Icon name="close" size={24} color={colors.onSurface} />
-            </TouchableOpacity>
+            </Pressable>
           </View>
 
           {/* Track Info */}
@@ -111,7 +111,7 @@ export const AddToPlaylistModal: React.FC<AddToPlaylistModalProps> = ({
               </View>
             ) : (
               filteredPlaylists.map((playlist) => (
-                <TouchableOpacity
+                <Pressable
                   key={playlist.id}
                   style={s.playlistItem}
                   onPress={() => handleAddToPlaylist(playlist.id)}
@@ -126,7 +126,7 @@ export const AddToPlaylistModal: React.FC<AddToPlaylistModalProps> = ({
                     </Text>
                   </View>
                   <Icon name="add-circle" size={24} color={colors.primary} />
-                </TouchableOpacity>
+                </Pressable>
               ))
             )}
           </ScrollView>
@@ -144,13 +144,13 @@ export const AddToPlaylistModal: React.FC<AddToPlaylistModalProps> = ({
                 value={newPlaylistName}
                 onChangeText={setNewPlaylistName}
               />
-              <TouchableOpacity
+              <Pressable
                 style={[s.createButton, { backgroundColor: colors.primary }]}
                 onPress={handleCreateAndAdd}
                 disabled={isCreating || !newPlaylistName.trim()}
               >
                 <Icon name="add" size={20} color={colors.onPrimary} />
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </View>
         </View>

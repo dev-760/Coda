@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
 import Icon from '../ui/Icon';
 import { SectionHeader } from '../ui/primitives';
 import { getSuggestions, Suggestion } from '../../services/suggestionEngine';
