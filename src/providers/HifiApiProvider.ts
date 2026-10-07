@@ -65,45 +65,88 @@ class HifiApiProvider implements MusicProvider {
     }
   }
 
+  private static readonly QUALITY_FALLBACK_ORDER: Record<AudioQuality, AudioQuality[]> = {
+    LOSSLESS: ['LOSSLESS', 'HIGH', 'LOW'],
+    HIGH: ['HIGH', 'LOW'],
+    LOW: ['LOW'],
+  };
+
   async getStreamInfo(trackId: string, _abortSignal?: AbortSignal): Promise<StreamInfo> {
     const numericId = parseInt(trackId, 10);
     if (isNaN(numericId) || numericId <= 0) {
       throw new Error('Invalid track ID');
     }
 
-    try {
-      const response = await hifiApiClient.getTrack(numericId, this.getPreferredQuality(), false);
+    const preferredQuality = this.getPreferredQuality();
+    const candidateQualities = HifiApiProvider.QUALITY_FALLBACK_ORDER[preferredQuality] ?? [preferredQuality];
 
-      // Payloads are wrapped in { version, data }.
-      const payload = (response?.data ?? response) as HifiTrackPayload;
-      const { manifest, manifestMimeType, audioQuality } = payload;
+    let lastError: unknown = null;
 
-      if (!manifest) {
-        throw new StreamResolutionError(
-          `This track is not available in the selected quality (${audioQuality ?? 'unknown'}). Try a lower quality in Settings.`,
+    for (const quality of candidateQualities) {
+      try {
+        const response = await hifiApiClient.getTrack(numericId, quality, false);
+
+        // Payloads are wrapped in { version, data }.
+        const payload = (response?.data ?? response) as HifiTrackPayload;
+        const { manifest, manifestMimeType, audioQuality } = payload;
+
+        if (!manifest) {
+          throw new StreamResolutionError(
+            `This track is not available in the selected quality (${audioQuality ?? quality ?? 'unknown'}). Try a lower quality in Settings.`,
+          );
+        }
+
+        const audioUrl = await this.extractAudioUrl(manifest, manifestMimeType);
+
+        let format: StreamInfo['format'] = this.getFormatFromQuality(audioQuality ?? quality);
+        if (manifestMimeType === 'application/dash+xml') format = 'dash';
+        if (manifestMimeType === 'application/vnd.apple.mpegurl') format = 'hls';
+
+        if (quality !== preferredQuality) {
+          logger.info(
+            'HifiApiProvider',
+            `Quality waterfall: track ${trackId} stepped down from ${preferredQuality} to ${quality}`,
+          );
+        }
+
+        return {
+          url: audioUrl,
+          format,
+        };
+      } catch (error) {
+        lastError = error;
+
+        // If it's a 422, missing manifest, or unsupported quality error, cascade down
+        const isQualityMismatch =
+          error instanceof StreamResolutionError ||
+          (typeof error === 'object' && error !== null && 'status' in error && (error as { status: unknown }).status === 422) ||
+          (error instanceof Error && (error.message.includes('422') || error.message.toLowerCase().includes('quality')));
+
+        if (!isQualityMismatch) {
+          // Hard failures (404, network error, abort) don't benefit from lower bitrates; abort cascade
+          if (error instanceof StreamResolutionError) {
+            logger.warn('HifiApiProvider', error.message);
+            throw error;
+          }
+          logger.error('HifiApiProvider', 'Could not resolve stream', error);
+          throw new Error('Failed to get stream info. Please try again later.');
+        }
+
+        logger.warn(
+          'HifiApiProvider',
+          `Quality ${quality} failed for track ${trackId}; cascading to next quality tier...`,
         );
       }
-
-      const audioUrl = await this.extractAudioUrl(manifest, manifestMimeType);
-
-      let format: StreamInfo['format'] = this.getFormatFromQuality(audioQuality);
-      if (manifestMimeType === 'application/dash+xml') format = 'dash';
-      if (manifestMimeType === 'application/vnd.apple.mpegurl') format = 'hls';
-
-      return {
-        url: audioUrl,
-        format,
-      };
-    } catch (error) {
-      // A StreamResolutionError already carries a message worth showing;
-      // anything else (network, timeout, unknown shape) stays generic.
-      if (error instanceof StreamResolutionError) {
-        logger.warn('HifiApiProvider', error.message);
-        throw error;
-      }
-      logger.error('HifiApiProvider', 'Could not resolve stream', error);
-      throw new Error('Failed to get stream info. Please try again later.');
     }
+
+    // A StreamResolutionError already carries a message worth showing;
+    // anything else (network, timeout, unknown shape) stays generic.
+    if (lastError instanceof StreamResolutionError) {
+      logger.warn('HifiApiProvider', lastError.message);
+      throw lastError;
+    }
+    logger.error('HifiApiProvider', 'Could not resolve stream across any quality tier', lastError);
+    throw new Error('Failed to get stream info. Please try again later.');
   }
 
   async getHealth(): Promise<ProviderHealth> {

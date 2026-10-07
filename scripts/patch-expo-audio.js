@@ -227,19 +227,27 @@ function patchAudioControlsService() {
     content = content.replace(oldLayoutTarget, newLayout);
   }
 
-  // Small icon and notification actions for older SDK
-  if (content.includes('setSmallIcon(androidx.media3.session.R.drawable.media3_icon_circular_play)')) {
-    content = content.replace(
-      'val builder = NotificationCompat.Builder(this, CHANNEL_ID)\n      .setSmallIcon(androidx.media3.session.R.drawable.media3_icon_circular_play)',
-      `val smallIconRes = try {
+  // Ensure small icon uses valid notification drawable (never adaptive icon from applicationInfo.icon)
+  const badSmallIconSnippet = `val smallIconRes = try {
       val res = applicationInfo.icon
       if (res != 0) res else androidx.media3.session.R.drawable.media3_icon_circular_play
     } catch (_: Exception) {
       androidx.media3.session.R.drawable.media3_icon_circular_play
-    }
+    }`;
 
-    val builder = NotificationCompat.Builder(this, CHANNEL_ID)
-      .setSmallIcon(smallIconRes)`
+  const safeSmallIconSnippet = `val smallIconRes = try {
+      val customIcon = resources.getIdentifier("notification_icon", "drawable", packageName)
+      if (customIcon != 0) customIcon else androidx.media3.session.R.drawable.media3_icon_circular_play
+    } catch (_: Exception) {
+      androidx.media3.session.R.drawable.media3_icon_circular_play
+    }`;
+
+  if (content.includes(badSmallIconSnippet)) {
+    content = content.replace(badSmallIconSnippet, safeSmallIconSnippet);
+  } else if (content.includes('setSmallIcon(androidx.media3.session.R.drawable.media3_icon_circular_play)')) {
+    content = content.replace(
+      'val builder = NotificationCompat.Builder(this, CHANNEL_ID)\n      .setSmallIcon(androidx.media3.session.R.drawable.media3_icon_circular_play)',
+      `${safeSmallIconSnippet}\n\n    val builder = NotificationCompat.Builder(this, CHANNEL_ID)\n      .setSmallIcon(smallIconRes)`
     );
   }
 
@@ -259,7 +267,17 @@ function patchAudioMediaSessionCallback() {
             .remove(Player.COMMAND_SEEK_TO_PREVIOUS)
             .remove(Player.COMMAND_SEEK_TO_NEXT)`,
       `            .add(Player.COMMAND_SEEK_TO_PREVIOUS)
-            .add(Player.COMMAND_SEEK_TO_NEXT)`
+            .add(Player.COMMAND_SEEK_TO_NEXT)
+            .add(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
+            .add(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)`
+    );
+  } else if (
+    content.includes('.add(Player.COMMAND_SEEK_TO_PREVIOUS)') &&
+    !content.includes('Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM')
+  ) {
+    content = content.replace(
+      `.add(Player.COMMAND_SEEK_TO_PREVIOUS)\n            .add(Player.COMMAND_SEEK_TO_NEXT)`,
+      `.add(Player.COMMAND_SEEK_TO_PREVIOUS)\n            .add(Player.COMMAND_SEEK_TO_NEXT)\n            .add(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)\n            .add(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)`
     );
   }
 
@@ -293,9 +311,7 @@ function patchMetadataInjectingPlayer() {
   if (!fs.existsSync(metadataInjectingPlayerPath)) return;
   let content = fs.readFileSync(metadataInjectingPlayerPath, 'utf8');
 
-  if (!content.includes('override fun seekToNext()')) {
-    const target = 'fun updateMetadata(metadata: Metadata?) {';
-    const addition = `override fun seekToNext() {
+  const seekOverrides = `override fun seekToNext() {
     AudioControlsService.activePlayer?.handleSkipNext()
   }
 
@@ -303,8 +319,47 @@ function patchMetadataInjectingPlayer() {
     AudioControlsService.activePlayer?.handleSkipPrevious()
   }
 
-  fun updateMetadata(metadata: Metadata?) {`;
-    content = content.replace(target, addition);
+  override fun seekToNextMediaItem() {
+    AudioControlsService.activePlayer?.handleSkipNext()
+  }
+
+  override fun seekToPreviousMediaItem() {
+    AudioControlsService.activePlayer?.handleSkipPrevious()
+  }
+
+  override fun isCommandAvailable(command: Int): Boolean {
+    return when (command) {
+      Player.COMMAND_SEEK_TO_NEXT,
+      Player.COMMAND_SEEK_TO_PREVIOUS,
+      Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM,
+      Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM -> true
+      else -> super.isCommandAvailable(command)
+    }
+  }
+
+  override fun getAvailableCommands(): Player.Commands {
+    return super.getAvailableCommands().buildUpon()
+      .add(Player.COMMAND_SEEK_TO_NEXT)
+      .add(Player.COMMAND_SEEK_TO_PREVIOUS)
+      .add(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
+      .add(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
+      .build()
+  }`;
+
+  if (content.includes('override fun seekToNext()') && !content.includes('seekToNextMediaItem()')) {
+    const oldOverride = `override fun seekToNext() {
+    AudioControlsService.activePlayer?.handleSkipNext()
+  }
+
+  override fun seekToPrevious() {
+    AudioControlsService.activePlayer?.handleSkipPrevious()
+  }`;
+    content = content.replace(oldOverride, seekOverrides);
+    fs.writeFileSync(metadataInjectingPlayerPath, content, 'utf8');
+    console.log('[patch-expo-audio] Updated MetadataInjectingPlayer.kt with full command support');
+  } else if (!content.includes('override fun seekToNext()')) {
+    const target = 'fun updateMetadata(metadata: Metadata?) {';
+    content = content.replace(target, `${seekOverrides}\n\n  fun updateMetadata(metadata: Metadata?) {`);
     fs.writeFileSync(metadataInjectingPlayerPath, content, 'utf8');
     console.log('[patch-expo-audio] Patched MetadataInjectingPlayer.kt');
   }

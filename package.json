@@ -47,6 +47,9 @@
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-native": "0.86.3",
+    "react-native-mmkv": "^4.3.1",
+    "react-native-nitro-modules": "^0.35.6",
+    "react-native-nitro-player": "^1.1.0",
     "react-native-gesture-handler": "~2.32.0",
     "react-native-reanimated": "4.5.5",
     "react-native-safe-area-context": "~5.7.0",
@@ -84,6 +87,8 @@
     "coda-music-player": true,
     "expo-audio": true,
     "expo-network": true,
+    "react-native-nitro-player": true,
+    "unrs-resolver": true,
     "@expo-google-fonts/geist": true,
     "@expo-google-fonts/inter": true
   }

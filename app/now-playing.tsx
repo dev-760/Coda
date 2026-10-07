@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import Icon from '../src/components/ui/Icon';
 import CoverThumb from '../src/components/ui/CoverThumb';
 import { PlayButton } from '../src/components/ui/primitives';
@@ -267,6 +268,18 @@ export default function NowPlayingScreen() {
 
   return (
     <SafeAreaView style={s.container} edges={['top']}>
+      {/* Ambient lighting backdrop */}
+      <LinearGradient
+        colors={[
+          isPlaying ? 'rgba(184, 184, 192, 0.14)' : 'rgba(184, 184, 192, 0.06)',
+          'rgba(20, 20, 22, 0.65)',
+          '#141416',
+        ]}
+        locations={[0, 0.42, 1]}
+        style={StyleSheet.absoluteFill}
+        pointerEvents="none"
+      />
+
       {/* Header: dismiss, 2-line context eyebrow + title, options */}
       <View style={s.header}>
         <Pressable
@@ -308,6 +321,19 @@ export default function NowPlayingScreen() {
           <View style={s.landscapeRow}>
             <View style={s.landscapeLeft}>
               <View style={[s.artContainer, { width: artSize + 16, height: artSize + 16 }]}>
+                {isPlaying && (
+                  <View
+                    style={[
+                      s.artAuraGlow,
+                      {
+                        width: artSize + 36,
+                        height: artSize + 36,
+                        borderRadius: (artSize + 36) / 2,
+                      },
+                    ]}
+                    pointerEvents="none"
+                  />
+                )}
                 <CoverThumb
                   uri={track?.coverUrl ?? track?.artwork}
                   pattern="wave"
@@ -333,6 +359,19 @@ export default function NowPlayingScreen() {
           <>
             {/* Artwork showcase */}
             <View style={[s.artContainer, { width: artSize + 16, height: artSize + 16 }]}>
+              {isPlaying && (
+                <View
+                  style={[
+                    s.artAuraGlow,
+                    {
+                      width: artSize + 36,
+                      height: artSize + 36,
+                      borderRadius: (artSize + 36) / 2,
+                    },
+                  ]}
+                  pointerEvents="none"
+                />
+              )}
               <CoverThumb
                 uri={track?.coverUrl ?? track?.artwork}
                 pattern="wave"
@@ -457,6 +496,14 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
 
+  artAuraGlow: {
+    position: 'absolute',
+    backgroundColor: 'rgba(184, 184, 192, 0.09)',
+    shadowColor: colors.silver,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.35,
+    shadowRadius: 28,
+  },
   artContainer: {
     alignItems: 'center',
     justifyContent: 'center',

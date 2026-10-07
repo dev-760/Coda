@@ -19,7 +19,11 @@ import { useLibraryStore } from '../../store/libraryStore';
 import { useQueueStore } from '../../store/queueStore';
 import { useDownloadStore } from '../../downloads/downloadStore';
 import { useSettingsStore } from '../../store/settingsStore';
+import { audioService } from '../../audio/AudioService';
 import { colors, FONTS, r, t } from '../../theme/theme';
+import { showToast } from '../../store/toastStore';
+import { recommendationsService } from '../../services/recommendationsService';
+import { logger } from '../../logging/Logger';
 
 interface TrackOptionsMenuProps {
   visible: boolean;
@@ -81,15 +85,94 @@ export default function TrackOptionsMenu({
   const cancelDownload = useDownloadStore((state) => state.cancelDownload);
   const retryDownload = useDownloadStore((state) => state.retryDownload);
   const hifiQuality = useSettingsStore((state) => state.audio.hifiAudioQuality);
+  const sleepTimerEnabled = useSettingsStore((state) => state.audio.sleepTimerEnabled);
+  const sleepTimerDuration = useSettingsStore((state) => state.audio.sleepTimerDuration);
+  const setSleepTimerEnabled = useSettingsStore((state) => state.setSleepTimerEnabled);
+  const setSleepTimerDuration = useSettingsStore((state) => state.setSleepTimerDuration);
 
   if (!track) return null;
+
+  const sleepTimerLabel = sleepTimerEnabled
+    ? sleepTimerDuration === 'end'
+      ? 'End of track'
+      : `${sleepTimerDuration}m active`
+    : 'Off';
+
+  const handleSleepTimerPress = () => {
+    Alert.alert(
+      'Sleep Timer',
+      `Current timer: ${sleepTimerLabel}`,
+      [
+        {
+          text: 'Off / Cancel',
+          style: 'destructive',
+          onPress: () => {
+            setSleepTimerEnabled(false);
+            audioService.cancelSleepTimer();
+            showToast('Sleep timer canceled', 'info');
+          },
+        },
+        {
+          text: '15 Minutes',
+          onPress: () => {
+            setSleepTimerDuration(15);
+            setSleepTimerEnabled(true);
+            audioService.resetSleepTimer();
+            showToast('Sleep timer set for 15 minutes', 'success');
+          },
+        },
+        {
+          text: '30 Minutes',
+          onPress: () => {
+            setSleepTimerDuration(30);
+            setSleepTimerEnabled(true);
+            audioService.resetSleepTimer();
+            showToast('Sleep timer set for 30 minutes', 'success');
+          },
+        },
+        {
+          text: '45 Minutes',
+          onPress: () => {
+            setSleepTimerDuration(45);
+            setSleepTimerEnabled(true);
+            audioService.resetSleepTimer();
+            showToast('Sleep timer set for 45 minutes', 'success');
+          },
+        },
+        {
+          text: '60 Minutes',
+          onPress: () => {
+            setSleepTimerDuration(60);
+            setSleepTimerEnabled(true);
+            audioService.resetSleepTimer();
+            showToast('Sleep timer set for 60 minutes', 'success');
+          },
+        },
+        {
+          text: 'End of Track',
+          onPress: () => {
+            setSleepTimerDuration('end');
+            setSleepTimerEnabled(true);
+            audioService.resetSleepTimer();
+            showToast('Sleep timer set for end of current track', 'success');
+          },
+        },
+        { text: 'Close', style: 'cancel' },
+      ],
+    );
+  };
 
   const inCollection = isFavorite(track.id);
   const isDownloaded = downloadStatus === 'completed';
 
   const handleToggleCollection = async () => {
-    if (inCollection) await removeFavorite(track.id);
-    else await addFavorite(track);
+    if (inCollection) {
+      await removeFavorite(track.id);
+      showToast(`Removed "${track.title}" from favorites`, 'info');
+    } else {
+      await addFavorite(track);
+      showToast(`Added "${track.title}" to favorites`, 'success');
+    }
     onClose();
   };
 
@@ -98,25 +181,26 @@ export default function TrackOptionsMenu({
     try {
       if (downloadStatus === 'completed') {
         await deleteDownload(track.id);
+        showToast(`Removed "${track.title}" from offline downloads`, 'info');
         return;
       }
       if (downloadStatus === 'downloading') {
         await cancelDownload(track.id);
+        showToast(`Canceled download for "${track.title}"`, 'info');
         return;
       }
       if (downloadStatus === 'paused' || downloadStatus === 'failed') {
         await retryDownload(track.id);
+        showToast(`Retrying download for "${track.title}"`, 'info');
         return;
       }
       if (downloadStatus === 'pending') {
         return;
       }
       await downloadTrack(track);
+      showToast(`Offline download started for "${track.title}"`, 'success');
     } catch {
-      Alert.alert(
-        'Download failed',
-        'Check your connection and try again. If you set Wi-Fi only, downloads wait for Wi-Fi.',
-      );
+      showToast('Download failed. Check your network connection.', 'error');
     }
   };
 
@@ -160,12 +244,37 @@ export default function TrackOptionsMenu({
 
   const handlePlayNext = () => {
     useQueueStore.getState().playNext(track);
+    showToast(`Playing "${track.title}" next`, 'success');
     onClose();
   };
 
   const handleAddToQueue = () => {
     useQueueStore.getState().addToQueue(track);
+    showToast(`Added "${track.title}" to Up Next queue`, 'success');
     onClose();
+  };
+
+  const handleStartRadio = async () => {
+    onClose();
+    showToast(`Starting ${track.title} Radio...`, 'info');
+    try {
+      const similar = await recommendationsService.getSimilarTracks(track.id, 25);
+      const radioTracks = [track, ...similar.filter((t) => t.id !== track.id)];
+      useQueueStore.getState().playContext(radioTracks, 0, {
+        type: 'radio',
+        name: `${track.title} Radio`,
+        id: track.id,
+      });
+      await audioService.playTrack(track);
+    } catch (error) {
+      logger.warn('TrackOptionsMenu', 'Failed to start radio, playing track directly', error);
+      useQueueStore.getState().playContext([track], 0, {
+        type: 'radio',
+        name: `${track.title} Radio`,
+        id: track.id,
+      });
+      await audioService.playTrack(track);
+    }
   };
 
   const handleCredits = () => {
@@ -313,6 +422,26 @@ export default function TrackOptionsMenu({
             detail="Append to tail of session queue"
             onPress={handleAddToQueue}
             trailing={<Icon name="add" size={18} color={colors.onSurfaceVariant} />}
+          />
+          <OptionRow
+            icon="autoplay"
+            label="Start Radio"
+            detail="Continuous similar track recommendations"
+            onPress={handleStartRadio}
+            trailing={<Icon name="play" size={16} color={colors.accent} />}
+          />
+          <OptionRow
+            icon="moon-outline"
+            label="Sleep Timer"
+            detail={sleepTimerLabel}
+            onPress={handleSleepTimerPress}
+            trailing={
+              <Icon
+                name={sleepTimerEnabled ? 'moon' : 'moon-outline'}
+                size={18}
+                color={sleepTimerEnabled ? colors.accent : colors.onSurfaceVariant}
+              />
+            }
           />
 
           <Text style={s.sectionLabel}>CONTEXT &amp; CREDITS</Text>

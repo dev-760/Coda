@@ -6,8 +6,9 @@ import { logger } from '../logging/Logger';
 import { Track, StreamInfo } from '../providers/types';
 import { getActiveProvider } from '../providers/registry';
 import { useDownloadStore } from '../downloads/downloadStore';
-import { recordCompletedPlay } from '../store/listeningStore';
+import { recordCompletedPlay, useListeningStore } from '../store/listeningStore';
 import { useLibraryStore } from '../store/libraryStore';
+import { isOnline } from '../services/connectivity';
 
 const SEEK_STEP_MS = 5000;
 const PREVIOUS_RESTART_MS = 3000;
@@ -109,7 +110,7 @@ class AudioService {
       logger.error('AudioService', `Failed to play track ${track.id}`, error);
 
       if (attempt === 0 && isLikelyTransient(error)) {
-        this.playAttempt(track, attempt + 1);
+        await this.playAttempt(track, attempt + 1);
         return;
       }
 
@@ -127,6 +128,9 @@ class AudioService {
     if (this.consecutiveSkips >= MAX_CONSECUTIVE_SKIPS) {
       // The whole queue is unplayable, so stop instead of cycling forever.
       usePlaybackStore.getState().setPlaying(false);
+      usePlaybackStore
+        .getState()
+        .setError('Playback stopped: multiple tracks could not be played. Check your connection or audio quality.');
       logger.error('AudioService', `${MAX_CONSECUTIVE_SKIPS} tracks failed in a row, stopping`);
       return;
     }
@@ -157,6 +161,9 @@ class AudioService {
     }
     if (useSettingsStore.getState().offlineMode) {
       throw new Error(`"${track.title}" is not downloaded and Offline Mode is on.`);
+    }
+    if (!isOnline()) {
+      throw new Error(`"${track.title}" is not downloaded and no network connection is available.`);
     }
     return getActiveProvider().getStreamInfo(track.id);
   }
@@ -214,6 +221,31 @@ class AudioService {
       // Nothing queued behind it, so this is the one play that still has to be
       // recorded, otherwise finishing the last track is silently dropped.
       this.commitListen(finishedTrack, playedMs);
+
+      // If AutoQueue is enabled and we are online, seamlessly continue playback
+      if (
+        finishedTrack &&
+        useListeningStore.getState().autoQueueEnabled &&
+        isOnline() &&
+        !useSettingsStore.getState().offlineMode
+      ) {
+        try {
+          const { recommendationsService } = await import('../services/recommendationsService');
+          const similar = await recommendationsService.getSimilarTracks(finishedTrack.id, 10);
+          if (similar && similar.length > 0) {
+            queue.appendSuggestions(similar);
+            const autoNext = queue.advanceForTrackEnd();
+            if (autoNext) {
+              this.consecutiveSkips = 0;
+              await this.playTrack(autoNext);
+              return;
+            }
+          }
+        } catch (error) {
+          logger.warn('AudioService', 'AutoQueue refill on track end failed', error);
+        }
+      }
+
       await this.backend.stop();
       return;
     }
@@ -312,7 +344,7 @@ class AudioService {
     await this.applyPlaybackSpeed();
   }
 
-  private startSleepTimer(): void {
+  startSleepTimer(): void {
     this.cancelSleepTimer();
     const { sleepTimerEnabled, sleepTimerDuration } = useSettingsStore.getState().audio;
     if (!sleepTimerEnabled) return;
@@ -325,6 +357,15 @@ class AudioService {
     this.sleepTimer = setTimeout(() => {
       void this.pause();
     }, sleepTimerDuration * 60_000);
+  }
+
+  resetSleepTimer(): void {
+    const isPlaying = usePlaybackStore.getState().isPlaying;
+    if (isPlaying) {
+      this.startSleepTimer();
+    } else {
+      this.cancelSleepTimer();
+    }
   }
 
   cancelSleepTimer(): void {
@@ -350,7 +391,9 @@ function isLikelyTransient(error: unknown): boolean {
     message.includes('network') ||
     message.includes('404') ||
     message.includes('403') ||
-    message.includes('failed to fetch')
+    message.includes('429') ||
+    message.includes('failed to fetch') ||
+    message.includes('connection')
   );
 }
 

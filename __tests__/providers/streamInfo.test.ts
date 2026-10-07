@@ -121,4 +121,45 @@ describe('HifiApiProvider.getStreamInfo', () => {
     await expect(hifiApiProvider.getStreamInfo('not-an-id')).rejects.toThrow('Invalid track ID');
     expect(mockGetTrack).not.toHaveBeenCalled();
   });
+
+  it('gracefully falls back from LOSSLESS to HIGH if LOSSLESS is unsupported (422)', async () => {
+    mockGetTrack
+      .mockRejectedValueOnce(new Error("Request failed (422): Unsupported quality 'lossless'"))
+      .mockResolvedValueOnce({
+        data: {
+          audioQuality: 'HIGH',
+          manifestMimeType: 'audio/mp4',
+          manifest: Buffer.from('https://example.test/fallback-high.m4a').toString('base64'),
+        },
+      });
+
+    const stream = await hifiApiProvider.getStreamInfo('1550546');
+
+    expect(mockGetTrack).toHaveBeenCalledTimes(2);
+    expect(mockGetTrack).toHaveBeenNthCalledWith(1, 1550546, 'LOSSLESS', false);
+    expect(mockGetTrack).toHaveBeenNthCalledWith(2, 1550546, 'HIGH', false);
+    expect(stream.url).toBe('https://example.test/fallback-high.m4a');
+    expect(stream.format).toBe('aac');
+  });
+
+  it('gracefully cascades down to LOW if LOSSLESS and HIGH both have missing manifests', async () => {
+    mockGetTrack
+      .mockResolvedValueOnce({ data: { trackId: 1550546, audioQuality: 'LOSSLESS' } })
+      .mockResolvedValueOnce({ data: { trackId: 1550546, audioQuality: 'HIGH' } })
+      .mockResolvedValueOnce({
+        data: {
+          audioQuality: 'LOW',
+          manifestMimeType: 'audio/mp4',
+          manifest: Buffer.from('https://example.test/fallback-low.m4a').toString('base64'),
+        },
+      });
+
+    const stream = await hifiApiProvider.getStreamInfo('1550546');
+
+    expect(mockGetTrack).toHaveBeenCalledTimes(3);
+    expect(mockGetTrack).toHaveBeenNthCalledWith(1, 1550546, 'LOSSLESS', false);
+    expect(mockGetTrack).toHaveBeenNthCalledWith(2, 1550546, 'HIGH', false);
+    expect(mockGetTrack).toHaveBeenNthCalledWith(3, 1550546, 'LOW', false);
+    expect(stream.url).toBe('https://example.test/fallback-low.m4a');
+  });
 });

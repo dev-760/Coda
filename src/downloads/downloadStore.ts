@@ -15,8 +15,10 @@ interface DownloadState {
   downloadTrack: (track: Track) => Promise<void>;
   downloadTracks: (tracks: Track[]) => Promise<void>;
   cancelDownload: (trackId: string) => Promise<void>;
+  cancelMultipleDownloads: (trackIds: string[]) => Promise<void>;
   retryDownload: (trackId: string) => Promise<void>;
   deleteDownload: (trackId: string) => Promise<void>;
+  deleteMultipleDownloads: (trackIds: string[]) => Promise<void>;
   deleteAllDownloads: () => Promise<void>;
   getDownloadStatus: (trackId: string) => DownloadMetadata | null;
   isTrackDownloaded: (trackId: string) => boolean;
@@ -92,6 +94,13 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
     await get().refreshDownloads();
   },
 
+  cancelMultipleDownloads: async (trackIds) => {
+    for (const id of trackIds) {
+      await downloadManager.cancel(id);
+    }
+    await get().refreshDownloads();
+  },
+
   retryDownload: async (trackId) => {
     await downloadManager.retry(trackId);
     await get().refreshDownloads();
@@ -99,6 +108,13 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
 
   deleteDownload: async (trackId) => {
     await downloadManager.remove(trackId);
+    await get().refreshDownloads();
+  },
+
+  deleteMultipleDownloads: async (trackIds) => {
+    for (const id of trackIds) {
+      await downloadManager.remove(id);
+    }
     await get().refreshDownloads();
   },
 

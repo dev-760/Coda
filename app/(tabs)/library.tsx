@@ -13,6 +13,7 @@ import {
 } from '../../src/components/ui/primitives';
 import TrackOptionsMenu from '../../src/components/ui/TrackOptionsMenu';
 import { CreatePlaylistModal } from '../../src/components/playlist/CreatePlaylistModal';
+import { SpotifyImportModal } from '../../src/components/playlist/SpotifyImportModal';
 import { PlaylistActionsModal } from '../../src/components/playlist/PlaylistActionsModal';
 import { useLibraryStore } from '../../src/store/libraryStore';
 import { useDownloadStore } from '../../src/downloads/downloadStore';
@@ -39,12 +40,17 @@ export default function LibraryScreen() {
   const [view, setView] = useState<SubView>('playlists');
   const [albumFilter, setAlbumFilter] = useState('');
   const [createVisible, setCreateVisible] = useState(false);
+  const [spotifyImportVisible, setSpotifyImportVisible] = useState(false);
   const [editingPlaylist, setEditingPlaylist] = useState<any>(null);
   const [actionsVisible, setActionsVisible] = useState(false);
   const [selectedPlaylist, setSelectedPlaylist] = useState<any>(null);
   const [optionsTrack, setOptionsTrack] = useState<Track | null>(null);
 
   useBackHandler(() => {
+    if (spotifyImportVisible) {
+      setSpotifyImportVisible(false);
+      return true;
+    }
     if (createVisible) {
       setCreateVisible(false);
       return true;
@@ -182,21 +188,29 @@ export default function LibraryScreen() {
               <Text style={s.sectionCount}>
                 {`${playlists.length} ${playlists.length === 1 ? 'PLAYLIST' : 'PLAYLISTS'}`}
               </Text>
-              <Button
-                label="New playlist"
-                variant="secondary"
-                icon="plus"
-                onPress={() => setCreateVisible(true)}
-              />
+              <View style={s.actionsGroup}>
+                <Button
+                  label="Import"
+                  variant="secondary"
+                  icon="download"
+                  onPress={() => setSpotifyImportVisible(true)}
+                />
+                <Button
+                  label="New"
+                  variant="secondary"
+                  icon="plus"
+                  onPress={() => setCreateVisible(true)}
+                />
+              </View>
             </View>
 
             {playlists.length === 0 ? (
               <EmptyState
                 icon="playlist"
                 title="No playlists yet"
-                body="Group tracks for a mood, a place or a label. Playlists are saved locally to this device."
-                actionLabel="New playlist"
-                onAction={() => setCreateVisible(true)}
+                body="Group tracks for a mood, a place or a label. You can also import existing public playlists from Spotify."
+                actionLabel="Import from Spotify"
+                onAction={() => setSpotifyImportVisible(true)}
               />
             ) : (
               <View style={s.mediaList}>
@@ -453,6 +467,11 @@ export default function LibraryScreen() {
         track={optionsTrack}
         onClose={() => setOptionsTrack(null)}
       />
+
+      <SpotifyImportModal
+        visible={spotifyImportVisible}
+        onClose={() => setSpotifyImportVisible(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -498,6 +517,11 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  actionsGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   sectionCount: {
     ...t.label,

@@ -131,9 +131,14 @@ export class ExpoAudioBackend implements AudioBackend {
     this.lastKnownDurationMs = track.durationMs ?? 0;
 
     player.replace(toSource(stream));
-    // Bound before play so the media session is live by the time audio starts,
-    // otherwise the first moments of every track are not on the lock screen.
-    this.activateMediaSession(track);
+    // Bound before play so the media session is live by the time audio starts.
+    // If the session is already active, update metadata in-place rather than
+    // tearing down and rebuilding the native notification.
+    if (!this.sessionActive) {
+      this.activateMediaSession(track);
+    } else {
+      this.publishMetadata(track);
+    }
     player.play();
     this.lastReportedPlaying = true;
     this.startProgressTimer();
@@ -141,12 +146,32 @@ export class ExpoAudioBackend implements AudioBackend {
 
   private publishMetadata(track: Track): void {
     if (!this.player) return;
+    const rawArtwork = track.coverUrl ?? track.artwork;
+    const artworkUrl = typeof rawArtwork === 'string' && rawArtwork.trim().length > 0 ? rawArtwork.trim() : undefined;
+
     this.player.updateLockScreenMetadata({
       title: track.title,
       artist: track.artist,
       albumTitle: track.album ? `${track.album} • Coda` : 'Coda Lossless',
-      artworkUrl: track.coverUrl ?? track.artwork,
+      artworkUrl,
     });
+
+    if (
+      typeof navigator !== 'undefined' &&
+      'mediaSession' in navigator &&
+      typeof MediaMetadata !== 'undefined'
+    ) {
+      try {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: track.title,
+          artist: track.artist,
+          album: track.album ?? 'Coda Lossless',
+          artwork: artworkUrl ? [{ src: artworkUrl }] : [],
+        });
+      } catch {
+        // Ignored
+      }
+    }
   }
 
   updateMetadata(track: Track): void {
@@ -158,9 +183,19 @@ export class ExpoAudioBackend implements AudioBackend {
     const player = this.player;
     if (!player) return;
 
+    // Prevent tearing down the active OS notification session if already active.
+    if (this.sessionActive) {
+      if (track) {
+        this.publishMetadata(track);
+      }
+      return;
+    }
+
     // A stream with no known duration gets treated as live so the OS hides the
     // scrub bar and seek buttons rather than offering controls that cannot work.
     const isLiveStream = !track?.durationMs || track.durationMs <= 0;
+    const rawArtwork = track ? (track.coverUrl ?? track.artwork) : undefined;
+    const artworkUrl = typeof rawArtwork === 'string' && rawArtwork.trim().length > 0 ? rawArtwork.trim() : undefined;
 
     player.setActiveForLockScreen(
       true,
@@ -169,7 +204,7 @@ export class ExpoAudioBackend implements AudioBackend {
             title: track.title,
             artist: track.artist,
             albumTitle: track.album ? `${track.album} • Coda` : 'Coda Lossless',
-            artworkUrl: track.coverUrl ?? track.artwork,
+            artworkUrl,
           }
         : undefined,
       {

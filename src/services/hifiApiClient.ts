@@ -100,9 +100,14 @@ class HifiApiClient {
 
         if (!response.ok) {
           const err = await this.toApiError(response);
-          // Only retry 5xx on idempotent GETs
-          if (isIdempotentGet && attempts < maxAttempts && response.status >= 500) {
-            await new Promise((r) => setTimeout(r, attempts * 500));
+          // Retry 5xx and 429 (Rate Limits) on idempotent GETs
+          if (isIdempotentGet && attempts < maxAttempts && (response.status >= 500 || response.status === 429)) {
+            const retryAfterHeader = response.headers.get('Retry-After');
+            const retryAfterSec = retryAfterHeader ? parseInt(retryAfterHeader, 10) : NaN;
+            const delayMs = !isNaN(retryAfterSec) && retryAfterSec > 0
+              ? Math.min(retryAfterSec * 1000, 10000)
+              : attempts * 1000;
+            await new Promise((r) => setTimeout(r, delayMs));
             continue;
           }
           throw err;

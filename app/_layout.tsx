@@ -22,6 +22,7 @@ import { useSettingsStore } from '../src/store/settingsStore';
 import { useDownloadStore } from '../src/downloads/downloadStore';
 import { autoQueueService } from '../src/services/autoQueueService';
 import { requestAndroidNotificationPermission } from '../src/utils/androidPermissions';
+import { ToastContainer } from '../src/components/ui/ToastContainer';
 
 SplashScreen.preventAutoHideAsync();
 export default function RootLayout() {
@@ -108,6 +109,7 @@ export default function RootLayout() {
                 <Stack.Screen name="lyrics" options={{ presentation: 'card', headerShown: false }} />
         <Stack.Screen name="downloads" options={{ presentation: 'card', headerShown: false }} />
       </Stack>
+      <ToastContainer />
     </>
   );
 }

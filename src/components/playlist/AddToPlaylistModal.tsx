@@ -4,6 +4,7 @@ import { colors, r, sp, t } from '../../theme/theme';
 import Icon from '../ui/Icon';
 import { useLibraryStore } from '../../store/libraryStore';
 import { Track } from '../../providers/types';
+import { showToast } from '../../store/toastStore';
 
 interface AddToPlaylistModalProps {
   visible: boolean;
@@ -29,16 +30,16 @@ export const AddToPlaylistModal: React.FC<AddToPlaylistModalProps> = ({
   const handleAddToPlaylist = async (playlistId: string) => {
     try {
       await addTrackToPlaylist(playlistId, track);
-      Alert.alert('Success', `Added "${track.title}" to playlist`);
+      showToast(`Added "${track.title}" to playlist`, 'success');
       onClose();
     } catch {
-      Alert.alert('Error', 'Failed to add track to playlist');
+      showToast('Failed to add track to playlist', 'error');
     }
   };
 
   const handleCreateAndAdd = async () => {
     if (!newPlaylistName.trim()) {
-      Alert.alert('Error', 'Please enter a playlist name');
+      showToast('Please enter a playlist name', 'warning');
       return;
     }
 
@@ -46,13 +47,13 @@ export const AddToPlaylistModal: React.FC<AddToPlaylistModalProps> = ({
       setIsCreating(true);
       const newPlaylist = await createPlaylist(newPlaylistName.trim());
       await addTrackToPlaylist(newPlaylist.id, track);
-      Alert.alert('Success', `Created playlist and added "${track.title}"`);
+      showToast(`Created playlist and added "${track.title}"`, 'success');
       setNewPlaylistName('');
       setIsCreating(false);
       onClose();
     } catch {
       setIsCreating(false);
-      Alert.alert('Error', 'Failed to create playlist');
+      showToast('Failed to create playlist', 'error');
     }
   };
 

@@ -27,6 +27,7 @@ import { useListeningStore } from '../../src/store/listeningStore';
 import { audioService } from '../../src/audio/AudioService';
 import { useQueueStore, cacheTracks } from '../../src/store/queueStore';
 import { Track } from '../../src/providers/types';
+import { searchCatalog } from '../../src/services/catalogService';
 import { subscribeToConnectivity } from '../../src/services/connectivity';
 import { useResponsive } from '../../src/hooks/useResponsive';
 import { colors, r, t } from '../../src/theme/theme';
@@ -54,8 +55,26 @@ export default function HomeScreen() {
   const [optionsTrack, setOptionsTrack] = useState<Track | null>(null);
   const [offline, setOffline] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [trendingTracks, setTrendingTracks] = useState<Track[]>([]);
 
   useEffect(() => subscribeToConnectivity((isConnected) => setOffline(!isConnected)), []);
+
+  useEffect(() => {
+    let active = true;
+    if (offline) return;
+    void (async () => {
+      try {
+        const res = await searchCatalog('Top Hits', 15);
+        if (active && res.tracks && res.tracks.length > 0) {
+          setTrendingTracks(res.tracks);
+          cacheTracks(res.tracks);
+        }
+      } catch {}
+    })();
+    return () => {
+      active = false;
+    };
+  }, [offline]);
 
   const heroTrack = currentTrack || recentlyPlayed[0] || favorites[0] || null;
   const heroProgress = durationMs > 0 ? Math.min(1, positionMs / durationMs) : 0.35;
@@ -103,6 +122,17 @@ export default function HomeScreen() {
     await Promise.all([
       useLibraryStore.getState().loadFavorites(),
       useLibraryStore.getState().loadRecentlyPlayed(),
+      (async () => {
+        if (!offline) {
+          try {
+            const res = await searchCatalog('Top Hits', 15);
+            if (res.tracks && res.tracks.length > 0) {
+              setTrendingTracks(res.tracks);
+              cacheTracks(res.tracks);
+            }
+          } catch {}
+        }
+      })(),
     ]);
     setRefreshing(false);
   };
@@ -247,6 +277,57 @@ export default function HomeScreen() {
                     key={track.id}
                     style={({ pressed }) => [s.albumCard, pressed && s.pressed]}
                     onPress={() => void playList(heavyRotation, index, 'Heavy Rotation')}
+                    onLongPress={() => setOptionsTrack(track)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${track.title} by ${track.artist}`}
+                  >
+                    <View style={s.albumArtWrap}>
+                      <CoverThumb
+                        uri={track.coverUrl}
+                        size={144}
+                        borderRadius={12}
+                        glow={isThisPlaying}
+                      />
+                      {isThisPlaying && (
+                        <View style={s.cardMeterBadge}>
+                          <LevelMeter isPlaying={true} height={12} barWidth={3} gap={2} />
+                        </View>
+                      )}
+                    </View>
+                    <Text numberOfLines={1} style={s.cardTitle}>
+                      {track.title}
+                    </Text>
+                    <Text numberOfLines={1} style={s.cardArtist}>
+                      {track.artist}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Top Hits / Trending Carousel */}
+        {trendingTracks.length > 0 && !offline && (
+          <View style={s.section}>
+            <SectionHeader
+              title="Top Hits & Trending"
+              eyebrow="GLOBAL DISCOVERY"
+              actionLabel="PLAY ALL"
+              onAction={() => void playList(trendingTracks, 0, 'Top Hits & Trending')}
+            />
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={s.cardCarousel}
+            >
+              {trendingTracks.map((track, index) => {
+                const isThisPlaying = isPlaying && currentTrack?.id === track.id;
+                return (
+                  <Pressable
+                    key={`trending-${track.id}`}
+                    style={({ pressed }) => [s.albumCard, pressed && s.pressed]}
+                    onPress={() => void playList(trendingTracks, index, 'Top Hits & Trending')}
                     onLongPress={() => setOptionsTrack(track)}
                     accessibilityRole="button"
                     accessibilityLabel={`${track.title} by ${track.artist}`}
