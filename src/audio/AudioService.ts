@@ -1,4 +1,6 @@
-import { ExpoAudioBackend } from './ExpoAudioBackend';
+import { PlaybackEngine } from '../native/PlaybackEngine';
+import { GaplessPlaybackController } from '../native/GaplessController';
+import { NativeDownloadManager } from '../native/NativeDownloadManager';
 import { usePlaybackStore } from '../store/playbackStore';
 import { useQueueStore, getCachedTrack } from '../store/queueStore';
 import { useSettingsStore } from '../store/settingsStore';
@@ -21,7 +23,9 @@ const MAX_CONSECUTIVE_SKIPS = 3;
  * touches audio.
  */
 class AudioService {
-  private backend = new ExpoAudioBackend();
+  private backend = PlaybackEngine;
+  private gapless = new GaplessPlaybackController();
+  private downloadManager = new NativeDownloadManager();
   private initialized = false;
   private sleepTimer: ReturnType<typeof setTimeout> | null = null;
   private preloadToken = 0;

@@ -1,0 +1,7 @@
+{
+  "name": "nitro-player",
+  "version": "1.0.0",
+  "description": "Native playback engine bindings",
+  "main": "index.ts",
+  "types": "index.ts"
+}
