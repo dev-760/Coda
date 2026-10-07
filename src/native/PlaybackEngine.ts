@@ -1,6 +1,8 @@
 import { NitroModules } from 'react-native-nitro-modules';
 
-export interface PlaybackEngine {
+export interface PlaybackEngineSpec {
+  name: string;
+  equals(other: PlaybackEngineSpec): boolean;
   init(): Promise<void>;
   play(streamUrl: string, trackId: string): Promise<void>;
   pause(): Promise<void>;
@@ -12,6 +14,17 @@ export interface PlaybackEngine {
   stop(): Promise<void>;
   preload(streamUrl: string): Promise<void>;
   dispose(): Promise<void>;
+  setPlaybackRate(rate: number): Promise<void>;
+  hasLoadedTrack(): boolean;
+  readonly events: {
+    onProgress: ((positionMs: number, durationMs: number) => void) | null;
+    onTrackEnded: (() => void) | null;
+    onPauseRequested: ((reason: string) => void) | null;
+    onPlayingChanged: ((isPlaying: boolean) => void) | null;
+    onError: ((message: string) => void) | null;
+    onNext?: (() => void) | null;
+    onPrevious?: (() => void) | null;
+  };
 }
 
-export const PlaybackEngine = NitroModules.createHybridObject<PlaybackEngine>('PlaybackEngine');
+export const PlaybackEngine = NitroModules.createHybridObject<PlaybackEngineSpec>('PlaybackEngine');

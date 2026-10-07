@@ -1,6 +1,8 @@
 import { MMKV } from 'react-native-mmkv';
 
-export const storage = new MMKV({ id: 'coda-native-storage' });
+// MMKV is a native module; use runtime import to avoid type-only errors
+const MMKVModule = require('react-native-mmkv').MMKV || require('react-native-mmkv');
+export const storage = new MMKVModule({ id: 'coda-native-storage' });
 
 export const QueueStorage = {
   saveQueue(key: string, data: string): void {

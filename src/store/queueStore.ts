@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { QueueStorage } from '../native/MMKVStorage';
 import { Track } from '../providers/types';
 import { useLibraryStore } from './libraryStore';
 import { useDownloadStore } from '../downloads/downloadStore';
@@ -421,7 +421,11 @@ export const useQueueStore = create<QueueState>()(
     {
       name: 'coda-queue-storage',
       version: 3,
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => ({
+        getItem: (name: string) => QueueStorage.loadQueue(name) ?? null,
+        setItem: (name: string, value: string) => QueueStorage.saveQueue(name, value),
+        removeItem: (name: string) => QueueStorage.clearQueue(name),
+      })),
       partialize: (state) => ({
         entries: state.entries,
         currentIndex: state.currentIndex,

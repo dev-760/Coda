@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 import { Directory, File, Paths } from 'expo-file-system';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { storage, QueueStorage } from '../native/MMKVStorage';
 import { STORAGE_KEYS } from '../storage/StorageKeys';
 import { DownloadMetadata, DownloadStatus } from './downloadTypes';
 
@@ -51,12 +51,12 @@ class DownloadStorage {
   }
 
   async getAllDownloads(): Promise<DownloadMetadata[]> {
-    let data = await AsyncStorage.getItem(INDEX_KEY);
+    let data = QueueStorage.loadQueue(INDEX_KEY);
     if (!data) {
       try {
-        const legacyData = await AsyncStorage.getItem('luma:download_metadata');
+        const legacyData = QueueStorage.loadQueue('luma:download_metadata');
         if (legacyData) {
-          await AsyncStorage.setItem(INDEX_KEY, legacyData);
+          QueueStorage.saveQueue(INDEX_KEY, legacyData);
           data = legacyData;
         }
       } catch {
@@ -74,7 +74,7 @@ class DownloadStorage {
   }
 
   private async writeAll(downloads: DownloadMetadata[]): Promise<void> {
-    await AsyncStorage.setItem(INDEX_KEY, JSON.stringify(downloads));
+    QueueStorage.saveQueue(INDEX_KEY, JSON.stringify(downloads));
   }
 
   async getDownloadByTrackId(trackId: string): Promise<DownloadMetadata | null> {

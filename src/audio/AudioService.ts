@@ -104,7 +104,8 @@ class AudioService {
       const stream = await this.resolveStream(track);
       store.setCurrentTrack(track);
       store.setStreamInfo(stream);
-      await this.backend.play(stream, track);
+      await this.gapless.enableGapless();
+      await this.gapless.playWithGapless(stream.url, track.id);
       store.setPlaying(true);
       this.consecutiveSkips = 0;
       this.startSleepTimer();
@@ -181,7 +182,7 @@ class AudioService {
         const stream = await this.resolveStream(next);
         // The playhead may have moved while the stream URL was resolving.
         if (token !== this.preloadToken) return;
-        await this.backend.preload(stream);
+        await this.backend.preload(stream.url);
       } catch (error) {
         logger.warn('AudioService', 'Could not preload next track', error);
       }
