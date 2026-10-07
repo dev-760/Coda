@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -45,6 +45,105 @@ function cleanErrorMessage(msg?: string): string {
   return msg.length > 32 ? `${msg.slice(0, 32)}…` : msg;
 }
 
+const DownloadRow = memo(({ 
+  item, 
+  onPress, 
+  onCancel, 
+  onRetry, 
+  onDelete 
+}: { 
+  item: DownloadMetadata
+  onPress: (item: DownloadMetadata) => void
+  onCancel: (trackId: string) => void
+  onRetry: (trackId: string) => void
+  onDelete: (item: DownloadMetadata) => void
+}) => {
+  const track = item.track;
+  const inProgress = item.status === 'downloading' || item.status === 'pending' || item.status === 'paused';
+
+  return (
+    <View style={s.row}>
+      <Pressable
+        style={s.rowMain}
+        onPress={() => onPress(item)}
+        disabled={item.status !== 'completed'}
+        accessibilityRole="button"
+        accessibilityLabel={`${track.title} by ${track.artist}`}
+      >
+        <CoverThumb uri={track.coverUrl} size={48} borderRadius={6} />
+
+        <View style={s.meta}>
+          <Text numberOfLines={1} style={s.title}>{track.title}</Text>
+          <Text numberOfLines={1} style={s.artist}>{track.artist}</Text>
+
+          {inProgress ? (
+            <View style={s.progressBlock}>
+              <View style={s.progressTrack}>
+                <View style={[s.progressFill, { width: `${item.progress}%` }]} />
+              </View>
+              <Text style={s.statusText} numberOfLines={2}>
+                {item.status === 'paused'
+                  ? (item.errorMessage || 'Paused')
+                  : item.status === 'pending'
+                    ? 'Waiting to start'
+                    : `Downloading · ${item.progress}%`}
+              </Text>
+            </View>
+          ) : item.status === 'completed' ? (
+            <View style={s.completedRow}>
+              <View style={s.completedDot} />
+              <Text style={s.completedText}>
+                {formatBytes(item.downloadedBytes)} · {item.quality}
+              </Text>
+            </View>
+          ) : (
+            <View style={s.errorBadge}>
+              <Icon name="alert-circle" size={13} color={colors.error} />
+              <Text numberOfLines={1} style={s.errorText}>
+                {cleanErrorMessage(item.errorMessage)}
+              </Text>
+            </View>
+          )}
+        </View>
+      </Pressable>
+
+      {item.status === 'downloading' || item.status === 'pending' ? (
+        <Pressable
+          style={({ pressed }) => [s.action, pressed && s.actionPressed]}
+          onPress={() => onCancel(item.trackId)}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel={`Cancel download of ${track.title}`}
+        >
+          <Icon name="close" size={20} color={colors.onSurfaceVariant} />
+        </Pressable>
+      ) : item.status === 'failed' || item.status === 'paused' ? (
+        <Pressable
+          style={({ pressed }) => [s.action, pressed && s.actionPressed]}
+          onPress={() => onRetry(item.trackId)}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel={`Retry download of ${track.title}`}
+        >
+          <Icon name="refresh" size={20} color={colors.primary} />
+        </Pressable>
+      ) : null}
+
+      <Pressable
+        style={({ pressed }) => [s.action, pressed && s.actionPressed]}
+        onPress={() => onDelete(item)}
+        hitSlop={12}
+        accessibilityRole="button"
+        accessibilityLabel={`Delete ${track.title}`}
+      >
+        <Icon name="trash-outline" size={20} color={colors.onSurfaceVariant} />
+      </Pressable>
+    </View>
+  );
+});
+
+DownloadRow.displayName = 'DownloadRow';
+
 export default function DownloadsScreen() {
   const router = useRouter();
   const downloads = useDownloadStore((state) => state.downloads);
@@ -79,18 +178,43 @@ export default function DownloadsScreen() {
     [downloads],
   );
 
-  const playAll = async () => {
+  const playAll = useCallback(async () => {
     const ready = downloads.filter((d) => d.status === 'completed' && d.filePath);
-      if (ready.length === 0) return;
-      const tracks = ready.map((d) => d.track);
-      useQueueStore.getState().playContext(tracks, 0, {
+    if (ready.length === 0) return;
+    const tracks = ready.map((d) => d.track);
+    useQueueStore.getState().playContext(tracks, 0, {
+      type: 'collection',
+      name: 'Downloads',
+    });
+    await audioService.playTrack(tracks[0]);
+  }, [downloads]);
+
+  const handlePress = useCallback((item: DownloadMetadata) => {
+    if (item.status === 'completed') {
+      const ready = downloads
+        .filter((d) => d.status === 'completed' && d.filePath)
+        .map((d) => d.track);
+      const index = Math.max(
+        0,
+        ready.findIndex((t) => t.id === item.track.id),
+      );
+      useQueueStore.getState().playContext(ready, index, {
         type: 'collection',
         name: 'Downloads',
       });
-      await audioService.playTrack(tracks[0]);
-    };
+      void audioService.playTrack(item.track);
+    }
+  }, [downloads]);
 
-  const confirmDelete = (item: DownloadMetadata) => {
+  const handleCancel = useCallback((trackId: string) => {
+    void cancelDownload(trackId);
+  }, [cancelDownload]);
+
+  const handleRetry = useCallback((trackId: string) => {
+    void retryDownload(trackId);
+  }, [retryDownload]);
+
+  const confirmDelete = useCallback((item: DownloadMetadata) => {
     Alert.alert(
       `Delete ${item.track.title}?`,
       'This removes the downloaded file from this device. You can download it again later.',
@@ -99,107 +223,17 @@ export default function DownloadsScreen() {
         { text: 'Delete', style: 'destructive', onPress: () => void deleteDownload(item.trackId) },
       ],
     );
-  };
+  }, [deleteDownload]);
 
-  const renderItem = ({ item }: { item: DownloadMetadata }) => {
-    const track = item.track;
-    const inProgress = item.status === 'downloading' || item.status === 'pending' || item.status === 'paused';
-
-    return (
-      <View style={s.row}>
-        <Pressable
-          style={s.rowMain}
-          onPress={() => {
-                      if (item.status === 'completed') {
-                        const ready = downloads
-                          .filter((d) => d.status === 'completed' && d.filePath)
-                          .map((d) => d.track);
-                        const index = Math.max(
-                          0,
-                          ready.findIndex((t) => t.id === track.id),
-                        );
-                        useQueueStore.getState().playContext(ready, index, {
-                          type: 'collection',
-                          name: 'Downloads',
-                        });
-                        void audioService.playTrack(track);
-                      }
-                    }}
-          disabled={item.status !== 'completed'}
-          accessibilityRole="button"
-          accessibilityLabel={`${track.title} by ${track.artist}`}
-        >
-          <CoverThumb uri={track.coverUrl} size={48} borderRadius={6} />
-
-          <View style={s.meta}>
-            <Text numberOfLines={1} style={s.title}>{track.title}</Text>
-            <Text numberOfLines={1} style={s.artist}>{track.artist}</Text>
-
-            {inProgress ? (
-              <View style={s.progressBlock}>
-                <View style={s.progressTrack}>
-                  <View style={[s.progressFill, { width: `${item.progress}%` }]} />
-                </View>
-                <Text style={s.statusText} numberOfLines={2}>
-                  {item.status === 'paused'
-                    ? (item.errorMessage || 'Paused')
-                    : item.status === 'pending'
-                      ? 'Waiting to start'
-                      : `Downloading · ${item.progress}%`}
-                </Text>
-              </View>
-            ) : item.status === 'completed' ? (
-              <View style={s.completedRow}>
-                <View style={s.completedDot} />
-                <Text style={s.completedText}>
-                  {formatBytes(item.downloadedBytes)} · {item.quality}
-                </Text>
-              </View>
-            ) : (
-              <View style={s.errorBadge}>
-                <Icon name="alert-circle" size={13} color={colors.error} />
-                <Text numberOfLines={1} style={s.errorText}>
-                  {cleanErrorMessage(item.errorMessage)}
-                </Text>
-              </View>
-            )}
-          </View>
-        </Pressable>
-
-        {item.status === 'downloading' || item.status === 'pending' ? (
-          <Pressable
-            style={({ pressed }) => [s.action, pressed && s.actionPressed]}
-            onPress={() => void cancelDownload(item.trackId)}
-            hitSlop={12}
-            accessibilityRole="button"
-            accessibilityLabel={`Cancel download of ${track.title}`}
-          >
-            <Icon name="close" size={20} color={colors.onSurfaceVariant} />
-          </Pressable>
-        ) : item.status === 'failed' || item.status === 'paused' ? (
-          <Pressable
-            style={({ pressed }) => [s.action, pressed && s.actionPressed]}
-            onPress={() => void retryDownload(item.trackId)}
-            hitSlop={12}
-            accessibilityRole="button"
-            accessibilityLabel={`Retry download of ${track.title}`}
-          >
-            <Icon name="refresh" size={20} color={colors.primary} />
-          </Pressable>
-        ) : null}
-
-        <Pressable
-          style={({ pressed }) => [s.action, pressed && s.actionPressed]}
-          onPress={() => confirmDelete(item)}
-          hitSlop={12}
-          accessibilityRole="button"
-          accessibilityLabel={`Delete ${track.title}`}
-        >
-          <Icon name="trash-outline" size={20} color={colors.onSurfaceVariant} />
-        </Pressable>
-      </View>
-    );
-  };
+  const renderItem = useCallback(({ item }: { item: DownloadMetadata }) => (
+    <DownloadRow
+      item={item}
+      onPress={handlePress}
+      onCancel={handleCancel}
+      onRetry={handleRetry}
+      onDelete={confirmDelete}
+    />
+  ), [handlePress, handleCancel, handleRetry, confirmDelete]);
 
   return (
     <SafeAreaView style={s.container} edges={['top']}>
@@ -289,6 +323,10 @@ export default function DownloadsScreen() {
         renderItem={renderItem}
         contentContainerStyle={s.listContent}
         showsVerticalScrollIndicator={false}
+        removeClippedSubviews
+        maxToRenderPerBatch={10}
+        windowSize={5}
+        initialNumToRender={10}
         ListEmptyComponent={
           <View style={s.emptyState}>
             <Text style={s.emptyTitle}>

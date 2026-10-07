@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, Modal, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert } from 'react-native';
+import { View, Text, Modal, StyleSheet, TouchableOpacity, TextInput, ScrollView } from 'react-native';
 import { colors, r, sp, t } from '../../theme/theme';
 import Icon from '../ui/Icon';
 import { useLibraryStore } from '../../store/libraryStore';

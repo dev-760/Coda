@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 import { Directory, File, Paths } from 'expo-file-system';
-import { storage, QueueStorage } from '../native/MMKVStorage';
+import { QueueStorage } from '../native/MMKVStorage';
 import { STORAGE_KEYS } from '../storage/StorageKeys';
 import { DownloadMetadata, DownloadStatus } from './downloadTypes';
 

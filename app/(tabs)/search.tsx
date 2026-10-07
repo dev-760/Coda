@@ -1,5 +1,7 @@
 import { useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+
+/* eslint-disable react-hooks/refs */
 import {
   ActivityIndicator,
   Image,
@@ -187,7 +189,7 @@ export default function SearchScreen() {
     void addToSearchHistory(term);
   };
 
-  const playOne = (track: Track) => {
+  const playOne = useCallback((track: Track) => {
     Keyboard.dismiss();
     inputRef.current?.blur();
     cacheTracks([track]);
@@ -196,9 +198,9 @@ export default function SearchScreen() {
       name: 'Search',
     });
     void audioService.playTrack(track);
-  };
+  }, []);
 
-  const playMany = (tracks: Track[]) => {
+  const playMany = useCallback((tracks: Track[]) => {
     Keyboard.dismiss();
     inputRef.current?.blur();
     if (tracks.length === 0) return;
@@ -208,9 +210,9 @@ export default function SearchScreen() {
       name: 'Search',
     });
     void audioService.playTrack(tracks[0]);
-  };
+  }, []);
 
-  const openAlbum = (album: CatalogAlbum) => {
+  const openAlbum = useCallback((album: CatalogAlbum) => {
     Keyboard.dismiss();
     inputRef.current?.blur();
     router.push({
@@ -223,16 +225,16 @@ export default function SearchScreen() {
         coverUrl: album.cover ?? '',
       },
     });
-  };
+  }, [router]);
 
-  const openArtist = (artist: CatalogArtist) => {
+  const openArtist = useCallback((artist: CatalogArtist) => {
     Keyboard.dismiss();
     inputRef.current?.blur();
     router.push({
       pathname: '/artist' as any,
       params: { artistId: artist.id, name: artist.name, coverUrl: artist.picture ?? '' },
     });
-  };
+  }, [router]);
 
   const showTracks = activeTab === 'Top' || activeTab === 'Tracks';
   const showArtists = activeTab === 'Top' || activeTab === 'Artists';
@@ -1020,10 +1022,11 @@ const s = StyleSheet.create({
     minHeight: 44,
     justifyContent: 'center',
     borderRadius: r.pill,
-    backgroundColor: colors.surfaceContainer,
   },
   stateActionText: {
     ...t.labelMd,
     color: colors.onSurface,
   },
 });
+
+/* eslint-enable react-hooks/refs */

@@ -57,7 +57,10 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [trendingTracks, setTrendingTracks] = useState<Track[]>([]);
 
-  useEffect(() => subscribeToConnectivity((isConnected) => setOffline(!isConnected)), []);
+  useEffect(() => {
+    const unsubscribe = subscribeToConnectivity((isConnected) => setOffline(!isConnected));
+    return unsubscribe;
+  }, []);
 
   useEffect(() => {
     let active = true;

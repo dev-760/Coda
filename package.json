@@ -16,7 +16,9 @@
     "preset": "jest-expo",
     "moduleNameMapper": {
       "^expo-modules-core$": "<rootDir>/node_modules/expo/node_modules/expo-modules-core",
-      "^expo-modules-core/(.*)$": "<rootDir>/node_modules/expo/node_modules/expo-modules-core/$1"
+      "^expo-modules-core/(.*)$": "<rootDir>/node_modules/expo/node_modules/expo-modules-core/$1",
+      "^react-native-mmkv$": "<rootDir>/__mocks__/react-native-mmkv",
+      "^react-native-nitro-modules$": "<rootDir>/__mocks__/react-native-nitro-modules"
     }
   },
   "dependencies": {
@@ -28,7 +30,8 @@
     "@expo/vector-icons": "^15.0.2",
     "@react-native-async-storage/async-storage": "^2.2.0",
     "buffer": "^6.0.3",
-    "expo": "~57.0.0",
+    "expo": "~57.0.27",
+    "expo-asset": "~57.0.19",
     "expo-audio": "~57.0.5",
     "expo-build-properties": "~57.0.17",
     "expo-constants": "~57.0.18",
@@ -47,10 +50,10 @@
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-native": "0.86.3",
+    "react-native-gesture-handler": "~2.32.0",
     "react-native-mmkv": "^4.3.1",
     "react-native-nitro-modules": "^0.35.6",
     "react-native-nitro-player": "^1.1.0",
-    "react-native-gesture-handler": "~2.32.0",
     "react-native-reanimated": "4.5.5",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",

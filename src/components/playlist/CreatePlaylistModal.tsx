@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, Modal, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert } from 'react-native';
+import { Platform, View, Text, Modal, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert, KeyboardAvoidingView } from 'react-native';
 import { colors, r, sp, t } from '../../theme/theme';
 import Icon from '../ui/Icon';
 
@@ -105,17 +105,21 @@ export const CreatePlaylistModal: React.FC<CreatePlaylistModalProps> = ({
       onRequestClose={onClose}
     >
       <View style={s.overlay}>
-        <View style={s.container}>
-          <View style={s.header}>
-            <Text style={[t.titleLg, { color: colors.onSurface }]}>
-              {initialPlaylist ? 'Edit Playlist' : 'Create Playlist'}
-            </Text>
-            <TouchableOpacity onPress={onClose} style={s.closeButton}>
-              <Icon name="close" size={24} color={colors.onSurface} />
-            </TouchableOpacity>
-          </View>
+        <KeyboardAvoidingView
+          style={s.keyboardContainer}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <View style={s.container}>
+            <View style={s.header}>
+              <Text style={[t.titleLg, { color: colors.onSurface }]}>
+                {initialPlaylist ? 'Edit Playlist' : 'Create Playlist'}
+              </Text>
+              <TouchableOpacity onPress={onClose} style={s.closeButton}>
+                <Icon name="close" size={24} color={colors.onSurface} />
+              </TouchableOpacity>
+            </View>
 
-          <ScrollView contentContainerStyle={s.content}>
+            <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
             {/* Name Input */}
             <View style={s.inputGroup}>
               <Text style={[t.labelMd, { color: colors.onSurface, marginBottom: sp.xs }]}>
@@ -232,6 +236,7 @@ export const CreatePlaylistModal: React.FC<CreatePlaylistModalProps> = ({
             </TouchableOpacity>
           </View>
         </View>
+      </KeyboardAvoidingView>
       </View>
     </Modal>
   );
@@ -242,6 +247,9 @@ const s = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
+  },
+  keyboardContainer: {
+    flex: 1,
   },
   container: {
     backgroundColor: colors.surface,

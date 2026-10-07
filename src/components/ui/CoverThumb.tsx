@@ -1,7 +1,9 @@
 import { memo, useMemo } from 'react';
-import { Image, StyleSheet, ImageStyle, StyleProp } from 'react-native';
+import { StyleSheet, ImageStyle, StyleProp, Platform } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 import { withCoverSize } from '../../providers/mappers';
 import { GenerativeArt, GenerativePattern } from './GenerativeArt';
+import { colors } from '../../theme/theme';
 
 interface CoverThumbProps {
   uri?: string | null;
@@ -60,7 +62,7 @@ function CoverThumbComponent({
   }
 
   return (
-    <Image
+    <ExpoImage
       source={source}
       style={[
         { width: size, height: size, borderRadius },
@@ -68,16 +70,25 @@ function CoverThumbComponent({
         style,
       ]}
       accessibilityIgnoresInvertColors
+      cachePolicy="memory-disk"
+      transition={Platform.OS === 'ios' ? 200 : 100}
     />
   );
 }
 
 const styles = StyleSheet.create({
   glow: {
-    shadowColor: '#B8B8C0',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.45,
-    shadowRadius: 16,
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.silver,
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.45,
+        shadowRadius: 16,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
   },
 });
 
